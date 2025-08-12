@@ -1,272 +1,335 @@
-# HRMS API Collection
+# DCC Ticketing System API
 
-A comprehensive Postman collection for the HR Management System (HRMS) API.
+A comprehensive Data Center/Customer Care ticketing system built with Node.js, Express, TypeScript, and Prisma ORM.
 
-## 📋 Collection Overview
+## 🎯 Overview
 
-This collection includes all endpoints for:
+The DCC Ticketing System is designed to manage customer support tickets, user management, agent assignments, and ticket lifecycle operations. It provides a robust API for handling support operations in data centers and customer care environments.
 
-- 🔐 **Authentication** (Register/Login)
-- 🤖 **AI-Powered Employee Creation** (Natural language processing)
-- 👥 **Employee Management** (CRUD operations)
-- 👤 **User Management** (CRUD operations)
-- 📊 **Statistics & Reports** (Dashboard data)
-- 🔍 **Health Checks** (Server status)
+## ✨ Key Features
+
+- 🎫 **Ticket Management** - Create, update, assign, and track support tickets
+- 👥 **User Management** - Manage customers, agents, and administrators
+- 🔐 **Authentication & Authorization** - JWT-based auth with role-based access control
+- 📎 **File Attachments** - Support for ticket attachments
+- 🔄 **Ticket Allocation** - Intelligent ticket assignment to agents
+- 📊 **Analytics & Reporting** - Ticket statistics and performance metrics
+- 🔍 **Advanced Search & Filtering** - Find tickets by status, priority, category, etc.
+- 📱 **RESTful API** - Clean, well-documented REST endpoints
+
+## 🛠️ Tech Stack
+
+- **Runtime**: Node.js
+- **Framework**: Express.js
+- **Language**: TypeScript
+- **Database**: SQL Server with Prisma ORM
+- **Authentication**: JWT (JSON Web Tokens)
+- **Password Hashing**: bcryptjs
+- **Logging**: Custom logger implementation
+- **Validation**: Built-in request validation
+
+## 📋 Prerequisites
+
+- Node.js (v16 or higher)
+- npm or yarn
+- SQL Server database
+- Git
 
 ## 🚀 Quick Start
 
-### 1. Import the Collection
-
-1. Open **Postman**
-2. Click **Import** button
-3. Select the `HRMS_API_Collection.json` file
-4. The collection will be imported with all endpoints
-
-### 2. Set Up Environment Variables
-
-Create a new environment in Postman with these variables:
-
-| Variable      | Value                   | Description                     |
-| ------------- | ----------------------- | ------------------------------- |
-| `base_url`    | `http://localhost:4000` | Your server URL                 |
-| `api_version` | `v1`                    | API version                     |
-| `auth_token`  | (leave empty)           | Will be auto-filled after login |
-
-### 3. Start Your Server
+### 1. Clone the Repository
 
 ```bash
+git clone <repository-url>
+cd dcc-ticketing-system
+```
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Environment Setup
+
+Create a `.env` file in the root directory:
+
+```env
+# Database
+DATABASE_URL="sqlserver://localhost:1433;database=DCC_Ticketing;user=sa;password=yourpassword;encrypt=true;trustServerCertificate=true"
+
+# JWT Secret
+JWT_SECRET="your-super-secret-jwt-key"
+
+# Server Configuration
+PORT=4000
+NODE_ENV=development
+
+# Logging
+LOG_LEVEL=info
+```
+
+### 4. Database Setup
+
+```bash
+# Generate Prisma Client
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate dev
+
+# (Optional) Seed the database
+npx prisma db seed
+```
+
+### 5. Start the Server
+
+```bash
+# Development mode
+npm run dev
+
+# Production mode
 npm start
 ```
 
-Your server should be running at `http://localhost:4000`
-
-## 🔐 Authentication Flow
-
-### Step 1: Register a User
-
-1. Go to **🔐 Authentication** folder
-2. Run **"Register User"** request
-3. This creates a new user account
-
-### Step 2: Login
-
-1. Run **"Login User"** request
-2. The auth token will be automatically saved
-3. All subsequent requests will use this token
-
-## 🤖 AI Employee Creation
-
-### Natural Language Employee Creation
-
-Use the **"Create Employee via AI"** request to create employees using natural language:
-
-**Example Prompt:**
-
-```json
-{
-  "prompt": "Please create new records for three new hires. First, John Doe, a Software Engineer in the Engineering department starting on 2025-01-15, his email is john.doe@company.com. Second, Jane Smith, a Product Manager in the Product department starting on 2025-01-20, her email is jane.smith@company.com."
-}
-```
-
-**Features:**
-
-- ✅ Automatic email validation
-- ✅ Smart department mapping
-- ✅ Date formatting
-- ✅ Duplicate detection
-- ✅ Multiple employees in one request
-
-## 👥 Employee Management
-
-### Available Endpoints:
-
-| Method   | Endpoint                                                                             | Description                         |
-| -------- | ------------------------------------------------------------------------------------ | ----------------------------------- |
-| `GET`    | `/api/v1/employees`                                                                  | Get all employees (with pagination) |
-| `GET`    | `/api/v1/employees?page=1&limit=10&department=Engineering&status=active&search=john` | Get employees with filters          |
-| `GET`    | `/api/v1/employees/1`                                                                | Get employee by ID                  |
-| `PUT`    | `/api/v1/employees/1`                                                                | Update employee                     |
-| `DELETE` | `/api/v1/employees/1`                                                                | Delete employee                     |
-
-### Query Parameters for Employee List:
-
-| Parameter    | Type   | Description                            |
-| ------------ | ------ | -------------------------------------- |
-| `page`       | number | Page number (default: 1)               |
-| `limit`      | number | Items per page (default: 10, max: 100) |
-| `department` | string | Filter by department                   |
-| `status`     | string | Filter by status (`active`/`inactive`) |
-| `search`     | string | Search in name, email, job title       |
-
-## 👤 User Management
-
-### Available Endpoints:
-
-| Method   | Endpoint                                    | Description                     |
-| -------- | ------------------------------------------- | ------------------------------- |
-| `GET`    | `/api/v1/users`                             | Get all users (with pagination) |
-| `GET`    | `/api/v1/users?page=1&limit=10&search=john` | Get users with filters          |
-| `GET`    | `/api/v1/users/1`                           | Get user by ID                  |
-| `POST`   | `/api/v1/users`                             | Create new user                 |
-| `PUT`    | `/api/v1/users/1`                           | Update user                     |
-| `DELETE` | `/api/v1/users/1`                           | Delete user                     |
-
-### Query Parameters for User List:
-
-| Parameter | Type   | Description                            |
-| --------- | ------ | -------------------------------------- |
-| `page`    | number | Page number (default: 1)               |
-| `limit`   | number | Items per page (default: 10, max: 100) |
-| `search`  | string | Search in name and email               |
-
-### User Creation/Update Fields:
-
-| Field      | Type   | Required | Description                             |
-| ---------- | ------ | -------- | --------------------------------------- |
-| `name`     | string | Yes      | User's full name                        |
-| `email`    | string | Yes      | User's email address                    |
-| `password` | string | Yes\*    | User's password (required for creation) |
-
-\*Note: Password is required for user creation but optional for updates.
-
-## 📊 Statistics & Reports
-
-### Employee Statistics
-
-- **Endpoint:** `GET /api/v1/employees/stats`
-- **Returns:** Total employees, active/inactive counts, department breakdown
-
-### Department List
-
-- **Endpoint:** `GET /api/v1/departments`
-- **Returns:** All departments with employee counts
-
-### User Statistics
-
-- **Endpoint:** `GET /api/v1/users/stats`
-- **Returns:** Total users, users created this month/year
-
-## 🔍 Health & Status
-
-### Health Check
-
-- **Endpoint:** `GET /health`
-- **Returns:** Server status and timestamp
+The server will start at `http://localhost:4000`
 
 ## 📚 API Documentation
 
-### Swagger UI
+### 🔐 Authentication Endpoints
 
-- **URL:** `http://localhost:4000/docs`
-- **Features:** Interactive API documentation with testing interface
+| Method | Endpoint                    | Description         |
+| ------ | --------------------------- | ------------------- |
+| `POST` | `/api/auth/register`        | Register new user   |
+| `POST` | `/api/auth/login`           | User login          |
+| `GET`  | `/api/auth/profile`         | Get user profile    |
+| `PUT`  | `/api/auth/profile`         | Update user profile |
+| `PUT`  | `/api/auth/change-password` | Change password     |
 
-## 🛠️ Advanced Features
+### 🎫 Ticket Management
 
-### Auto-Authentication
+| Method   | Endpoint                  | Description                    |
+| -------- | ------------------------- | ------------------------------ |
+| `GET`    | `/api/tickets`            | Get all tickets (with filters) |
+| `GET`    | `/api/tickets/:id`        | Get ticket by ID               |
+| `POST`   | `/api/tickets`            | Create new ticket              |
+| `PUT`    | `/api/tickets/:id`        | Update ticket                  |
+| `DELETE` | `/api/tickets/:id`        | Delete ticket                  |
+| `PUT`    | `/api/tickets/:id/assign` | Assign ticket to agent         |
+| `PUT`    | `/api/tickets/:id/status` | Update ticket status           |
+| `GET`    | `/api/tickets/stats`      | Get ticket statistics          |
 
-The collection includes scripts that:
+### 👥 User Management
 
-- ✅ Automatically save auth tokens from login responses
-- ✅ Apply auth tokens to all requests
-- ✅ Log response times and status codes
+| Method   | Endpoint           | Description            |
+| -------- | ------------------ | ---------------------- |
+| `GET`    | `/api/users`       | Get all users          |
+| `GET`    | `/api/users/:id`   | Get user by ID         |
+| `POST`   | `/api/users`       | Create new user        |
+| `PUT`    | `/api/users/:id`   | Update user            |
+| `DELETE` | `/api/users/:id`   | Delete/deactivate user |
+| `GET`    | `/api/users/stats` | Get user statistics    |
+
+### 📎 File Attachments
+
+| Method   | Endpoint                       | Description            |
+| -------- | ------------------------------ | ---------------------- |
+| `POST`   | `/api/tickets/:id/attachments` | Upload attachment      |
+| `GET`    | `/api/tickets/:id/attachments` | Get ticket attachments |
+| `DELETE` | `/api/attachments/:id`         | Delete attachment      |
+
+## 🔍 Query Parameters
+
+### Ticket Filtering
+
+```
+GET /api/tickets?page=1&limit=10&status=Open&priority=High&search=network
+```
+
+| Parameter    | Type   | Description                   |
+| ------------ | ------ | ----------------------------- |
+| `page`       | number | Page number (default: 1)      |
+| `limit`      | number | Items per page (max: 100)     |
+| `search`     | string | Search in subject/description |
+| `status`     | string | Filter by status              |
+| `priority`   | string | Filter by priority            |
+| `category`   | string | Filter by category            |
+| `assignedTo` | number | Filter by assigned user ID    |
+| `createdBy`  | number | Filter by creator user ID     |
+| `dateFrom`   | string | Start date (ISO format)       |
+| `dateTo`     | string | End date (ISO format)         |
+
+## 📊 Data Models
+
+### Ticket Statuses
+
+- `Open` - Newly created ticket
+- `In Progress` - Being worked on
+- `Pending` - Waiting for customer response
+- `Resolved` - Issue fixed
+- `Closed` - Ticket completed
+
+### Ticket Priorities
+
+- `Low` - Non-urgent issues
+- `Medium` - Standard priority
+- `High` - Urgent issues
+- `Critical` - System down/critical issues
+
+### User Roles
+
+- `Admin` - Full system access
+- `Manager` - Department management
+- `Agent` - Handle tickets
+- `Customer` - Create tickets
+
+## 🔒 Security Features
+
+- **JWT Authentication** - Secure token-based authentication
+- **Role-Based Access Control** - Different permissions per role
+- **Password Hashing** - bcryptjs with salt rounds
+- **Input Validation** - Request validation and sanitization
+- **SQL Injection Prevention** - Prisma ORM protection
+- **CORS Configuration** - Cross-origin request handling
+
+## 🏗️ Project Structure
+
+```
+src/
+├── controllers/          # Request handlers
+│   ├── auth.controller.ts
+│   ├── ticket.controller.ts
+│   └── user.controller.ts
+├── middlewares/          # Custom middleware
+│   ├── auth.middleware.ts
+│   └── validation.middleware.ts
+├── routes/              # API routes
+│   ├── auth.routes.ts
+│   ├── ticket.routes.ts
+│   └── user.routes.ts
+├── utils/               # Utility functions
+│   └── prisma.config.ts
+├── config/              # Configuration files
+│   └── logger.ts
+└── types/               # TypeScript type definitions
+```
+
+## 🧪 Testing
+
+```bash
+# Run tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run specific test file
+npm test -- auth.test.ts
+```
+
+## 📈 Performance & Monitoring
+
+- **Database Indexing** - Optimized queries with proper indexes
+- **Pagination** - Efficient data loading
+- **Caching** - Response caching for frequently accessed data
+- **Logging** - Comprehensive request/error logging
+- **Health Checks** - Server status monitoring
+
+## 🔧 Configuration
 
 ### Environment Variables
 
-The collection uses these variables:
+| Variable       | Description                  | Default     |
+| -------------- | ---------------------------- | ----------- |
+| `DATABASE_URL` | SQL Server connection string | Required    |
+| `JWT_SECRET`   | JWT signing secret           | Required    |
+| `PORT`         | Server port                  | 4000        |
+| `NODE_ENV`     | Environment mode             | development |
+| `LOG_LEVEL`    | Logging level                | info        |
 
-- `{{base_url}}` - Your server URL
-- `{{api_version}}` - API version (v1)
-- `{{auth_token}}` - Authentication token
+### Database Configuration
 
-## 📝 Example Requests
+The system uses SQL Server with Prisma ORM. Key tables include:
 
-### Create Employee via AI
+- `Users` - System users (agents, customers, admins)
+- `Tickets` - Support tickets
+- `TicketAllocations` - Ticket assignment history
+- `TicketAttachments` - File attachments
+- `UserSessions` - User session management
+
+## 📋 Example Requests
+
+### Create a New Ticket
 
 ```bash
-curl -X POST http://localhost:4000/api/v1/employees \
+curl -X POST http://localhost:4000/api/tickets \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{
-    "prompt": "Create a new employee record for Sarah Wilson, who is joining as a Marketing Specialist in the Marketing department. Her email is sarah.wilson@company.com and she starts on 2025-01-25."
+    "subject": "Network connectivity issue",
+    "description": "Unable to connect to internal servers",
+    "priority": "High",
+    "category": "Network"
   }'
 ```
 
-### Get Employees with Filters
+### Get Tickets with Filters
 
 ```bash
-curl -X GET "http://localhost:4000/api/v1/employees?page=1&limit=10&department=Engineering&status=active&search=john"
+curl -X GET "http://localhost:4000/api/tickets?status=Open&priority=High&page=1&limit=10" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-### Get Employee Statistics
+### Assign Ticket to Agent
 
 ```bash
-curl -X GET http://localhost:4000/api/v1/employees/stats
-```
-
-### Create User
-
-```bash
-curl -X POST http://localhost:4000/api/v1/users \
+curl -X PUT http://localhost:4000/api/tickets/123/assign \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{
-    "name": "John Doe",
-    "email": "john.doe@company.com",
-    "password": "password123"
+    "assignedTo": 456
   }'
 ```
 
-### Get Users with Search
+## 🤝 Contributing
 
-```bash
-curl -X GET "http://localhost:4000/api/v1/users?page=1&limit=10&search=john"
-```
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### Get User Statistics
+## 📄 License
 
-```bash
-curl -X GET http://localhost:4000/api/v1/users/stats
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔧 Troubleshooting
-
-### Common Issues:
-
-1. **Server Not Running**
-
-   - Make sure your server is started with `npm start`
-   - Check if port 4000 is available
-
-2. **Authentication Errors**
-
-   - Run the login request first
-   - Check if the auth token is being saved
-
-3. **AI Features Not Working**
-
-   - Set `GEMINI_API_KEY` in your `.env` file
-   - Get API key from: https://makersuite.google.com/app/apikey
-
-4. **Database Issues**
-   - Run Prisma migrations: `npx prisma migrate dev`
-   - Check database connection
-
-## 📞 Support
+## 🆘 Support
 
 If you encounter any issues:
 
-1. Check the server logs
-2. Verify your environment variables
-3. Test the health endpoint first
-4. Check the Swagger documentation at `/docs`
+1. Check the [Issues](../../issues) page
+2. Review the API documentation
+3. Check server logs for error details
+4. Test the health endpoint: `GET /health`
 
-## 🎯 Next Steps
+## 🚧 Roadmap
 
-1. **Import the collection** into Postman
-2. **Set up environment variables**
-3. **Start your server**
-4. **Test the health endpoint**
-5. **Register and login**
-6. **Start creating employees!**
+- [ ] Real-time notifications
+- [ ] Email integration
+- [ ] Advanced reporting dashboard
+- [ ] Mobile app support
+- [ ] Multi-tenant support
+- [ ] Integration with external systems
+- [ ] Automated ticket routing
+- [ ] SLA management
+
+## 👥 Team
+
+- **Backend Development** - API and database design
+- **Frontend Integration** - React/Vue.js compatibility
+- **DevOps** - Deployment and infrastructure
+- **QA** - Testing and quality assurance
 
 ---
 
-**Happy API Testing! 🚀**
+**Built with ❤️ for efficient customer support operations**

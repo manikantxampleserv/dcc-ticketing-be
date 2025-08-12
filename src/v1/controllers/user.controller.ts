@@ -10,24 +10,34 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
   const filters: any = {};
   if (search) {
     filters.OR = [
-      { name: { contains: search, mode: "insensitive" } },
-      { email: { contains: search, mode: "insensitive" } },
+      { Username: { contains: search, mode: "insensitive" } },
+      { Email: { contains: search, mode: "insensitive" } },
+      { FirstName: { contains: search, mode: "insensitive" } },
+      { LastName: { contains: search, mode: "insensitive" } },
     ];
   }
 
-  const totalCount = await prisma.user.count({ where: filters });
-  const users = await prisma.user.findMany({
+  const totalCount = await prisma.users.count({ where: filters });
+  const users = await prisma.users.findMany({
     where: filters,
     skip: (pageNum - 1) * limitNum,
     take: limitNum,
     select: {
-      id: true,
-      name: true,
-      email: true,
-      created_at: true,
-      updated_at: true,
+      UserID: true,
+      Username: true,
+      Email: true,
+      FirstName: true,
+      LastName: true,
+      Role: true,
+      Department: true,
+      Phone: true,
+      Avatar: true,
+      IsActive: true,
+      LastLoginAt: true,
+      CreatedAt: true,
+      UpdatedAt: true,
     },
-    orderBy: { id: "desc" },
+    orderBy: { UserID: "desc" },
   });
 
   res.status(200).json({
@@ -45,15 +55,23 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
 }
 
 export async function getUser(req: Request, res: Response): Promise<void> {
-  const id = parseInt(req.params.id);
-  const user = await prisma.user.findUnique({
-    where: { id },
+  const UserID = parseInt(req.params.id);
+  const user = await prisma.users.findUnique({
+    where: { UserID },
     select: {
-      id: true,
-      name: true,
-      email: true,
-      created_at: true,
-      updated_at: true,
+      UserID: true,
+      Username: true,
+      Email: true,
+      FirstName: true,
+      LastName: true,
+      Role: true,
+      Department: true,
+      Phone: true,
+      Avatar: true,
+      IsActive: true,
+      LastLoginAt: true,
+      CreatedAt: true,
+      UpdatedAt: true,
     },
   });
 
@@ -66,24 +84,45 @@ export async function getUser(req: Request, res: Response): Promise<void> {
 }
 
 export async function createUser(req: Request, res: Response): Promise<void> {
-  const { name, email, password } = req.body;
+  const {
+    username,
+    email,
+    password,
+    firstName,
+    lastName,
+    role = "Agent",
+    department,
+    phone,
+    avatar,
+    createdBy,
+  } = req.body;
 
   // Validate required fields
-  if (!name || !email || !password) {
+  if (!username || !email || !password || !firstName || !lastName) {
     res.status(400).json({
       error: "Missing required fields",
-      required: ["name", "email", "password"],
+      required: ["username", "email", "password", "firstName", "lastName"],
     });
     return;
   }
 
   // Check if user with email already exists
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
+  const existingUserByEmail = await prisma.users.findUnique({
+    where: { Email: email },
   });
 
-  if (existingUser) {
+  if (existingUserByEmail) {
     res.status(409).json({ error: "User with this email already exists" });
+    return;
+  }
+
+  // Check if user with username already exists
+  const existingUserByUsername = await prisma.users.findUnique({
+    where: { Username: username },
+  });
+
+  if (existingUserByUsername) {
+    res.status(409).json({ error: "User with this username already exists" });
     return;
   }
 
@@ -91,18 +130,32 @@ export async function createUser(req: Request, res: Response): Promise<void> {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   // Create user
-  const user = await prisma.user.create({
+  const user = await prisma.users.create({
     data: {
-      name,
-      email,
-      password: hashedPassword,
+      Username: username,
+      Email: email,
+      PasswordHash: hashedPassword,
+      FirstName: firstName,
+      LastName: lastName,
+      Role: role,
+      Department: department,
+      Phone: phone,
+      Avatar: avatar,
+      CreatedBy: createdBy,
     },
     select: {
-      id: true,
-      name: true,
-      email: true,
-      created_at: true,
-      updated_at: true,
+      UserID: true,
+      Username: true,
+      Email: true,
+      FirstName: true,
+      LastName: true,
+      Role: true,
+      Department: true,
+      Phone: true,
+      Avatar: true,
+      IsActive: true,
+      CreatedAt: true,
+      UpdatedAt: true,
     },
   });
 
@@ -113,20 +166,31 @@ export async function createUser(req: Request, res: Response): Promise<void> {
 }
 
 export async function updateUser(req: Request, res: Response): Promise<void> {
-  const id = parseInt(req.params.id);
-  const { name, email, password } = req.body;
+  const UserID = parseInt(req.params.id);
+  const {
+    username,
+    email,
+    password,
+    firstName,
+    lastName,
+    role,
+    department,
+    phone,
+    avatar,
+    isActive,
+  } = req.body;
 
   // Check if user exists
-  const existingUser = await prisma.user.findUnique({ where: { id } });
+  const existingUser = await prisma.users.findUnique({ where: { UserID } });
   if (!existingUser) {
     res.status(404).json({ error: "User not found" });
     return;
   }
 
   // Check email uniqueness if email is being updated
-  if (email && email !== existingUser.email) {
-    const emailExists = await prisma.user.findUnique({
-      where: { email },
+  if (email && email !== existingUser.Email) {
+    const emailExists = await prisma.users.findUnique({
+      where: { Email: email },
     });
 
     if (emailExists) {
@@ -135,24 +199,51 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     }
   }
 
+  // Check username uniqueness if username is being updated
+  if (username && username !== existingUser.Username) {
+    const usernameExists = await prisma.users.findUnique({
+      where: { Username: username },
+    });
+
+    if (usernameExists) {
+      res.status(409).json({ error: "User with this username already exists" });
+      return;
+    }
+  }
+
   // Prepare update data
   const updateData: any = {};
-  if (name) updateData.name = name;
-  if (email) updateData.email = email;
+  if (username) updateData.Username = username;
+  if (email) updateData.Email = email;
+  if (firstName) updateData.FirstName = firstName;
+  if (lastName) updateData.LastName = lastName;
+  if (role) updateData.Role = role;
+  if (department !== undefined) updateData.Department = department;
+  if (phone !== undefined) updateData.Phone = phone;
+  if (avatar !== undefined) updateData.Avatar = avatar;
+  if (isActive !== undefined) updateData.IsActive = isActive;
   if (password) {
-    updateData.password = await bcrypt.hash(password, 10);
+    updateData.PasswordHash = await bcrypt.hash(password, 10);
   }
 
   // Update user
-  const updatedUser = await prisma.user.update({
-    where: { id },
+  const updatedUser = await prisma.users.update({
+    where: { UserID },
     data: updateData,
     select: {
-      id: true,
-      name: true,
-      email: true,
-      created_at: true,
-      updated_at: true,
+      UserID: true,
+      Username: true,
+      Email: true,
+      FirstName: true,
+      LastName: true,
+      Role: true,
+      Department: true,
+      Phone: true,
+      Avatar: true,
+      IsActive: true,
+      LastLoginAt: true,
+      CreatedAt: true,
+      UpdatedAt: true,
     },
   });
 
@@ -163,19 +254,56 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
 }
 
 export async function deleteUser(req: Request, res: Response): Promise<void> {
-  const id = parseInt(req.params.id);
+  const UserID = parseInt(req.params.id);
 
-  const user = await prisma.user.findUnique({ where: { id } });
+  const user = await prisma.users.findUnique({
+    where: { UserID },
+    select: {
+      UserID: true,
+      Username: true,
+      Email: true,
+      FirstName: true,
+      LastName: true,
+      Role: true,
+      Department: true,
+      Phone: true,
+      Avatar: true,
+      IsActive: true,
+      CreatedAt: true,
+      UpdatedAt: true,
+    },
+  });
+
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;
   }
 
-  // Delete user
-  await prisma.user.delete({ where: { id } });
+  // Soft delete by setting IsActive to false (recommended)
+  const deletedUser = await prisma.users.update({
+    where: { UserID },
+    data: { IsActive: false },
+    select: {
+      UserID: true,
+      Username: true,
+      Email: true,
+      FirstName: true,
+      LastName: true,
+      Role: true,
+      Department: true,
+      Phone: true,
+      Avatar: true,
+      IsActive: true,
+      CreatedAt: true,
+      UpdatedAt: true,
+    },
+  });
+
+  // If you want hard delete instead, use this:
+  // await prisma.users.delete({ where: { UserID } });
 
   res.status(200).json({
     message: "User deleted successfully",
-    user,
+    user: deletedUser,
   });
 }

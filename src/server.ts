@@ -19,6 +19,5 @@ export const startServer = () => {
   // Start the server and listen on the specified port
   app.listen(port, () => {
     logger.success(`Server running at http://localhost:${port}`);
-    logger.success(`API Documentation: http://localhost:${port}/docs`);
   });
 };
