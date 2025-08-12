@@ -1,9 +1,9 @@
-import prisma from "../../utils/prisma.config";
+import prisma from "utils/prisma.config";
 import { Request, Response } from "express";
 import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { AuthRequest } from "@/middlewares/auth";
-import logger from "../../config/logger";
+import { AuthRequest } from "middlewares/auth";
+import logger from "config/logger";
 
 export async function register(req: Request, res: Response): Promise<void> {
   try {
