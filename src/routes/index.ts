@@ -14,7 +14,7 @@ routes.get("/v1/health", (_: Request, res: Response) => {
     version: "v1.0.0",
     database: "Connected",
     memoryUsage: process.memoryUsage().rss + " bytes",
-    developer: "Mani Kant Sharma",
+    developer: "Apmleserv Devlopers",
   });
 });
 

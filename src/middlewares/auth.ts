@@ -28,7 +28,7 @@ export function authenticateToken(
     return;
   }
 
-  const JWT_SECRET = process.env.JWT_SECRET || "MKX_SECRET_KEY";
+  const JWT_SECRET = process.env.JWT_SECRET || "SUPPORT_SECRET_KEY";
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;

@@ -73,7 +73,7 @@ export async function register(req: Request, res: Response): Promise<void> {
       },
     });
 
-    const JWT_SECRET = process.env.JWT_SECRET || "MKX_SECRET_KEY";
+    const JWT_SECRET = process.env.JWT_SECRET || "SUPPORT_SECRET_KEY";
     const payload = {
       userId: user.UserID,
       username: user.Username,
@@ -158,7 +158,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       data: { LastLoginAt: new Date() },
     });
 
-    const JWT_SECRET = process.env.JWT_SECRET || "MKX_SECRET_KEY";
+    const JWT_SECRET = process.env.JWT_SECRET || "SUPPORT_SECRET_KEY";
 
     const payload = {
       userId: user.UserID,
