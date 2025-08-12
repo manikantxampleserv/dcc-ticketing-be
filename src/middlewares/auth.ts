@@ -2,11 +2,11 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
 interface JWTPayload {
-  userId: number;
+  user_id: number;
   username: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   role: string;
   department?: string;
 }
@@ -24,7 +24,7 @@ export function authenticateToken(
   const token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
-    res.status(401).json({ error: "Access token missing" });
+    res.status(401).json({ error: "access_token_missing" });
     return;
   }
 
@@ -36,27 +36,26 @@ export function authenticateToken(
     next();
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
-      res.status(401).json({ error: "Token expired" });
+      res.status(401).json({ error: "token_expired" });
     } else if (err instanceof jwt.JsonWebTokenError) {
-      res.status(401).json({ error: "Invalid token" });
+      res.status(401).json({ error: "invalid_token" });
     } else {
-      res.status(401).json({ error: "Token verification failed" });
+      res.status(401).json({ error: "token_verification_failed" });
     }
   }
 }
 
-// Role-based access control middleware
 export function authorizeRoles(...allowedRoles: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: "authentication_required" });
       return;
     }
 
     if (!allowedRoles.includes(req.user.role)) {
       res.status(403).json({
-        error: "Access denied",
-        message: `Required role: ${allowedRoles.join(" or ")}`,
+        error: "access_denied",
+        message: `required_role: ${allowedRoles.join(" or ")}`,
       });
       return;
     }
@@ -65,11 +64,10 @@ export function authorizeRoles(...allowedRoles: string[]) {
   };
 }
 
-// Department-based access control middleware
 export function authorizeDepartment(...allowedDepartments: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: "authentication_required" });
       return;
     }
 
@@ -78,8 +76,8 @@ export function authorizeDepartment(...allowedDepartments: string[]) {
       !allowedDepartments.includes(req.user.department)
     ) {
       res.status(403).json({
-        error: "Access denied",
-        message: `Required department: ${allowedDepartments.join(" or ")}`,
+        error: "access_denied",
+        message: `required_department: ${allowedDepartments.join(" or ")}`,
       });
       return;
     }
@@ -88,43 +86,40 @@ export function authorizeDepartment(...allowedDepartments: string[]) {
   };
 }
 
-// Admin-only middleware
 export function requireAdmin(
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): void {
-  authorizeRoles("Admin")(req, res, next);
+  authorizeRoles("admin")(req, res, next);
 }
 
-// Manager or Admin middleware
 export function requireManagerOrAdmin(
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): void {
-  authorizeRoles("Manager", "Admin")(req, res, next);
+  authorizeRoles("manager", "admin")(req, res, next);
 }
 
-// Self or Admin access middleware (for profile operations)
 export function requireSelfOrAdmin(
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): void {
   if (!req.user) {
-    res.status(401).json({ error: "Authentication required" });
+    res.status(401).json({ error: "authentication_required" });
     return;
   }
 
   const targetUserId = parseInt(req.params.id);
-  const isOwnProfile = req.user.userId === targetUserId;
-  const isAdmin = req.user.role === "Admin";
+  const isOwnProfile = req.user.user_id === targetUserId;
+  const isAdmin = req.user.role === "admin";
 
   if (!isOwnProfile && !isAdmin) {
     res.status(403).json({
-      error: "Access denied",
-      message: "You can only access your own profile or must be an admin",
+      error: "access_denied",
+      message: "you_can_only_access_your_own_profile_or_must_be_admin",
     });
     return;
   }

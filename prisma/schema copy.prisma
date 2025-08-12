@@ -1,0 +1,415 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model AgentPerformance {
+  PerformanceID           Int       @id(map: "PK__AgentPer__F9606DE1619F0AA4") @default(autoincrement())
+  AgentID                 Int
+  PeriodStart             DateTime  @db.Date
+  PeriodEnd               DateTime  @db.Date
+  TotalTickets            Int?      @default(0, map: "DF__AgentPerf__Total__797309D9")
+  ResolvedTickets         Int?      @default(0, map: "DF__AgentPerf__Resol__7A672E12")
+  AvgResolutionTimeHours  Decimal?  @default(0, map: "DF__AgentPerf__AvgRe__7B5B524B") @db.Decimal(10, 2)
+  AvgResponseTimeMinutes  Decimal?  @default(0, map: "DF__AgentPerf__AvgRe__7C4F7684") @db.Decimal(10, 2)
+  SLACompliancePercent    Decimal?  @default(0, map: "DF__AgentPerf__SLACo__7D439ABD") @db.Decimal(5, 2)
+  CustomerSatisfactionAvg Decimal?  @default(0, map: "DF__AgentPerf__Custo__7E37BEF6") @db.Decimal(3, 2)
+  CalculatedAt            DateTime? @default(now(), map: "DF__AgentPerf__Calcu__7F2BE32F")
+  Agents                  Agents    @relation(fields: [AgentID], references: [AgentID], onUpdate: NoAction, map: "FK__AgentPerf__Agent__00200768")
+
+  @@index([AgentID], map: "IX_AgentPerformance_AgentID")
+  @@index([PeriodStart, PeriodEnd], map: "IX_AgentPerformance_Period")
+}
+
+model Agents {
+  AgentID              Int                    @id(map: "PK__Agents__9AC3BFD1CB2CAA64") @default(autoincrement())
+  FirstName            String                 @db.NVarChar(100)
+  LastName             String                 @db.NVarChar(100)
+  Email                String                 @unique(map: "UQ__Agents__A9D1053450721E0E") @db.NVarChar(255)
+  Phone                String?                @db.NVarChar(50)
+  Role                 String                 @default("Agent", map: "DF__Agents__Role__31EC6D26") @db.NVarChar(50)
+  Department           String?                @db.NVarChar(100)
+  IsActive             Boolean?               @default(true, map: "DF__Agents__IsActive__32E0915F")
+  HireDate             DateTime?              @db.Date
+  Avatar               String?                @db.NVarChar(500)
+  CreatedAt            DateTime?              @default(now(), map: "DF__Agents__CreatedA__33D4B598")
+  UpdatedAt            DateTime?              @default(now(), map: "DF__Agents__UpdatedA__34C8D9D1")
+  UserID               Int?
+  AgentPerformance     AgentPerformance[]
+  Users                Users?                 @relation(fields: [UserID], references: [UserID], onDelete: NoAction, onUpdate: NoAction, map: "FK_Agents_Users")
+  NotificationSettings NotificationSettings[]
+  TicketHistory        TicketHistory[]
+  TicketResponses      TicketResponses[]
+  Tickets              Tickets[]
+
+  @@index([Email], map: "IX_Agents_Email")
+  @@index([IsActive], map: "IX_Agents_IsActive")
+  @@index([Role], map: "IX_Agents_Role")
+}
+
+model AuditLog {
+  AuditID   Int       @id(map: "PK__AuditLog__A17F23B8B9672905") @default(autoincrement())
+  TableName String    @db.NVarChar(100)
+  RecordID  Int
+  Action    String    @db.NVarChar(20)
+  OldValues String?   @db.NVarChar(Max)
+  NewValues String?   @db.NVarChar(Max)
+  ChangedBy Int?
+  ChangedAt DateTime? @default(now(), map: "DF__AuditLog__Change__0B91BA14")
+  IPAddress String?   @db.NVarChar(45)
+  UserAgent String?   @db.NVarChar(500)
+
+  @@index([ChangedAt(sort: Desc)], map: "IX_AuditLog_ChangedAt")
+  @@index([ChangedBy], map: "IX_AuditLog_ChangedBy")
+  @@index([TableName, RecordID], map: "IX_AuditLog_TableName_RecordID")
+}
+
+model Categories {
+  CategoryID   Int       @id(map: "PK__Categori__19093A2B357F7298") @default(autoincrement())
+  CategoryName String    @db.NVarChar(100)
+  Description  String?   @db.NVarChar(500)
+  IsActive     Boolean?  @default(true, map: "DF__Categorie__IsAct__37A5467C")
+  CreatedAt    DateTime? @default(now(), map: "DF__Categorie__Creat__38996AB5")
+  Tickets      Tickets[]
+}
+
+model Companies {
+  CompanyID    Int         @id(map: "PK__Companie__2D971C4C1E74CFB1") @default(autoincrement())
+  CompanyName  String      @db.NVarChar(255)
+  Domain       String      @unique(map: "UQ__Companie__FD349E5347D79EFC") @db.NVarChar(100)
+  ContactEmail String?     @db.NVarChar(255)
+  ContactPhone String?     @db.NVarChar(50)
+  Address      String?     @db.NVarChar(500)
+  IsActive     Boolean?    @default(true, map: "DF__Companies__IsAct__25869641")
+  CreatedAt    DateTime?   @default(now(), map: "DF__Companies__Creat__267ABA7A")
+  UpdatedAt    DateTime?   @default(now(), map: "DF__Companies__Updat__276EDEB3")
+  Customers    Customers[]
+
+  @@index([Domain], map: "IX_Companies_Domain")
+  @@index([IsActive], map: "IX_Companies_IsActive")
+}
+
+model Customers {
+  CustomerID      Int               @id(map: "PK__Customer__A4AE64B8D0BDFEAC") @default(autoincrement())
+  CompanyID       Int
+  FirstName       String            @db.NVarChar(100)
+  LastName        String            @db.NVarChar(100)
+  Email           String            @unique(map: "UQ__Customer__A9D1053424A1EF7C") @db.NVarChar(255)
+  Phone           String?           @db.NVarChar(50)
+  JobTitle        String?           @db.NVarChar(100)
+  IsActive        Boolean?          @default(true, map: "DF__Customers__IsAct__2B3F6F97")
+  CreatedAt       DateTime?         @default(now(), map: "DF__Customers__Creat__2C3393D0")
+  UpdatedAt       DateTime?         @default(now(), map: "DF__Customers__Updat__2D27B809")
+  Companies       Companies         @relation(fields: [CompanyID], references: [CompanyID], onUpdate: NoAction, map: "FK__Customers__Compa__2E1BDC42")
+  TicketResponses TicketResponses[]
+  Tickets         Tickets[]
+
+  @@index([CompanyID], map: "IX_Customers_CompanyID")
+  @@index([Email], map: "IX_Customers_Email")
+  @@index([IsActive], map: "IX_Customers_IsActive")
+}
+
+model EmailConfigurations {
+  ConfigID         Int       @id(map: "PK__EmailCon__C3BC333C664142FF") @default(autoincrement())
+  SMTPServer       String    @db.NVarChar(255)
+  SMTPPort         Int       @default(587, map: "DF__EmailConf__SMTPP__619B8048")
+  Username         String    @db.NVarChar(255)
+  Password         String    @db.NVarChar(255)
+  EnableTLS        Boolean?  @default(true, map: "DF__EmailConf__Enabl__628FA481")
+  FromEmail        String    @db.NVarChar(255)
+  FromName         String    @db.NVarChar(255)
+  AutoReplyEnabled Boolean?  @default(true, map: "DF__EmailConf__AutoR__6383C8BA")
+  AutoReplyMessage String?   @db.NText
+  IsActive         Boolean?  @default(true, map: "DF__EmailConf__IsAct__6477ECF3")
+  CreatedAt        DateTime? @default(now(), map: "DF__EmailConf__Creat__656C112C")
+  UpdatedAt        DateTime? @default(now(), map: "DF__EmailConf__Updat__66603565")
+}
+
+model EmailQueue {
+  QueueID      Int       @id(map: "PK__EmailQue__8324E8F55C49EA6D") @default(autoincrement())
+  ToEmail      String    @db.NVarChar(255)
+  CCEmail      String?   @db.NVarChar(500)
+  BCCEmail     String?   @db.NVarChar(500)
+  Subject      String    @db.NVarChar(500)
+  Body         String    @db.NText
+  IsHTML       Boolean?  @default(true, map: "DF__EmailQueu__IsHTM__02FC7413")
+  Priority     Int?      @default(3, map: "DF__EmailQueu__Prior__03F0984C")
+  Status       String?   @default("Pending", map: "DF__EmailQueu__Statu__04E4BC85") @db.NVarChar(20)
+  AttemptCount Int?      @default(0, map: "DF__EmailQueu__Attem__05D8E0BE")
+  MaxAttempts  Int?      @default(3, map: "DF__EmailQueu__MaxAt__06CD04F7")
+  ErrorMessage String?
+  ScheduledAt  DateTime? @default(now(), map: "DF__EmailQueu__Sched__07C12930")
+  SentAt       DateTime?
+  CreatedAt    DateTime? @default(now(), map: "DF__EmailQueu__Creat__08B54D69")
+
+  @@index([Priority], map: "IX_EmailQueue_Priority")
+  @@index([ScheduledAt], map: "IX_EmailQueue_ScheduledAt")
+  @@index([Status], map: "IX_EmailQueue_Status")
+}
+
+model NotificationSettings {
+  SettingID               Int       @id(map: "PK__Notifica__54372AFDC2058230") @default(autoincrement())
+  AgentID                 Int
+  EmailNotifications      Boolean?  @default(true, map: "DF__Notificat__Email__693CA210")
+  SLAWarnings             Boolean?  @default(true, map: "DF__Notificat__SLAWa__6A30C649")
+  NewTicketAlerts         Boolean?  @default(true, map: "DF__Notificat__NewTi__6B24EA82")
+  EscalationAlerts        Boolean?  @default(true, map: "DF__Notificat__Escal__6C190EBB")
+  CustomerFeedbackAlerts  Boolean?  @default(true, map: "DF__Notificat__Custo__6D0D32F4")
+  WarningThresholdPercent Int?      @default(80, map: "DF__Notificat__Warni__6E01572D")
+  CreatedAt               DateTime? @default(now(), map: "DF__Notificat__Creat__6EF57B66")
+  UpdatedAt               DateTime? @default(now(), map: "DF__Notificat__Updat__6FE99F9F")
+  Agents                  Agents    @relation(fields: [AgentID], references: [AgentID], onUpdate: NoAction, map: "FK__Notificat__Agent__70DDC3D8")
+}
+
+model SLAConfigurations {
+  SLAID               Int       @id(map: "PK__SLAConfi__2848A229668C252C") @default(autoincrement())
+  Priority            String    @db.NVarChar(20)
+  ResponseTimeHours   Int
+  ResolutionTimeHours Int
+  BusinessHoursOnly   Boolean?  @default(false, map: "DF__SLAConfig__Busin__3B75D760")
+  BusinessStartTime   DateTime? @default(dbgenerated("09:00:00"), map: "DF__SLAConfig__Busin__3C69FB99") @db.Time
+  BusinessEndTime     DateTime? @default(dbgenerated("17:00:00"), map: "DF__SLAConfig__Busin__3D5E1FD2") @db.Time
+  IncludeWeekends     Boolean?  @default(false, map: "DF__SLAConfig__Inclu__3E52440B")
+  IsActive            Boolean?  @default(true, map: "DF__SLAConfig__IsAct__3F466844")
+  CreatedAt           DateTime? @default(now(), map: "DF__SLAConfig__Creat__403A8C7D")
+  UpdatedAt           DateTime? @default(now(), map: "DF__SLAConfig__Updat__412EB0B6")
+}
+
+model SystemSettings {
+  SettingID    Int       @id(map: "PK__SystemSe__54372AFD055A91B1") @default(autoincrement())
+  SettingKey   String    @unique(map: "UQ__SystemSe__01E719AD72239DFD") @db.NVarChar(100)
+  SettingValue String?
+  Description  String?   @db.NVarChar(500)
+  DataType     String?   @default("String", map: "DF__SystemSet__DataT__74AE54BC") @db.NVarChar(50)
+  CreatedAt    DateTime? @default(now(), map: "DF__SystemSet__Creat__75A278F5")
+  UpdatedAt    DateTime? @default(now(), map: "DF__SystemSet__Updat__76969D2E")
+}
+
+model TicketAllocations {
+  AllocationID                               Int       @id(map: "PK__TicketAl__B3C6D6AB816591B5") @default(autoincrement())
+  TicketID                                   Int
+  FromUserID                                 Int?
+  ToUserID                                   Int
+  AllocatedBy                                Int
+  AllocationReason                           String?   @db.NVarChar(500)
+  AllocatedAt                                DateTime? @default(now(), map: "DF__TicketAll__Alloc__1D7B6025")
+  Users_TicketAllocations_AllocatedByToUsers Users     @relation("TicketAllocations_AllocatedByToUsers", fields: [AllocatedBy], references: [UserID], onUpdate: NoAction, map: "FK__TicketAll__Alloc__214BF109")
+  Users_TicketAllocations_FromUserIDToUsers  Users?    @relation("TicketAllocations_FromUserIDToUsers", fields: [FromUserID], references: [UserID], onDelete: NoAction, onUpdate: NoAction, map: "FK__TicketAll__FromU__1F63A897")
+  Tickets                                    Tickets   @relation(fields: [TicketID], references: [TicketID], onUpdate: NoAction, map: "FK__TicketAll__Ticke__1E6F845E")
+  Users_TicketAllocations_ToUserIDToUsers    Users     @relation("TicketAllocations_ToUserIDToUsers", fields: [ToUserID], references: [UserID], onUpdate: NoAction, map: "FK__TicketAll__ToUse__2057CCD0")
+
+  @@index([TicketID], map: "IX_TicketAllocations_TicketID")
+  @@index([ToUserID], map: "IX_TicketAllocations_ToUserID")
+}
+
+model TicketAttachments {
+  AttachmentID     Int              @id(map: "PK__TicketAt__442C64DEF3F79B93") @default(autoincrement())
+  TicketID         Int
+  ResponseID       Int?
+  FileName         String           @db.NVarChar(255)
+  OriginalFileName String           @db.NVarChar(255)
+  FilePath         String           @db.NVarChar(500)
+  FileSize         BigInt
+  ContentType      String           @db.NVarChar(100)
+  FileHash         String?          @db.NVarChar(64)
+  UploadedBy       Int
+  UploadedByType   String           @default("User", map: "DF__TicketAtt__Uploa__14E61A24") @db.NVarChar(20)
+  IsPublic         Boolean?         @default(false, map: "DF__TicketAtt__IsPub__15DA3E5D")
+  VirusScanned     Boolean?         @default(false, map: "DF__TicketAtt__Virus__16CE6296")
+  ScanResult       String?          @db.NVarChar(50)
+  CreatedAt        DateTime?        @default(now(), map: "DF__TicketAtt__Creat__17C286CF")
+  TicketResponses  TicketResponses? @relation(fields: [ResponseID], references: [ResponseID], onDelete: NoAction, onUpdate: NoAction, map: "FK__TicketAtt__Respo__19AACF41")
+  Tickets          Tickets          @relation(fields: [TicketID], references: [TicketID], onDelete: Cascade, onUpdate: NoAction, map: "FK__TicketAtt__Ticke__18B6AB08")
+  Users            Users            @relation(fields: [UploadedBy], references: [UserID], onUpdate: NoAction, map: "FK__TicketAtt__Uploa__1A9EF37A")
+
+  @@index([FileHash], map: "IX_TicketAttachments_FileHash")
+  @@index([TicketID], map: "IX_TicketAttachments_TicketID")
+  @@index([UploadedBy], map: "IX_TicketAttachments_UploadedBy")
+}
+
+model TicketHistory {
+  HistoryID Int       @id(map: "PK__TicketHi__4D7B4ADDD386EAA0") @default(autoincrement())
+  TicketID  Int
+  AgentID   Int?
+  Action    String    @db.NVarChar(100)
+  OldValue  String?   @db.NVarChar(255)
+  NewValue  String?   @db.NVarChar(255)
+  Comments  String?   @db.NVarChar(500)
+  CreatedAt DateTime? @default(now(), map: "DF__TicketHis__Creat__5CD6CB2B")
+  Agents    Agents?   @relation(fields: [AgentID], references: [AgentID], onDelete: NoAction, onUpdate: NoAction, map: "FK__TicketHis__Agent__5EBF139D")
+  Tickets   Tickets   @relation(fields: [TicketID], references: [TicketID], onDelete: Cascade, onUpdate: NoAction, map: "FK__TicketHis__Ticke__5DCAEF64")
+
+  @@index([AgentID], map: "IX_TicketHistory_AgentID")
+  @@index([CreatedAt(sort: Desc)], map: "IX_TicketHistory_CreatedAt")
+  @@index([TicketID], map: "IX_TicketHistory_TicketID")
+}
+
+model TicketMerges {
+  MergeID                                      Int       @id(map: "PK__TicketMe__D1C4FE7B690BDB5B") @default(autoincrement())
+  ParentTicketID                               Int
+  ChildTicketID                                Int
+  MergedBy                                     Int
+  MergeReason                                  String?   @db.NVarChar(500)
+  MergedAt                                     DateTime? @default(now(), map: "DF__TicketMer__Merge__0A688BB1")
+  Tickets_TicketMerges_ChildTicketIDToTickets  Tickets   @relation("TicketMerges_ChildTicketIDToTickets", fields: [ChildTicketID], references: [TicketID], onUpdate: NoAction, map: "FK__TicketMer__Child__0C50D423")
+  Users                                        Users     @relation(fields: [MergedBy], references: [UserID], onUpdate: NoAction, map: "FK__TicketMer__Merge__0D44F85C")
+  Tickets_TicketMerges_ParentTicketIDToTickets Tickets   @relation("TicketMerges_ParentTicketIDToTickets", fields: [ParentTicketID], references: [TicketID], onUpdate: NoAction, map: "FK__TicketMer__Paren__0B5CAFEA")
+
+  @@index([ChildTicketID], map: "IX_TicketMerges_Child")
+  @@index([ParentTicketID], map: "IX_TicketMerges_Parent")
+}
+
+model TicketReopens {
+  ReopenID       Int       @id(map: "PK__TicketRe__C10C24560AE3DBFF") @default(autoincrement())
+  TicketID       Int
+  ReopenedBy     Int
+  ReopenReason   String?   @db.NVarChar(500)
+  PreviousStatus String?   @db.NVarChar(50)
+  ReopenedAt     DateTime? @default(now(), map: "DF__TicketReo__Reope__10216507")
+  Users          Users     @relation(fields: [ReopenedBy], references: [UserID], onUpdate: NoAction, map: "FK__TicketReo__Reope__1209AD79")
+  Tickets        Tickets   @relation(fields: [TicketID], references: [TicketID], onUpdate: NoAction, map: "FK__TicketReo__Ticke__11158940")
+
+  @@index([ReopenedAt], map: "IX_TicketReopens_ReopenedAt")
+  @@index([TicketID], map: "IX_TicketReopens_TicketID")
+}
+
+model TicketResponses {
+  ResponseID        Int                 @id(map: "PK__TicketRe__1AAA640C126E0EAD") @default(autoincrement())
+  TicketID          Int
+  AgentID           Int?
+  CustomerID        Int?
+  Message           String              @db.NText
+  IsInternal        Boolean?            @default(false, map: "DF__TicketRes__IsInt__5070F446")
+  IsFromCustomer    Boolean?            @default(false, map: "DF__TicketRes__IsFro__5165187F")
+  CreatedAt         DateTime?           @default(now(), map: "DF__TicketRes__Creat__52593CB8")
+  TicketAttachments TicketAttachments[]
+  Agents            Agents?             @relation(fields: [AgentID], references: [AgentID], onDelete: NoAction, onUpdate: NoAction, map: "FK__TicketRes__Agent__5441852A")
+  Customers         Customers?          @relation(fields: [CustomerID], references: [CustomerID], onDelete: NoAction, onUpdate: NoAction, map: "FK__TicketRes__Custo__5535A963")
+  Tickets           Tickets             @relation(fields: [TicketID], references: [TicketID], onDelete: Cascade, onUpdate: NoAction, map: "FK__TicketRes__Ticke__534D60F1")
+
+  @@index([AgentID], map: "IX_TicketResponses_AgentID")
+  @@index([CreatedAt(sort: Desc)], map: "IX_TicketResponses_CreatedAt")
+  @@index([IsInternal], map: "IX_TicketResponses_IsInternal")
+  @@index([TicketID], map: "IX_TicketResponses_TicketID")
+}
+
+model Tickets {
+  TicketID                                          Int                 @id(map: "PK__Tickets__712CC627C91EC7C5") @default(autoincrement())
+  TicketNumber                                      String              @unique(map: "UQ__Tickets__CBED06DA5F9EB1CF") @db.NVarChar(50)
+  CustomerID                                        Int
+  AssignedAgentID                                   Int?
+  CategoryID                                        Int?
+  Subject                                           String              @db.NVarChar(500)
+  Description                                       String              @db.NText
+  Priority                                          String              @default("Medium", map: "DF__Tickets__Priorit__44FF419A") @db.NVarChar(20)
+  Status                                            String              @default("Open", map: "DF__Tickets__Status__45F365D3") @db.NVarChar(50)
+  Source                                            String?             @default("Email", map: "DF__Tickets__Source__46E78A0C") @db.NVarChar(50)
+  SLADeadline                                       DateTime?
+  SLAStatus                                         String?             @default("Within", map: "DF__Tickets__SLAStat__47DBAE45") @db.NVarChar(20)
+  FirstResponseAt                                   DateTime?
+  ResolvedAt                                        DateTime?
+  ClosedAt                                          DateTime?
+  AssignedBy                                        Int?
+  IsMerged                                          Boolean?
+  ReopenCount                                       Int?
+  TimeSpentMinutes                                  Int?                @default(0, map: "DF__Tickets__TimeSpe__48CFD27E")
+  LastReopenedAt                                    DateTime?           @db.DateTime
+  CustomerSatisfactionRating                        Int?
+  CustomerFeedback                                  String?             @db.NText
+  Tags                                              String?             @db.NVarChar(500)
+  CreatedAt                                         DateTime?           @default(now(), map: "DF__Tickets__Created__49C3F6B7")
+  UpdatedAt                                         DateTime?           @default(now(), map: "DF__Tickets__Updated__4AB81AF0")
+  MergedIntoTicketID                                Int?
+  TicketAllocations                                 TicketAllocations[]
+  TicketAttachments                                 TicketAttachments[]
+  TicketHistory                                     TicketHistory[]
+  TicketMerges_TicketMerges_ChildTicketIDToTickets  TicketMerges[]      @relation("TicketMerges_ChildTicketIDToTickets")
+  TicketMerges_TicketMerges_ParentTicketIDToTickets TicketMerges[]      @relation("TicketMerges_ParentTicketIDToTickets")
+  TicketReopens                                     TicketReopens[]
+  TicketResponses                                   TicketResponses[]
+  Agents                                            Agents?             @relation(fields: [AssignedAgentID], references: [AgentID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Tickets__Assigne__4CA06362")
+  Categories                                        Categories?         @relation(fields: [CategoryID], references: [CategoryID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Tickets__Categor__4D94879B")
+  Customers                                         Customers           @relation(fields: [CustomerID], references: [CustomerID], onUpdate: NoAction, map: "FK__Tickets__Custome__4BAC3F29")
+  Users                                             Users?              @relation(fields: [AssignedBy], references: [UserID], onDelete: NoAction, onUpdate: NoAction, map: "FK_Tickets_AssignedBy")
+  Tickets                                           Tickets?            @relation("TicketsToTickets", fields: [MergedIntoTicketID], references: [TicketID], onDelete: NoAction, onUpdate: NoAction, map: "FK_Tickets_MergedInto")
+  other_Tickets                                     Tickets[]           @relation("TicketsToTickets")
+
+  @@index([AssignedAgentID, Status], map: "IX_Tickets_AssignedAgent_Status")
+  @@index([AssignedAgentID], map: "IX_Tickets_AssignedAgentID")
+  @@index([CreatedAt(sort: Desc)], map: "IX_Tickets_CreatedAt")
+  @@index([CustomerID, Status], map: "IX_Tickets_Customer_Status")
+  @@index([CustomerID], map: "IX_Tickets_CustomerID")
+  @@index([Priority], map: "IX_Tickets_Priority")
+  @@index([SLADeadline], map: "IX_Tickets_SLADeadline")
+  @@index([SLAStatus], map: "IX_Tickets_SLAStatus")
+  @@index([Status], map: "IX_Tickets_Status")
+  @@index([Status, Priority], map: "IX_Tickets_Status_Priority")
+  @@index([TicketNumber], map: "IX_Tickets_TicketNumber")
+}
+
+model UserPermissions {
+  PermissionID                           Int       @id(map: "PK__UserPerm__EFA6FB0F150609C5") @default(autoincrement())
+  UserID                                 Int
+  Permission                             String    @db.NVarChar(100)
+  GrantedBy                              Int
+  GrantedAt                              DateTime? @default(now(), map: "DF__UserPermi__Grant__251C81ED")
+  Users_UserPermissions_GrantedByToUsers Users     @relation("UserPermissions_GrantedByToUsers", fields: [GrantedBy], references: [UserID], onUpdate: NoAction, map: "FK__UserPermi__Grant__2704CA5F")
+  Users_UserPermissions_UserIDToUsers    Users     @relation("UserPermissions_UserIDToUsers", fields: [UserID], references: [UserID], onUpdate: NoAction, map: "FK__UserPermi__UserI__2610A626")
+
+  @@unique([UserID, Permission], map: "UQ__UserPerm__A8D4BF2343D54F00")
+}
+
+model Users {
+  UserID                                                 Int                 @id(map: "PK__Users__1788CCACE79BCEB4") @default(autoincrement())
+  Username                                               String              @unique(map: "UQ__Users__536C85E4A8FE4F37") @db.NVarChar(100)
+  Email                                                  String              @unique(map: "UQ__Users__A9D105343E7C565E") @db.NVarChar(255)
+  PasswordHash                                           String              @db.NVarChar(255)
+  FirstName                                              String              @db.NVarChar(100)
+  LastName                                               String              @db.NVarChar(100)
+  Role                                                   String              @default("Agent", map: "DF__Users__Role__7EF6D905") @db.NVarChar(50)
+  Department                                             String?             @db.NVarChar(100)
+  Phone                                                  String?             @db.NVarChar(50)
+  Avatar                                                 String?             @db.NVarChar(500)
+  IsActive                                               Boolean?            @default(true, map: "DF__Users__IsActive__7FEAFD3E")
+  LastLoginAt                                            DateTime?
+  CreatedAt                                              DateTime?           @default(now(), map: "DF__Users__CreatedAt__00DF2177")
+  UpdatedAt                                              DateTime?           @default(now(), map: "DF__Users__UpdatedAt__01D345B0")
+  CreatedBy                                              Int?
+  Agents                                                 Agents[]
+  TicketAllocations_TicketAllocations_AllocatedByToUsers TicketAllocations[] @relation("TicketAllocations_AllocatedByToUsers")
+  TicketAllocations_TicketAllocations_FromUserIDToUsers  TicketAllocations[] @relation("TicketAllocations_FromUserIDToUsers")
+  TicketAllocations_TicketAllocations_ToUserIDToUsers    TicketAllocations[] @relation("TicketAllocations_ToUserIDToUsers")
+  TicketAttachments                                      TicketAttachments[]
+  TicketMerges                                           TicketMerges[]
+  TicketReopens                                          TicketReopens[]
+  Tickets                                                Tickets[]
+  UserPermissions_UserPermissions_GrantedByToUsers       UserPermissions[]   @relation("UserPermissions_GrantedByToUsers")
+  UserPermissions_UserPermissions_UserIDToUsers          UserPermissions[]   @relation("UserPermissions_UserIDToUsers")
+  Users                                                  Users?              @relation("UsersToUsers", fields: [CreatedBy], references: [UserID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Users__CreatedBy__02C769E9")
+  other_Users                                            Users[]             @relation("UsersToUsers")
+  UserSessions                                           UserSessions[]
+
+  @@index([Email], map: "IX_Users_Email")
+  @@index([IsActive], map: "IX_Users_IsActive")
+  @@index([Role], map: "IX_Users_Role")
+  @@index([Username], map: "IX_Users_Username")
+}
+
+model UserSessions {
+  SessionID    Int       @id(map: "PK__UserSess__C9F492702A02DB29") @default(autoincrement())
+  UserID       Int
+  SessionToken String    @unique(map: "UQ__UserSess__46BDD124DAB2A190") @db.NVarChar(255)
+  IPAddress    String?   @db.NVarChar(45)
+  UserAgent    String?   @db.NVarChar(500)
+  ExpiresAt    DateTime
+  CreatedAt    DateTime? @default(now(), map: "DF__UserSessi__Creat__0697FACD")
+  Users        Users     @relation(fields: [UserID], references: [UserID], onUpdate: NoAction, map: "FK__UserSessi__UserI__078C1F06")
+
+  @@index([ExpiresAt], map: "IX_UserSessions_ExpiresAt")
+  @@index([SessionToken], map: "IX_UserSessions_Token")
+  @@index([UserID], map: "IX_UserSessions_UserID")
+}

@@ -11,36 +11,32 @@ export async function register(req: Request, res: Response): Promise<void> {
       username,
       email,
       password,
-      firstName,
-      lastName,
+      first_name,
+      last_name,
       role = "Agent",
       department,
       phone,
     } = req.body;
 
-    if (!username || !email || !password || !firstName || !lastName) {
+    if (!username || !email || !password || !first_name || !last_name) {
       res.status(400).json({
         error: "Missing required fields",
-        required: ["username", "email", "password", "firstName", "lastName"],
+        required: ["username", "email", "password", "first_name", "last_name"],
       });
       return;
     }
 
-    // Check if user exists by email
     const existingUserByEmail = await prisma.users.findUnique({
-      where: { Email: email },
+      where: { email },
     });
-
     if (existingUserByEmail) {
       res.status(409).json({ error: "User with this email already exists" });
       return;
     }
 
-    // Check if user exists by username
     const existingUserByUsername = await prisma.users.findUnique({
-      where: { Username: username },
+      where: { username },
     });
-
     if (existingUserByUsername) {
       res.status(409).json({ error: "User with this username already exists" });
       return;
@@ -50,45 +46,43 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     const user = await prisma.users.create({
       data: {
-        Username: username,
-        Email: email,
-        PasswordHash: hashedPassword,
-        FirstName: firstName,
-        LastName: lastName,
-        Role: role,
-        Department: department,
-        Phone: phone,
+        username,
+        email,
+        password_hash: hashedPassword,
+        first_name,
+        last_name,
+        role,
+        department,
+        phone,
       },
       select: {
-        UserID: true,
-        Username: true,
-        Email: true,
-        FirstName: true,
-        LastName: true,
-        Role: true,
-        Department: true,
-        Phone: true,
-        CreatedAt: true,
-        UpdatedAt: true,
+        id: true,
+        username: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        role: true,
+        department: true,
+        phone: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
     const JWT_SECRET = process.env.JWT_SECRET || "SUPPORT_SECRET_KEY";
     const payload = {
-      userId: user.UserID,
-      username: user.Username,
-      email: user.Email,
-      firstName: user.FirstName,
-      lastName: user.LastName,
-      role: user.Role,
-      department: user.Department,
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      role: user.role,
+      department: user.department,
     };
 
-    const token = jwt.sign(payload, JWT_SECRET, {
-      expiresIn: "24h",
-    });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
 
-    logger.info(`User registered successfully: ${user.Email}`);
+    logger.info(`User registered successfully: ${user.email}`);
 
     res.status(201).json({
       message: "User registered successfully",
@@ -106,7 +100,6 @@ export async function register(req: Request, res: Response): Promise<void> {
 export async function login(req: Request, res: Response): Promise<void> {
   try {
     const { email, password } = req.body;
-
     logger.info(`Login attempt for email: ${email}`);
 
     if (!email || !password) {
@@ -118,18 +111,19 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
 
     const user = await prisma.users.findUnique({
-      where: { Email: email },
+      where: { email },
       select: {
-        UserID: true,
-        Username: true,
-        Email: true,
-        PasswordHash: true,
-        FirstName: true,
-        LastName: true,
-        Role: true,
-        Department: true,
-        Phone: true,
-        IsActive: true,
+        id: true,
+        username: true,
+        email: true,
+        password_hash: true,
+        first_name: true,
+        last_name: true,
+        role: true,
+        department: true,
+        phone: true,
+        avatar: true,
+        is_active: true,
       },
     });
 
@@ -140,41 +134,39 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    if (!user.IsActive) {
+    if (user.is_active === false) {
       res.status(401).json({ error: "Account is deactivated" });
       return;
     }
 
-    const isValidPassword = await bcryptjs.compare(password, user.PasswordHash);
-
+    const isValidPassword = await bcryptjs.compare(
+      password,
+      user.password_hash
+    );
     if (!isValidPassword) {
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
 
-    // Update last login timestamp
     await prisma.users.update({
-      where: { UserID: user.UserID },
-      data: { LastLoginAt: new Date() },
+      where: { id: user.id },
+      data: { last_login_at: new Date() },
     });
 
     const JWT_SECRET = process.env.JWT_SECRET || "SUPPORT_SECRET_KEY";
-
     const payload = {
-      userId: user.UserID,
-      username: user.Username,
-      email: user.Email,
-      firstName: user.FirstName,
-      lastName: user.LastName,
-      role: user.Role,
-      department: user.Department,
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      role: user.role,
+      department: user.department,
     };
 
-    const token = jwt.sign(payload, JWT_SECRET, {
-      expiresIn: "24h",
-    });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
 
-    logger.info(`Login successful for user: ${user.Email}`);
+    logger.info(`Login successful for user: ${user.email}`);
 
     res.json({
       message: "Login successful",
@@ -192,29 +184,28 @@ export async function getProfile(
   res: Response
 ): Promise<void> {
   try {
-    const userId = req.user?.userId;
-
+    const userId = req.user?.user_id;
     if (!userId) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
     const user = await prisma.users.findUnique({
-      where: { UserID: userId },
+      where: { id: userId },
       select: {
-        UserID: true,
-        Username: true,
-        Email: true,
-        FirstName: true,
-        LastName: true,
-        Role: true,
-        Department: true,
-        Phone: true,
-        Avatar: true,
-        IsActive: true,
-        LastLoginAt: true,
-        CreatedAt: true,
-        UpdatedAt: true,
+        id: true,
+        username: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        role: true,
+        department: true,
+        phone: true,
+        avatar: true,
+        is_active: true,
+        last_login_at: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
@@ -223,7 +214,7 @@ export async function getProfile(
       return;
     }
 
-    if (!user.IsActive) {
+    if (user.is_active === false) {
       res.status(401).json({ error: "Account is deactivated" });
       return;
     }
@@ -245,18 +236,16 @@ export async function updateProfile(
   res: Response
 ): Promise<void> {
   try {
-    const userId = req.user?.userId;
-
+    const userId = req.user?.user_id;
     if (!userId) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
-    const { firstName, lastName, phone, avatar, department } = req.body;
+    const { first_name, last_name, phone, avatar, department } = req.body;
 
-    // Check if user exists and is active
     const existingUser = await prisma.users.findUnique({
-      where: { UserID: userId },
+      where: { id: userId },
     });
 
     if (!existingUser) {
@@ -264,40 +253,37 @@ export async function updateProfile(
       return;
     }
 
-    if (!existingUser.IsActive) {
+    if (existingUser.is_active === false) {
       res.status(401).json({ error: "Account is deactivated" });
       return;
     }
 
-    // Prepare update data
     const updateData: any = {};
-    if (firstName) updateData.FirstName = firstName;
-    if (lastName) updateData.LastName = lastName;
-    if (phone !== undefined) updateData.Phone = phone;
-    if (avatar !== undefined) updateData.Avatar = avatar;
-    if (department !== undefined) updateData.Department = department;
+    if (first_name) updateData.first_name = first_name;
+    if (last_name) updateData.last_name = last_name;
+    if (phone !== undefined) updateData.phone = phone;
+    if (avatar !== undefined) updateData.avatar = avatar;
+    if (department !== undefined) updateData.department = department;
 
     const updatedUser = await prisma.users.update({
-      where: { UserID: userId },
+      where: { id: userId },
       data: updateData,
       select: {
-        UserID: true,
-        Username: true,
-        Email: true,
-        FirstName: true,
-        LastName: true,
-        Role: true,
-        Department: true,
-        Phone: true,
-        Avatar: true,
-        IsActive: true,
-        LastLoginAt: true,
-        CreatedAt: true,
-        UpdatedAt: true,
+        id: true,
+        username: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        role: true,
+        department: true,
+        phone: true,
+        avatar: true,
+        is_active: true,
+        last_login_at: true,
+        created_at: true,
+        updated_at: true,
       },
     });
-
-    logger.info(`Profile updated successfully for user: ${updatedUser.Email}`);
 
     res.json({
       message: "Profile updated successfully",
@@ -308,76 +294,5 @@ export async function updateProfile(
     res
       .status(500)
       .json({ error: "Internal server error while updating profile" });
-  }
-}
-
-export async function changePassword(
-  req: AuthRequest,
-  res: Response
-): Promise<void> {
-  try {
-    const userId = req.user?.userId;
-    const { currentPassword, newPassword } = req.body;
-
-    if (!userId) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-
-    if (!currentPassword || !newPassword) {
-      res.status(400).json({
-        error: "Missing required fields",
-        required: ["currentPassword", "newPassword"],
-      });
-      return;
-    }
-
-    const user = await prisma.users.findUnique({
-      where: { UserID: userId },
-      select: {
-        UserID: true,
-        Email: true,
-        PasswordHash: true,
-        IsActive: true,
-      },
-    });
-
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
-
-    if (!user.IsActive) {
-      res.status(401).json({ error: "Account is deactivated" });
-      return;
-    }
-
-    const isValidPassword = await bcryptjs.compare(
-      currentPassword,
-      user.PasswordHash
-    );
-
-    if (!isValidPassword) {
-      res.status(401).json({ error: "Current password is incorrect" });
-      return;
-    }
-
-    const hashedNewPassword = await bcryptjs.hash(newPassword, 10);
-
-    await prisma.users.update({
-      where: { UserID: userId },
-      data: { PasswordHash: hashedNewPassword },
-    });
-
-    logger.info(`Password changed successfully for user: ${user.Email}`);
-
-    res.json({
-      message: "Password changed successfully",
-    });
-  } catch (error) {
-    logger.error(`Change password error: ${error}`);
-    res
-      .status(500)
-      .json({ error: "Internal server error while changing password" });
   }
 }
