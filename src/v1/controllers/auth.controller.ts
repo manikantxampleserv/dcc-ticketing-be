@@ -184,7 +184,7 @@ export async function getProfile(
   res: Response
 ): Promise<void> {
   try {
-    const userId = req.user?.user_id;
+    const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ error: "Unauthorized" });
       return;
@@ -236,7 +236,7 @@ export async function updateProfile(
   res: Response
 ): Promise<void> {
   try {
-    const userId = req.user?.user_id;
+    const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ error: "Unauthorized" });
       return;

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
 interface JWTPayload {
-  user_id: number;
+  id: number;
   username: string;
   email: string;
   first_name: string;
@@ -113,7 +113,7 @@ export function requireSelfOrAdmin(
   }
 
   const targetUserId = parseInt(req.params.id);
-  const isOwnProfile = req.user.user_id === targetUserId;
+  const isOwnProfile = req.user.id === targetUserId;
   const isAdmin = req.user.role === "admin";
 
   if (!isOwnProfile && !isAdmin) {
