@@ -1,0 +1,44 @@
+{
+  "name": "dcc-ticketing",
+  "version": "1.0.0",
+  "description": "This is back-end of DCC Ticketing System.",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon --exec ts-node src/index.ts",
+    "build": "tsc",
+    "serve": "node dist/index.js",
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "keywords": [
+    "ts"
+  ],
+  "author": "Mani Kant Sharma",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.0.10",
+    "@types/nodemailer": "^6.4.17",
+    "cross-env": "^7.0.3",
+    "express": "^5.1.0",
+    "prisma": "^6.13.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@google/genai": "^1.12.0",
+    "@prisma/client": "^6.13.0",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.1",
+    "express-rate-limit": "^8.0.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.5",
+    "nodemon": "^3.1.10",
+    "winston": "^3.17.0"
+  }
+}
