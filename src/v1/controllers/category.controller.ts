@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { paginate } from "utils/pagination";
+import { validationResult } from "express-validator";
 const prisma = new PrismaClient();
 
 const serializeCategory = (category: any) => ({
@@ -15,6 +16,15 @@ export const categoryController = {
   // Create category
   async createCategory(req: Request, res: Response): Promise<void> {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        const firstError = errors.array()[0];
+        res.status(400).json({
+          success: false,
+          error: firstError.msg,
+        });
+        return;
+      }
       const { category_name, description, is_active, created_at } = req.body;
 
       const category = await prisma.categories.create({
@@ -28,7 +38,11 @@ export const categoryController = {
 
       res.status(201).json(serializeCategory(category));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).send({
+        success: false,
+        error: error.message,
+      });
     }
   },
 
@@ -44,7 +58,7 @@ export const categoryController = {
       });
 
       if (!category) {
-        res.status(404).json({ error: "Category not found" });
+        res.status(404).send({ success: false, error: "Category not found" });
         console.log("Sent custom 404 response");
         return;
       }
@@ -55,6 +69,7 @@ export const categoryController = {
         data: serializeCategory(category),
       });
     } catch (error: any) {
+      console.error(error);
       res.status(500).send({
         success: false,
         error: error.message,
@@ -81,7 +96,11 @@ export const categoryController = {
         data: serializeCategory(category),
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).send({
+        success: false,
+        error: error.message,
+      });
     }
   },
 
@@ -96,7 +115,10 @@ export const categoryController = {
         message: "Category deleted successfully",
       });
     } catch (error: any) {
-      res.status(500).send({ success: false, error: error.message });
+      res.status(500).send({
+        success: false,
+        error: error.message,
+      });
     }
   },
 

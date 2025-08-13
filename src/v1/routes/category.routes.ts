@@ -13,7 +13,7 @@ router.post("/category", authenticateToken, categoryController.createCategory);
 router.get(
   "/category/:id",
   authenticateToken,
-  createCategoryValidation,
+  getCategoryByIdValidation,
   validate,
   categoryController.getCategoryById
 );

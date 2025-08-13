@@ -1,14 +1,88 @@
 import prisma from "../../utils/prisma.config";
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import { deleteFile, uploadFile } from "utils/blackbaze";
+
+const formatUserAvatar = (user: any) => {
+  if (!user) return null;
+
+  if (user.avatar && !/^https?:\/\//.test(user.avatar)) {
+    return {
+      ...user,
+      avatar: `${process.env.BACKBLAZE_BUCKET_URL}/${user.avatar}`,
+    };
+  }
+  return user;
+};
+
+const formatUserListAvatars = (users: any[] = []) =>
+  users.map(formatUserAvatar);
+
+// export async function getUsersList(req: Request, res: Response): Promise<void> {
+//   try {
+//     const { page = "1", limit = "10", search } = req.query;
+//     const page_num = parseInt(page as string, 10);
+//     const limit_num = parseInt(limit as string, 10);
+
+//     const filters: any = {};
+//     if (search) {
+//       filters.OR = [
+//         { username: { contains: search as string, mode: "insensitive" } },
+//         { email: { contains: search as string, mode: "insensitive" } },
+//         { first_name: { contains: search as string, mode: "insensitive" } },
+//         { last_name: { contains: search as string, mode: "insensitive" } },
+//       ];
+//     }
+
+//     const total_count = await prisma.users.count({ where: filters });
+//     const users = await prisma.users.findMany({
+//       where: filters,
+//       skip: (page_num - 1) * limit_num,
+//       take: limit_num,
+//       select: {
+//         id: true,
+//         username: true,
+//         email: true,
+//         first_name: true,
+//         last_name: true,
+//         role: true,
+//         department: true,
+//         phone: true,
+//         avatar: true,
+//         is_active: true,
+//         last_login_at: true,
+//         created_at: true,
+//         updated_at: true,
+//       },
+//       orderBy: { id: "desc" },
+//     });
+
+//     res.status(200).json({
+//       message: "users retrieved successfully",
+//       data: users,
+//       pagination: {
+//         current_page: page_num,
+//         total_pages: Math.ceil(total_count / limit_num),
+//         total_count,
+//         has_next: page_num * limit_num < total_count,
+//         has_previous: page_num > 1,
+//       },
+//       filters: { search },
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: "internal server error" });
+//   }
+// }
 
 export async function getUsersList(req: Request, res: Response): Promise<void> {
   try {
-    const { page = "1", limit = "10", search } = req.query;
+    const { page = "1", limit = "10", search, role } = req.query;
     const page_num = parseInt(page as string, 10);
     const limit_num = parseInt(limit as string, 10);
 
     const filters: any = {};
+
+    // Search filter
     if (search) {
       filters.OR = [
         { username: { contains: search as string, mode: "insensitive" } },
@@ -18,7 +92,15 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
       ];
     }
 
+    // Role filter
+    if (role) {
+      filters.role = role; // exact match
+      // If you want partial match:
+      // filters.role = { contains: role as string, mode: "insensitive" };
+    }
+
     const total_count = await prisma.users.count({ where: filters });
+
     const users = await prisma.users.findMany({
       where: filters,
       skip: (page_num - 1) * limit_num,
@@ -41,17 +123,21 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
       orderBy: { id: "desc" },
     });
 
+    const total_count_all = await prisma.users.count();
+    const total_count_filtered = await prisma.users.count({ where: filters });
+
     res.status(200).json({
       message: "users retrieved successfully",
       data: users,
       pagination: {
         current_page: page_num,
-        total_pages: Math.ceil(total_count / limit_num),
-        total_count,
-        has_next: page_num * limit_num < total_count,
+        total_pages_filtered: Math.ceil(total_count_filtered / limit_num),
+        total_count_filtered,
+        total_pages_all: Math.ceil(total_count_all / limit_num),
+        total_count_all,
+        has_next: page_num * limit_num < total_count_filtered,
         has_previous: page_num > 1,
       },
-      filters: { search },
     });
   } catch (error) {
     res.status(500).json({ error: "internal server error" });
@@ -107,9 +193,18 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       role = "Agent",
       department,
       phone,
-      avatar,
       created_by,
     } = req.body;
+
+    let avatarUrl = null;
+    if (req.file) {
+      const fileName = `avatars/${Date.now()}_${req.file.originalname}`;
+      avatarUrl = await uploadFile(
+        req.file.buffer,
+        fileName,
+        req.file.mimetype
+      );
+    }
 
     if (!username || !email || !password || !first_name || !last_name) {
       res.status(400).json({
@@ -145,7 +240,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         role,
         department,
         phone,
-        avatar,
+        avatar: avatarUrl,
         created_by,
       },
       select: {
@@ -163,12 +258,12 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         updated_at: true,
       },
     });
-
     res.status(201).json({
       message: "user created successfully",
-      user,
+      user: formatUserAvatar(user),
     });
   } catch (error) {
+    console.log("Error in creating user", error);
     res.status(500).json({ error: "internal server error" });
   }
 }
@@ -190,7 +285,6 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       role,
       department,
       phone,
-      avatar,
       is_active,
     } = req.body;
 
@@ -221,6 +315,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     }
 
     const update_data: any = {};
+
     if (username) update_data.username = username;
     if (email) update_data.email = email;
     if (first_name) update_data.first_name = first_name;
@@ -228,9 +323,26 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     if (role) update_data.role = role;
     if (department !== undefined) update_data.department = department;
     if (phone !== undefined) update_data.phone = phone;
-    if (avatar !== undefined) update_data.avatar = avatar;
     if (is_active !== undefined) update_data.is_active = is_active;
     if (password) update_data.password_hash = await bcrypt.hash(password, 10);
+
+    if (req.file) {
+      if (existing_user.avatar) {
+        const filePath = existing_user.avatar.replace(
+          `${process.env.BACKBLAZE_BUCKET_URL}/`,
+          ""
+        );
+        await deleteFile(filePath);
+      }
+
+      const fileName = `avatars/${Date.now()}_${req.file.originalname}`;
+      const avatarUrl = await uploadFile(
+        req.file.buffer,
+        fileName,
+        req.file.mimetype
+      );
+      update_data.avatar = avatarUrl;
+    }
 
     const updated_user = await prisma.users.update({
       where: { id },
@@ -254,68 +366,50 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
 
     res.status(200).json({
       message: "user updated successfully",
-      user: updated_user,
+      user: formatUserAvatar(updated_user),
     });
   } catch (error) {
+    console.error("Error updating user:", error);
     res.status(500).json({ error: "internal server error" });
   }
 }
 
 export async function deleteUser(req: Request, res: Response): Promise<void> {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) {
-      res.status(400).json({ error: "invalid id" });
+    const { ids } = req.body;
+    const paramId = req.params.id ? parseInt(req.params.id, 10) : null;
+
+    if (paramId && !isNaN(paramId)) {
+      const user = await prisma.users.findUnique({ where: { id: paramId } });
+      if (!user) {
+        res.status(404).json({ error: "user not found" });
+        return;
+      }
+
+      await prisma.users.delete({ where: { id: paramId } });
+
+      res.status(200).json({
+        message: "user deleted successfully",
+        deleted_id: paramId,
+      });
       return;
     }
 
-    const user = await prisma.users.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-        role: true,
-        department: true,
-        phone: true,
-        avatar: true,
-        is_active: true,
-        created_at: true,
-        updated_at: true,
-      },
-    });
+    if (Array.isArray(ids) && ids.length > 0) {
+      const deleted_users = await prisma.users.deleteMany({
+        where: { id: { in: ids } },
+      });
 
-    if (!user) {
-      res.status(404).json({ error: "user not found" });
+      res.status(200).json({
+        success: true,
+        message: "Users deleted successfully",
+      });
       return;
     }
 
-    const deleted_user = await prisma.users.update({
-      where: { id },
-      data: { is_active: false },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-        role: true,
-        department: true,
-        phone: true,
-        avatar: true,
-        is_active: true,
-        created_at: true,
-        updated_at: true,
-      },
-    });
-
-    res.status(200).json({
-      message: "user deleted successfully",
-      user: deleted_user,
-    });
+    res.status(400).json({ error: "Invalid id provided" });
   } catch (error) {
-    res.status(500).json({ error: "internal server error" });
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
   }
 }
