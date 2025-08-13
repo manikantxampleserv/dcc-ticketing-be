@@ -187,6 +187,8 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       created_by,
     } = req.body;
 
+    console.log(req.body);
+
     let avatarUrl = null;
     if (req.file) {
       const fileName = `avatars/${Date.now()}_${req.file.originalname}`;
@@ -197,14 +199,6 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       );
     }
 
-    if (!username || !email || !password || !first_name || !last_name) {
-      res.status(400).json({
-        error: "missing required fields",
-        required: ["username", "email", "password", "first_name", "last_name"],
-      });
-      return;
-    }
-
     const existing_email = await prisma.users.findUnique({ where: { email } });
     if (existing_email) {
       res.status(409).json({ error: "user with this email already exists" });
@@ -212,7 +206,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
     }
 
     const existing_username = await prisma.users.findUnique({
-      where: { username },
+      where: { username: email?.split("@")[0] },
     });
     if (existing_username) {
       res.status(409).json({ error: "user with this username already exists" });
@@ -223,7 +217,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
 
     const user = await prisma.users.create({
       data: {
-        username,
+        username: email?.split("@")[0],
         email,
         password_hash: hashed_password,
         first_name,
