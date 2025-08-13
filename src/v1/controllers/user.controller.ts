@@ -80,18 +80,27 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
     const page_num = parseInt(page as string, 10);
     const limit_num = parseInt(limit as string, 10);
 
-    const filters: any = {};
-
-    if (search) {
-      filters.OR = [
-        { username: { contains: search as string, mode: "insensitive" } },
-        { email: { contains: search as string, mode: "insensitive" } },
-        { first_name: { contains: search as string, mode: "insensitive" } },
-        { last_name: { contains: search as string, mode: "insensitive" } },
-      ];
-    }
+    const searchLower = (search as string).toLowerCase();
+    const filters: any = search
+      ? {
+          username: {
+            contains: searchLower,
+          },
+          email: {
+            contains: searchLower,
+          },
+          first_name: {
+            contains: searchLower,
+          },
+          last_name: {
+            contains: searchLower,
+          },
+        }
+      : {};
 
     if (role) {
+      filters.role = role;
+
       filters.role = role;
     }
 
@@ -118,7 +127,6 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
       },
       orderBy: { id: "desc" },
     });
-
     res.status(200).json({
       message: "users retrieved successfully",
       data: users,
@@ -396,5 +404,53 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function updateUserStatus(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const id = parseInt(req.params.id, 10);
+
+    if (isNaN(id)) {
+      res.status(400).json({ success: false, message: "Invalid user ID" });
+      return;
+    }
+
+    const user = await prisma.users.findUnique({
+      where: { id },
+      select: { is_active: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found" });
+      return;
+    }
+
+    const newStatus = !user.is_active;
+
+    const updatedUser = await prisma.users.update({
+      where: { id },
+      data: { is_active: newStatus },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        is_active: true,
+        updated_at: true,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `User status updated to ${
+        updatedUser.is_active ? "active" : "inactive"
+      }`,
+      data: updatedUser,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
   }
 }
