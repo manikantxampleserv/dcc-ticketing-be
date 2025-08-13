@@ -71,7 +71,7 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     const JWT_SECRET = process.env.JWT_SECRET || "SUPPORT_SECRET_KEY";
     const payload = {
-      userId: user.id,
+      id: user.id,
       username: user.username,
       email: user.email,
       first_name: user.first_name,
@@ -155,7 +155,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     const JWT_SECRET = process.env.JWT_SECRET || "SUPPORT_SECRET_KEY";
     const payload = {
-      userId: user.id,
+      id: user.id,
       username: user.username,
       email: user.email,
       first_name: user.first_name,
