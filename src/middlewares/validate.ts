@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { validationResult, ValidationError } from "express-validator";
+import { validationResult } from "express-validator";
 
 export const validate = (
   req: Request,
@@ -8,7 +8,11 @@ export const validate = (
 ): void => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    res.status(400).json({ errors: errors.array() });
+    const firstError = errors.array()[0];
+    res.status(400).json({
+      success: false,
+      error: firstError.msg,
+    });
     return;
   }
   next();
