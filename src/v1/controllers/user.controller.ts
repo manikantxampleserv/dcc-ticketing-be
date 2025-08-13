@@ -82,7 +82,6 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
 
     const filters: any = {};
 
-    // Search filter
     if (search) {
       filters.OR = [
         { username: { contains: search as string, mode: "insensitive" } },
@@ -92,11 +91,9 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
       ];
     }
 
-    // Role filter
     if (role) {
-      filters.role = role; // exact match
-      // If you want partial match:
-      // filters.role = { contains: role as string, mode: "insensitive" };
+      filters.role = role;
+
       filters.role = role;
     }
 
@@ -415,23 +412,27 @@ export async function updateUserStatus(
 ): Promise<void> {
   try {
     const id = parseInt(req.params.id, 10);
-    const { is_active } = req.body; // Expecting true/false
 
     if (isNaN(id)) {
       res.status(400).json({ success: false, message: "Invalid user ID" });
       return;
     }
 
-    if (typeof is_active !== "boolean") {
-      res
-        .status(400)
-        .json({ success: false, message: "is_active must be a boolean" });
+    const user = await prisma.users.findUnique({
+      where: { id },
+      select: { is_active: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found" });
       return;
     }
 
+    const newStatus = !user.is_active;
+
     const updatedUser = await prisma.users.update({
       where: { id },
-      data: { is_active },
+      data: { is_active: newStatus },
       select: {
         id: true,
         username: true,
@@ -443,7 +444,9 @@ export async function updateUserStatus(
 
     res.status(200).json({
       success: true,
-      message: "User status updated successfully",
+      message: `User status updated to ${
+        updatedUser.is_active ? "active" : "inactive"
+      }`,
       data: updatedUser,
     });
   } catch (error: any) {

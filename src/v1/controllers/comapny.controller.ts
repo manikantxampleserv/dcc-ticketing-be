@@ -156,6 +156,7 @@ export const companyController = {
         : {};
       const { data, pagination } = await paginate({
         model: prisma.companies,
+        filters,
         page: page_num,
         limit: limit_num,
         orderBy: { id: "desc" },

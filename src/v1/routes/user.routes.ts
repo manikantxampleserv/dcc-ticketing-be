@@ -25,7 +25,7 @@ routes.put(
 );
 
 routes.delete("/users", authenticateToken, (req, res) => deleteUser(req, res));
-routes.patch("/users/:id/status", authenticateToken, (req, res) =>
+routes.patch("/users/status/:id", authenticateToken, (req, res) =>
   updateUserStatus(req, res)
 );
 export default routes;
