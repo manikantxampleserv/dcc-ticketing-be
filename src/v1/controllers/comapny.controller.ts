@@ -143,9 +143,17 @@ export const companyController = {
 
   async getAllCompany(req: Request, res: Response): Promise<void> {
     try {
-      const { page = "1", limit = "10" } = req.query;
+      const { page = "1", limit = "10", search = "" } = req.query;
       const page_num = parseInt(page as string, 10);
       const limit_num = parseInt(limit as string, 10);
+      const searchLower = (search as string).toLowerCase();
+      const filters: any = search
+        ? {
+            company_name: {
+              contains: searchLower,
+            },
+          }
+        : {};
       const { data, pagination } = await paginate({
         model: prisma.companies,
         page: page_num,

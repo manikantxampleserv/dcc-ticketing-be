@@ -125,12 +125,23 @@ export const categoryController = {
   // Get all categories
   async getAllCategories(req: Request, res: Response): Promise<void> {
     try {
-      const { page = "1", limit = "10" } = req.query;
+      const { page = "1", limit = "10", search = "" } = req.query;
       const page_num = parseInt(page as string, 10);
       const limit_num = parseInt(limit as string, 10);
 
+      const searchLower = (search as string).toLowerCase();
+
+      const filters: any = search
+        ? {
+            category_name: {
+              contains: searchLower,
+            },
+          }
+        : {};
+
       const { data, pagination } = await paginate({
         model: prisma.categories,
+        filters,
         page: page_num,
         limit: limit_num,
         orderBy: { id: "desc" },

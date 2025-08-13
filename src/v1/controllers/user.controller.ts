@@ -82,6 +82,7 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
 
     const filters: any = {};
 
+    // Search filter
     if (search) {
       filters.OR = [
         { username: { contains: search as string, mode: "insensitive" } },
@@ -91,7 +92,11 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
       ];
     }
 
+    // Role filter
     if (role) {
+      filters.role = role; // exact match
+      // If you want partial match:
+      // filters.role = { contains: role as string, mode: "insensitive" };
       filters.role = role;
     }
 
@@ -118,7 +123,6 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
       },
       orderBy: { id: "desc" },
     });
-
     res.status(200).json({
       message: "users retrieved successfully",
       data: users,
@@ -402,5 +406,47 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function updateUserStatus(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { is_active } = req.body; // Expecting true/false
+
+    if (isNaN(id)) {
+      res.status(400).json({ success: false, message: "Invalid user ID" });
+      return;
+    }
+
+    if (typeof is_active !== "boolean") {
+      res
+        .status(400)
+        .json({ success: false, message: "is_active must be a boolean" });
+      return;
+    }
+
+    const updatedUser = await prisma.users.update({
+      where: { id },
+      data: { is_active },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        is_active: true,
+        updated_at: true,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "User status updated successfully",
+      data: updatedUser,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
   }
 }
