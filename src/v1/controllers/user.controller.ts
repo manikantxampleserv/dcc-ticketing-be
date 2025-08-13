@@ -80,16 +80,23 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
     const page_num = parseInt(page as string, 10);
     const limit_num = parseInt(limit as string, 10);
 
-    const filters: any = {};
-
-    if (search) {
-      filters.OR = [
-        { username: { contains: search as string, mode: "insensitive" } },
-        { email: { contains: search as string, mode: "insensitive" } },
-        { first_name: { contains: search as string, mode: "insensitive" } },
-        { last_name: { contains: search as string, mode: "insensitive" } },
-      ];
-    }
+    const searchLower = (search as string).toLowerCase();
+    const filters: any = search
+      ? {
+          username: {
+            contains: searchLower,
+          },
+          email: {
+            contains: searchLower,
+          },
+          first_name: {
+            contains: searchLower,
+          },
+          last_name: {
+            contains: searchLower,
+          },
+        }
+      : {};
 
     if (role) {
       filters.role = role;
