@@ -3,6 +3,8 @@ import user from "../v1/routes/user.routes";
 import auth from "../v1/routes/auth.routes";
 import categoryRoutes from "../v1/routes/category.routes";
 import companyRoutes from "../v1/routes/company.routes";
+import customerRoutes from "../v1/routes/customer.routes";
+
 const routes = Router();
 
 routes.get("/v1/health", (_: Request, res: Response) => {
@@ -23,5 +25,6 @@ routes.use("/v1", user);
 routes.use("/v1", auth);
 routes.use("/v1", categoryRoutes);
 routes.use("/v1", companyRoutes);
+routes.use("/v1", customerRoutes);
 
 export default routes;

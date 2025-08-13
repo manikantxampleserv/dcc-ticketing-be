@@ -17,6 +17,7 @@ router.post(
   validate,
   companyController.createCompany
 );
+
 router.get(
   "/company/:id",
   authenticateToken,
@@ -24,7 +25,9 @@ router.get(
   validate,
   companyController.getCompanyById
 );
+
 router.get("/company", authenticateToken, companyController.getAllCompany);
+
 router.put(
   "/company/:id",
   authenticateToken,
@@ -32,9 +35,11 @@ router.put(
   validate,
   companyController.updateCompany
 );
+
 router.delete(
   "/company/:id",
   authenticateToken,
   companyController.deleteCompany
 );
+
 export default router;

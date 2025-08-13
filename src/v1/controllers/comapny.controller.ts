@@ -4,7 +4,11 @@ import { paginate } from "utils/pagination";
 import { validationResult } from "express-validator";
 const prisma = new PrismaClient();
 
-const serializeCompany = (company: any) => ({
+const serializeCompany = (
+  company: any,
+  includeCreatedAt = false,
+  includeUpdatedAt = false
+) => ({
   id: company.id,
   company_name: company.company_name,
   domain: company.domain,
@@ -12,7 +16,8 @@ const serializeCompany = (company: any) => ({
   contact_phone: company.contact_phone,
   address: company.address,
   is_active: company.is_active,
-  created_at: company.created_at,
+  ...(includeCreatedAt && { created_at: company.created_at }),
+  ...(includeUpdatedAt && { updated_at: company.updated_at }),
 });
 
 export const companyController = {
@@ -51,7 +56,7 @@ export const companyController = {
       res.status(201).send({
         success: true,
         message: "Company created successfully",
-        data: serializeCompany(company),
+        data: serializeCompany(company, true, false),
       });
     } catch (error: any) {
       console.error(error);
@@ -150,7 +155,9 @@ export const companyController = {
       res.status(200).send({
         success: true,
         message: "Companies retrieved successfully",
-        data: data.map(serializeCompany),
+        data: data.map((customer: any) =>
+          serializeCompany(customer, true, true)
+        ),
         pagination,
       });
     } catch (error: any) {
