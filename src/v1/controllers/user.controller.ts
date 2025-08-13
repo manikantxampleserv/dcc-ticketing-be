@@ -82,7 +82,6 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
 
     const filters: any = {};
 
-    // Search filter
     if (search) {
       filters.OR = [
         { username: { contains: search as string, mode: "insensitive" } },
@@ -92,11 +91,8 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
       ];
     }
 
-    // Role filter
     if (role) {
-      filters.role = role; // exact match
-      // If you want partial match:
-      // filters.role = { contains: role as string, mode: "insensitive" };
+      filters.role = role;
     }
 
     const total_count = await prisma.users.count({ where: filters });
@@ -123,19 +119,14 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
       orderBy: { id: "desc" },
     });
 
-    const total_count_all = await prisma.users.count();
-    const total_count_filtered = await prisma.users.count({ where: filters });
-
     res.status(200).json({
       message: "users retrieved successfully",
       data: users,
       pagination: {
         current_page: page_num,
-        total_pages_filtered: Math.ceil(total_count_filtered / limit_num),
-        total_count_filtered,
-        total_pages_all: Math.ceil(total_count_all / limit_num),
-        total_count_all,
-        has_next: page_num * limit_num < total_count_filtered,
+        total_pages: Math.ceil(total_count / limit_num),
+        total_count,
+        has_next: page_num * limit_num < total_count,
         has_previous: page_num > 1,
       },
     });
