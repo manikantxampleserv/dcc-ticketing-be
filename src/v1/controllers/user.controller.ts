@@ -80,7 +80,7 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
     const page_num = parseInt(page as string, 10);
     const limit_num = parseInt(limit as string, 10);
 
-    const searchLower = (search as string).toLowerCase();
+    const searchLower = ((search || "") as string).toLowerCase();
     const filters: any = search
       ? {
           username: {
@@ -139,6 +139,7 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
       },
     });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ error: "internal server error" });
   }
 }
@@ -194,8 +195,6 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       phone,
       created_by,
     } = req.body;
-
-    console.log(req.body);
 
     let avatarUrl = null;
     if (req.file) {
@@ -316,7 +315,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     if (role) update_data.role = role;
     if (department !== undefined) update_data.department = department;
     if (phone !== undefined) update_data.phone = phone;
-    if (is_active !== undefined) update_data.is_active = is_active;
+    if (is_active !== undefined) update_data.is_active = Boolean(is_active);
     if (password) update_data.password_hash = await bcrypt.hash(password, 10);
 
     if (req.file) {

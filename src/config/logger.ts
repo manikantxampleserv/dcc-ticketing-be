@@ -6,7 +6,7 @@ import {
 } from "winston";
 
 export interface CustomLogger extends WinstonLogger {
-  success: (msg: string) => void;
+  success: (message: string) => void;
 }
 
 const COLORS: Record<string, string> = {
@@ -56,8 +56,8 @@ const logger: CustomLogger = createLogger({
   exitOnError: false,
 }) as CustomLogger;
 
-logger.success = function (msg: string) {
-  this.log({ level: "success", message: msg });
+logger.success = function (message: string) {
+  this.log({ level: "success", message });
 };
 
 export default logger;

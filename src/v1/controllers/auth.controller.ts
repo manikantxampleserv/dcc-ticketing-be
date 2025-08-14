@@ -127,7 +127,11 @@ export async function login(req: Request, res: Response): Promise<void> {
       },
     });
 
-    logger.info(`User found: ${user ? "Yes" : "No"}`);
+    if (!user) {
+      logger.error(`User found: No`);
+    } else {
+      logger.success(`User found: Yes`);
+    }
 
     if (!user) {
       res.status(401).json({ error: "Invalid credentials" });
@@ -166,7 +170,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
 
-    logger.info(`Login successful for user: ${user.email}`);
+    logger.success(`Login successful for user: ${user.email}`);
 
     res.json({
       message: "Login successful",
