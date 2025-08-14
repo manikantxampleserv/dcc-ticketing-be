@@ -10,22 +10,22 @@ import {
 const router = Router();
 
 router.post(
-  "/customer",
+  "/customers",
   authenticateToken,
   createCustomerValidation,
   validate,
   customerController.createCustomer
 );
 router.get(
-  "/customer/:id",
+  "/customers/:id",
   authenticateToken,
   customerController.getCustomerById
 );
 
-router.get("/customer", authenticateToken, customerController.getAllCustomer);
+router.get("/customers", authenticateToken, customerController.getAllCustomer);
 
 router.put(
-  "/customer/:id",
+  "/customers/:id",
   authenticateToken,
   updateCustomerValidation,
   validate,
@@ -33,7 +33,7 @@ router.put(
 );
 
 router.delete(
-  "/customer/:id",
+  "/customers/:id",
   authenticateToken,
   customerController.deleteCustomer
 );

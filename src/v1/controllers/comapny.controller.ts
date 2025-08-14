@@ -26,10 +26,8 @@ export const companyController = {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         const firstError = errors.array()[0];
-        res.status(400).json({
-          success: false,
-          error: firstError.msg,
-        });
+        res.error(firstError.msg, 400);
+
         return;
       }
 
@@ -53,17 +51,14 @@ export const companyController = {
         },
       });
 
-      res.status(201).send({
-        success: true,
-        message: "Company created successfully",
-        data: serializeCompany(company, true, false),
-      });
+      res.success(
+        "Company created successfully",
+        serializeCompany(company),
+        201
+      );
     } catch (error: any) {
       console.error(error);
-      res.status(500).send({
-        success: false,
-        error: error.message,
-      });
+      res.error(error.message);
     }
   },
 
@@ -72,29 +67,24 @@ export const companyController = {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         const firstError = errors.array()[0];
-        res.status(400).json({
-          success: false,
-          error: firstError.msg,
-        });
+        res.error(firstError.msg, 400);
+
         return;
       }
       const id = Number(req.params.id);
       const company = await prisma.companies.findUnique({ where: { id } });
 
       if (!company) {
-        res.status(404).send({ success: false, message: "Company not found" });
+        res.error("Company not found", 404);
         return;
       }
-      res.status(200).send({
-        success: true,
-        message: "Company found successfully",
-        data: serializeCompany(company),
-      });
+      res.success(
+        "Company fetched successfully",
+        serializeCompany(company),
+        200
+      );
     } catch (error: any) {
-      res.status(500).send({
-        success: false,
-        error: error.message,
-      });
+      res.error(error.message);
     }
   },
 
@@ -110,17 +100,14 @@ export const companyController = {
           updated_at: updated_at ? new Date(updated_at) : new Date(),
         },
       });
-      res.status(200).send({
-        success: true,
-        message: "Company updated successfully",
-        data: serializeCompany(company),
-      });
+      res.success(
+        "Category fetched successfully",
+        serializeCompany(company),
+        200
+      );
     } catch (error: any) {
       console.error(error);
-      res.status(500).send({
-        success: false,
-        message: error.message,
-      });
+      res.error(error.message);
     }
   },
 
@@ -129,15 +116,9 @@ export const companyController = {
       await prisma.companies.delete({
         where: { id: Number(req.params.id) },
       });
-      res.status(200).send({
-        success: true,
-        message: "Company deleted successfully",
-      });
-    } catch (error) {
-      res.status(500).send({
-        success: false,
-        message: "Internal Server Error",
-      });
+      res.success("Company deleted successfully", 200);
+    } catch (error: any) {
+      res.error(error.message);
     }
   },
 
@@ -161,19 +142,14 @@ export const companyController = {
         limit: limit_num,
         orderBy: { id: "desc" },
       });
-      res.status(200).send({
-        success: true,
-        message: "Companies retrieved successfully",
-        data: data.map((customer: any) =>
-          serializeCompany(customer, true, true)
-        ),
-        pagination,
-      });
+      res.success(
+        "Company retrieved successfully",
+        data.map((company: any) => serializeCompany(company, true, true)),
+        200,
+        pagination
+      );
     } catch (error: any) {
-      res.status(500).send({
-        success: false,
-        error: error.message,
-      });
+      res.error(error.message);
     }
   },
 };
