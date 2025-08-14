@@ -19,12 +19,9 @@ export const categoryController = {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         const firstError = errors.array()[0];
-        res.status(400).json({
-          success: false,
-          error: firstError.msg,
-        });
-        return;
+        res.error(firstError.msg, 400);
       }
+
       const { category_name, description, is_active, created_at } = req.body;
 
       const category = await prisma.categories.create({
@@ -36,44 +33,33 @@ export const categoryController = {
         },
       });
 
-      res.status(201).json(serializeCategory(category));
+      res.success(
+        "Category created successfully",
+        serializeCategory(category),
+        201
+      );
     } catch (error: any) {
       console.error(error);
-      res.status(500).send({
-        success: false,
-        error: error.message,
-      });
+      res.error(error.message);
     }
   },
 
   // Get category by ID
   async getCategoryById(req: Request, res: Response): Promise<void> {
     try {
-      console.log("getCategoryById handler running");
-      console.log("Requested ID:", req.params.id, typeof req.params.id);
-
       const id = Number(req.params.id);
       const category = await prisma.categories.findUnique({
         where: { id },
       });
 
       if (!category) {
-        res.status(404).send({ success: false, error: "Category not found" });
-        console.log("Sent custom 404 response");
-        return;
+        res.error("Category not found", 404);
       }
 
-      res.status(200).send({
-        success: true,
-        message: "Category Fetched Successfully",
-        data: serializeCategory(category),
-      });
+      res.success("Category fetched successfully", serializeCategory(category));
     } catch (error: any) {
       console.error(error);
-      res.status(500).send({
-        success: false,
-        error: error.message,
-      });
+      res.error(error.message);
     }
   },
 
@@ -90,17 +76,10 @@ export const categoryController = {
         },
       });
 
-      res.status(200).send({
-        success: true,
-        message: "Category Updated Successfully",
-        data: serializeCategory(category),
-      });
+      res.success("Category updated successfully", serializeCategory(category));
     } catch (error: any) {
       console.error(error);
-      res.status(500).send({
-        success: false,
-        error: error.message,
-      });
+      res.error(error.message);
     }
   },
 
@@ -110,15 +89,11 @@ export const categoryController = {
       await prisma.categories.delete({
         where: { id: Number(req.params.id) },
       });
-      res.status(200).send({
-        success: true,
-        message: "Category deleted successfully",
-      });
+
+      res.success("Category deleted successfully");
     } catch (error: any) {
-      res.status(500).send({
-        success: false,
-        error: error.message,
-      });
+      console.error(error);
+      res.error(error.message);
     }
   },
 
@@ -126,38 +101,30 @@ export const categoryController = {
   async getAllCategories(req: Request, res: Response): Promise<void> {
     try {
       const { page = "1", limit = "10", search = "" } = req.query;
-      const page_num = parseInt(page as string, 10);
-      const limit_num = parseInt(limit as string, 10);
+      const pageNum = parseInt(page as string, 10);
+      const limitNum = parseInt(limit as string, 10);
 
-      const searchLower = (search as string).toLowerCase();
-
-      const filters: any = search
-        ? {
-            category_name: {
-              contains: searchLower,
-            },
-          }
+      const filters = search
+        ? { category_name: { contains: (search as string).toLowerCase() } }
         : {};
 
       const { data, pagination } = await paginate({
         model: prisma.categories,
         filters,
-        page: page_num,
-        limit: limit_num,
+        page: pageNum,
+        limit: limitNum,
         orderBy: { id: "desc" },
       });
 
-      res.status(200).send({
-        success: true,
-        message: "Categories retrieved successfully",
-        data: data.map(serializeCategory),
-        pagination,
-      });
+      res.success(
+        "Categories retrieved successfully",
+        data.map(serializeCategory),
+        200,
+        pagination
+      );
     } catch (error: any) {
-      res.status(500).send({
-        success: false,
-        error: error.message,
-      });
+      console.error(error);
+      res.error(error.message);
     }
   },
 };

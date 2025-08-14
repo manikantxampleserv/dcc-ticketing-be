@@ -6,7 +6,6 @@ datasource db {
   provider = "sqlserver"
   url      = env("DATABASE_URL")
 }
-
 model users {
   id                                       Int                  @id @default(autoincrement())
   username                                 String               @unique @db.NVarChar(100)
@@ -14,8 +13,6 @@ model users {
   password_hash                            String               @db.NVarChar(255)
   first_name                               String               @db.NVarChar(100)
   last_name                                String               @db.NVarChar(100)
-  role                                     String               @default("Agent") @db.NVarChar(50)
-  department                               String?              @db.NVarChar(100)
   phone                                    String?              @db.NVarChar(50)
   avatar                                   String?              @db.NVarChar(500)
   is_active                                Boolean?             @default(true)
@@ -23,6 +20,8 @@ model users {
   created_at                               DateTime?            @default(now(), map: "DF__Users__CreatedAt__00DF2177")
   updated_at                               DateTime?            @default(now(), map: "DF__Users__UpdatedAt__01D345B0")
   created_by                               Int?
+  role_id                                  Int
+  department_id                            Int
   agents                                   agents[]
   ticket_allocations_allocated_by_to_users ticket_allocations[] @relation("TicketAllocations_AllocatedByToUsers")
   ticket_allocations_from_user_id_to_users ticket_allocations[] @relation("TicketAllocations_FromUserIDToUsers")
@@ -36,10 +35,11 @@ model users {
   user_sessions                            user_sessions[]
   users                                    users?               @relation("UsersToUsers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_users                              users[]              @relation("UsersToUsers")
+  user_department                          department?           @relation(fields: [department_id], references: [id], onUpdate: NoAction)
+  user_role                                role                 @relation(fields: [role_id], references: [id], onUpdate: NoAction)
 
   @@index([email])
   @@index([is_active])
-  @@index([role])
   @@index([username])
 }
 
@@ -68,6 +68,24 @@ model user_permissions {
   users_user_permissions_user_id_to_users    users     @relation("UserPermissions_UserIDToUsers", fields: [user_id], references: [id], onUpdate: NoAction)
 
   @@unique([user_id, permission])
+}
+
+model role {
+  id         Int       @id @default(autoincrement())
+  name       String    @db.NVarChar(100)
+  is_active  String    @default("Y") @db.Char(1)
+  created_at DateTime? @default(now())
+  updated_at DateTime? @default(now())
+  user_role  users[]
+}
+
+model department {
+  id              Int       @id @default(autoincrement())
+  department_name String?   @db.NVarChar(255)
+  created_at      DateTime? @default(now())
+  updated_at      DateTime? @default(now())
+  is_active       String?   @default("Y") @db.Char(1)
+  user_department users[]
 }
 
 model agents {
