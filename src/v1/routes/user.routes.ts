@@ -11,7 +11,7 @@ import { authenticateToken } from "../../middlewares/auth";
 import { upload } from "../../utils/multer";
 const routes = Router();
 
-routes.post("/users", authenticateToken, upload.single("avatar"), createUser);
+routes.post("/users", upload.single("avatar"), createUser);
 
 routes.get("/users", authenticateToken, (req, res) => getUsersList(req, res));
 
