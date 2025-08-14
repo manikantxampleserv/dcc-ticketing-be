@@ -76,7 +76,13 @@ const formatUserListAvatars = (users: any[] = []) =>
 
 export async function getUsersList(req: Request, res: Response): Promise<void> {
   try {
-    const { page = "1", limit = "10", search, role } = req.query;
+    const {
+      page = "1",
+      limit = "10",
+      search,
+      role_id,
+      department_id,
+    } = req.query;
     const page_num = parseInt(page as string, 10);
     const limit_num = parseInt(limit as string, 10);
 
@@ -98,11 +104,8 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
         }
       : {};
 
-    if (role) {
-      filters.role = role;
-
-      filters.role = role;
-    }
+    if (role_id) filters.role_id = Number(role_id);
+    if (department_id) filters.department_id = Number(department_id);
 
     const total_count = await prisma.users.count({ where: filters });
 
@@ -110,26 +113,16 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
       where: filters,
       skip: (page_num - 1) * limit_num,
       take: limit_num,
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-        role: true,
-        department: true,
-        phone: true,
-        avatar: true,
-        is_active: true,
-        last_login_at: true,
-        created_at: true,
-        updated_at: true,
+      include: {
+        user_role: { select: { id: true, name: true } }, // related role
+        user_department: { select: { id: true, department_name: true } }, // related department
       },
       orderBy: { id: "desc" },
     });
+
     res.status(200).json({
       message: "users retrieved successfully",
-      data: users,
+      data: formatUserListAvatars(users),
       pagination: {
         current_page: page_num,
         total_pages: Math.ceil(total_count / limit_num),
@@ -154,20 +147,9 @@ export async function getUser(req: Request, res: Response): Promise<void> {
 
     const user = await prisma.users.findUnique({
       where: { id },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-        role: true,
-        department: true,
-        phone: true,
-        avatar: true,
-        is_active: true,
-        last_login_at: true,
-        created_at: true,
-        updated_at: true,
+      include: {
+        user_role: { select: { id: true, name: true } },
+        user_department: { select: { id: true, department_name: true } },
       },
     });
 
@@ -176,7 +158,7 @@ export async function getUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    res.status(200).json(user);
+    res.status(200).json(formatUserAvatar(user));
   } catch (error) {
     res.status(500).json({ error: "internal server error" });
   }
@@ -190,8 +172,8 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       password,
       first_name,
       last_name,
-      role = "Agent",
-      department,
+      role_id,
+      department_id,
       phone,
       created_by,
     } = req.body;
@@ -229,27 +211,18 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         password_hash: hashed_password,
         first_name,
         last_name,
-        role,
-        department,
+        role_id: Number(role_id),
+        department_id: Number(department_id),
         phone,
         avatar: avatarUrl,
         created_by,
       },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-        role: true,
-        department: true,
-        phone: true,
-        avatar: true,
-        is_active: true,
-        created_at: true,
-        updated_at: true,
+      include: {
+        user_role: { select: { id: true, name: true } },
+        user_department: { select: { id: true, department_name: true } },
       },
     });
+
     res.status(201).json({
       message: "user created successfully",
       user: formatUserAvatar(user),
@@ -274,8 +247,8 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       password,
       first_name,
       last_name,
-      role,
-      department,
+      role_id,
+      department_id,
       phone,
       is_active,
     } = req.body;
@@ -307,13 +280,12 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     }
 
     const update_data: any = {};
-
     if (username) update_data.username = username;
     if (email) update_data.email = email;
     if (first_name) update_data.first_name = first_name;
     if (last_name) update_data.last_name = last_name;
-    if (role) update_data.role = role;
-    if (department !== undefined) update_data.department = department;
+    if (role_id) update_data.role_id = Number(role_id);
+    if (department_id) update_data.department_id = Number(department_id);
     if (phone !== undefined) update_data.phone = phone;
     if (is_active !== undefined) update_data.is_active = Boolean(is_active);
     if (password) update_data.password_hash = await bcrypt.hash(password, 10);
@@ -326,7 +298,6 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
         );
         await deleteFile(filePath);
       }
-
       const fileName = `avatars/${Date.now()}_${req.file.originalname}`;
       const avatarUrl = await uploadFile(
         req.file.buffer,
@@ -339,20 +310,9 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     const updated_user = await prisma.users.update({
       where: { id },
       data: update_data,
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-        role: true,
-        department: true,
-        phone: true,
-        avatar: true,
-        is_active: true,
-        last_login_at: true,
-        created_at: true,
-        updated_at: true,
+      include: {
+        user_role: { select: { id: true, name: true } },
+        user_department: { select: { id: true, department_name: true } },
       },
     });
 

@@ -13,8 +13,8 @@ export async function register(req: Request, res: Response): Promise<void> {
       password,
       first_name,
       last_name,
-      role = "Agent",
-      department,
+      role_id = "Agent",
+      department_id,
       phone,
     } = req.body;
 
@@ -51,8 +51,8 @@ export async function register(req: Request, res: Response): Promise<void> {
         password_hash: hashedPassword,
         first_name,
         last_name,
-        role,
-        department,
+        role_id,
+        department_id,
         phone,
       },
       select: {
@@ -61,8 +61,8 @@ export async function register(req: Request, res: Response): Promise<void> {
         email: true,
         first_name: true,
         last_name: true,
-        role: true,
-        department: true,
+        role_id: true,
+        department_id: true,
         phone: true,
         created_at: true,
         updated_at: true,
@@ -76,8 +76,8 @@ export async function register(req: Request, res: Response): Promise<void> {
       email: user.email,
       first_name: user.first_name,
       last_name: user.last_name,
-      role: user.role,
-      department: user.department,
+      role_id: user.role_id,
+      department_id: user.department_id,
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
@@ -119,8 +119,8 @@ export async function login(req: Request, res: Response): Promise<void> {
         password_hash: true,
         first_name: true,
         last_name: true,
-        role: true,
-        department: true,
+        role_id: true,
+        department_id: true,
         phone: true,
         avatar: true,
         is_active: true,
@@ -164,8 +164,8 @@ export async function login(req: Request, res: Response): Promise<void> {
       email: user.email,
       first_name: user.first_name,
       last_name: user.last_name,
-      role: user.role,
-      department: user.department,
+      role_id_id: user.role_id,
+      department_id: user.department_id,
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
@@ -202,8 +202,8 @@ export async function getProfile(
         email: true,
         first_name: true,
         last_name: true,
-        role: true,
-        department: true,
+        role_id: true,
+        department_id: true,
         phone: true,
         avatar: true,
         is_active: true,
@@ -246,7 +246,7 @@ export async function updateProfile(
       return;
     }
 
-    const { first_name, last_name, phone, avatar, department } = req.body;
+    const { first_name, last_name, phone, avatar, department_id } = req.body;
 
     const existingUser = await prisma.users.findUnique({
       where: { id: userId },
@@ -267,7 +267,7 @@ export async function updateProfile(
     if (last_name) updateData.last_name = last_name;
     if (phone !== undefined) updateData.phone = phone;
     if (avatar !== undefined) updateData.avatar = avatar;
-    if (department !== undefined) updateData.department = department;
+    if (department_id !== undefined) updateData.department_id = department_id;
 
     const updatedUser = await prisma.users.update({
       where: { id: userId },
@@ -278,8 +278,8 @@ export async function updateProfile(
         email: true,
         first_name: true,
         last_name: true,
-        role: true,
-        department: true,
+        role_id: true,
+        department_id: true,
         phone: true,
         avatar: true,
         is_active: true,

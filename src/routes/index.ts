@@ -4,6 +4,8 @@ import auth from "../v1/routes/auth.routes";
 import categoryRoutes from "../v1/routes/category.routes";
 import companyRoutes from "../v1/routes/company.routes";
 import customerRoutes from "../v1/routes/customer.routes";
+import roleRoutes from "../v1/routes/role.routes";
+import departmentRoutes from "../v1/routes/department.routes";
 
 const routes = Router();
 
@@ -26,5 +28,7 @@ routes.use("/v1", auth);
 routes.use("/v1", categoryRoutes);
 routes.use("/v1", companyRoutes);
 routes.use("/v1", customerRoutes);
+routes.use("/v1", roleRoutes);
+routes.use("/v1", departmentRoutes);
 
 export default routes;

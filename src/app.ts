@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express, { Application } from "express";
 import routes from "./routes";
+import { responseHandler } from "./middlewares/responseHandler";
 
 /**
  * Creates and configures the Express application
@@ -27,6 +28,7 @@ export const createApp = (): Application => {
 
   // Enable CORS for all origins with credentials
   app.use(cors({ origin: "*", credentials: true }));
+  app.use(responseHandler);
 
   // Mount API routes under /api (AFTER middleware setup)
   app.use("/api", routes);
