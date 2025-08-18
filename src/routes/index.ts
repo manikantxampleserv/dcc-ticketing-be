@@ -8,6 +8,7 @@ import roleRoutes from "../v1/routes/role.routes";
 import departmentRoutes from "../v1/routes/department.routes";
 import SLAconfigurationRoutes from "../v1/routes/SLAconfiguration.routes";
 import ticketRoutes from "../v1/routes/ticket.routes";
+import ticketAttachment from "../v1/routes/ticketAttachment.routes";
 
 const routes = Router();
 
@@ -34,5 +35,5 @@ routes.use("/v1", roleRoutes);
 routes.use("/v1", departmentRoutes);
 routes.use("/v1", SLAconfigurationRoutes);
 routes.use("/v1", ticketRoutes);
-
+routes.use("/v1", ticketAttachment);
 export default routes;
