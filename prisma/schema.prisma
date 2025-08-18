@@ -303,6 +303,7 @@ model ticket_attachments {
   support_ticket_responses support_ticket_responses? @relation(fields: [response_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tickets                  tickets                   @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users                    users                     @relation(fields: [uploaded_by], references: [id], onUpdate: NoAction)
+
   @@index([file_hash])
   @@index([ticket_id])
   @@index([uploaded_by])

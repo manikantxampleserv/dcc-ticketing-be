@@ -111,7 +111,7 @@ export const companyController = {
         },
       });
       res.success(
-        "Category fetched successfully",
+        "Category updated successfully",
         serializeCompany(company),
         200
       );
