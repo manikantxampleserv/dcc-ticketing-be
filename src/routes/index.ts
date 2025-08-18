@@ -6,6 +6,8 @@ import companyRoutes from "../v1/routes/company.routes";
 import customerRoutes from "../v1/routes/customer.routes";
 import roleRoutes from "../v1/routes/role.routes";
 import departmentRoutes from "../v1/routes/department.routes";
+import SLAconfigurationRoutes from "../v1/routes/SLAconfiguration.routes";
+import ticketRoutes from "../v1/routes/ticket.routes";
 
 const routes = Router();
 
@@ -30,5 +32,7 @@ routes.use("/v1", companyRoutes);
 routes.use("/v1", customerRoutes);
 routes.use("/v1", roleRoutes);
 routes.use("/v1", departmentRoutes);
+routes.use("/v1", SLAconfigurationRoutes);
+routes.use("/v1", ticketRoutes);
 
 export default routes;
