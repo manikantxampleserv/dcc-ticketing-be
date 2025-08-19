@@ -7,7 +7,9 @@
     "start": "nodemon --exec ts-node -r tsconfig-paths/register src/index.ts",
     "build": "tsc",
     "serve": "node dist/index.js",
-    "seed": "ts-node prisma/seed.ts"
+    "seed-create": "ts-node prisma/seed.create.ts",
+    "seed-clean": "ts-node prisma/seed.clean.ts",
+    "seed": "ts-node prisma/seed.clean.ts && ts-node prisma/seed.create.ts"
   },
   "keywords": [
     "ts"
@@ -33,6 +35,7 @@
   "dependencies": {
     "@google/genai": "^1.12.0",
     "@prisma/client": "^6.13.0",
+    "@types/bcryptjs": "^2.4.6",
     "backblaze-b2": "^1.7.1",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",

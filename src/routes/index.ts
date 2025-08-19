@@ -10,6 +10,7 @@ import SLAconfigurationRoutes from "../v1/routes/SLAconfiguration.routes";
 import ticketRoutes from "../v1/routes/ticket.routes";
 import ticketAttachment from "../v1/routes/ticketAttachment.routes";
 import emailConfiguration from "../v1/routes/emailConfiguration.routes";
+import systemSettingRoutes from "../v1/routes/systemSetting.routes";
 
 const routes = Router();
 
@@ -38,5 +39,6 @@ routes.use("/v1", SLAconfigurationRoutes);
 routes.use("/v1", ticketRoutes);
 routes.use("/v1", ticketAttachment);
 routes.use("/v1", emailConfiguration);
+routes.use("/v1", systemSettingRoutes);
 
 export default routes;
