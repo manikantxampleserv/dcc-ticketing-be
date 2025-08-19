@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon --exec ts-node -r tsconfig-paths/register src/index.ts",
-    "build": "tsc",
-    "serve": "node dist/index.js",
+    "generate": "npx rimraf node_modules/.prisma && npx prisma generate && nodemon --exec ts-node -r tsconfig-paths/register src/index.ts",
     "seed": "ts-node prisma/seed.ts"
   },
   "keywords": [
