@@ -1,4 +1,3 @@
-// utils/backblaze.ts
 import B2 from "backblaze-b2";
 
 const b2 = new B2({
@@ -46,9 +45,13 @@ export async function deleteFile(fileName: string): Promise<void> {
   });
 
   const files = response.data.files;
-  if (!files || files.length === 0) return;
+  if (!files || files.length === 0) {
+    console.warn(`File not found in bucket: ${fileName}`);
+    return;
+  }
 
   const fileId = files[0].fileId;
+
   await b2.deleteFileVersion({
     fileId,
     fileName,

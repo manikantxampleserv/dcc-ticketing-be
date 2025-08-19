@@ -18,6 +18,13 @@ const serializeCompany = (
   is_active: company.is_active,
   ...(includeCreatedAt && { created_at: company.created_at }),
   ...(includeUpdatedAt && { updated_at: company.updated_at }),
+  customers: company.customers
+    ? {
+        id: company.customers.id,
+        first_name: company.customers.first_name,
+        last_name: company.customers.domain,
+      }
+    : undefined,
 });
 
 export const companyController = {
@@ -48,6 +55,9 @@ export const companyController = {
           contact_phone,
           address,
           is_active,
+        },
+        include: {
+          customers: true,
         },
       });
 
@@ -101,7 +111,7 @@ export const companyController = {
         },
       });
       res.success(
-        "Category fetched successfully",
+        "Category updated successfully",
         serializeCompany(company),
         200
       );
@@ -141,6 +151,9 @@ export const companyController = {
         page: page_num,
         limit: limit_num,
         orderBy: { id: "desc" },
+        include: {
+          customers: true,
+        },
       });
       res.success(
         "Company retrieved successfully",

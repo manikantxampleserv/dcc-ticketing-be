@@ -6,6 +6,7 @@ datasource db {
   provider = "sqlserver"
   url      = env("DATABASE_URL")
 }
+
 model users {
   id                                       Int                  @id @default(autoincrement())
   username                                 String               @unique @db.NVarChar(100)
@@ -35,7 +36,7 @@ model users {
   user_sessions                            user_sessions[]
   users                                    users?               @relation("UsersToUsers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_users                              users[]              @relation("UsersToUsers")
-  user_department                          department?           @relation(fields: [department_id], references: [id], onUpdate: NoAction)
+  user_department                          department?          @relation(fields: [department_id], references: [id], onUpdate: NoAction)
   user_role                                role                 @relation(fields: [role_id], references: [id], onUpdate: NoAction)
 
   @@index([email])
@@ -225,12 +226,13 @@ model tickets {
   ticket_merges_child_ticket_id_to_tickets  ticket_merges[]            @relation("TicketMerges_ChildTicketIDToTickets")
   ticket_merges_parent_ticket_id_to_tickets ticket_merges[]            @relation("TicketMerges_ParentTicketIDToTickets")
   ticket_reopens                            ticket_reopens[]
-  agents                                    agents?                    @relation(fields: [assigned_agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users                                     users?                     @relation(fields: [assigned_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   categories                                categories?                @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   customers                                 customers                  @relation(fields: [customer_id], references: [id], onUpdate: NoAction)
   tickets                                   tickets?                   @relation("TicketsToTickets", fields: [merged_into_ticket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_tickets                             tickets[]                  @relation("TicketsToTickets")
+  agents                                    agents?                    @relation(fields: [agentsId], references: [id])
+  agentsId                                  Int?
 
   @@index([assigned_agent_id, status])
   @@index([assigned_agent_id])
