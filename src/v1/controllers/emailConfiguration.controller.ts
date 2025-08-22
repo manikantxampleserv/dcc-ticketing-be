@@ -85,24 +85,105 @@ export const emailConfigurationController = {
     }
   },
 
+  // async updateEmailConfiguration(req: Request, res: Response): Promise<void> {
+  //   try {
+  //     const { created_at, updated_at, ...emailConfigurationData } = req.body;
+  //     const emailConfiguration = await prisma.email_configurations.update({
+  //       where: { id: Number(req.params.id) },
+  //       data: {
+  //         ...emailConfigurationData,
+  //         created_at: created_at ? new Date(created_at) : new Date(),
+  //         updated_at: updated_at ? new Date(updated_at) : new Date(),
+  //       },
+  //     });
+  //     res.success(
+  //       "Email Configuration updated successfully",
+  //       serializeEmailConfiguration(emailConfiguration),
+  //       200
+  //     );
+  //   } catch (error: any) {
+  //     console.error(error);
+  //     res.error(error.message);
+  //   }
+  // },
+
   async updateEmailConfiguration(req: Request, res: Response): Promise<void> {
     try {
-      const { created_at, updated_at, ...emailConfigurationData } = req.body;
+      const { id, created_at, updated_at, ...emailConfigurationData } =
+        req.body;
+
       const emailConfiguration = await prisma.email_configurations.update({
         where: { id: Number(req.params.id) },
         data: {
           ...emailConfigurationData,
-          created_at: created_at ? new Date(created_at) : new Date(),
-          updated_at: updated_at ? new Date(updated_at) : new Date(),
+          updated_at: new Date(),
         },
       });
+
       res.success(
         "Email Configuration updated successfully",
         serializeEmailConfiguration(emailConfiguration),
         200
       );
     } catch (error: any) {
-      console.error(error);
+      console.error("Error in updateEmailConfiguration:", error);
+      res.error(error.message);
+    }
+  },
+  async upsertEmailConfiguration(req: Request, res: Response): Promise<void> {
+    try {
+      const {
+        id,
+        smtp_server,
+        smtp_port,
+        username,
+        password,
+        enable_tls,
+        from_email,
+        from_name,
+        is_active,
+        auto_reply_enabled,
+        auto_reply_message,
+      } = req.body;
+
+      const emailConfiguration = await prisma.email_configurations.upsert({
+        where: { id: id ?? 0 }, // if no id is passed, prisma won't find a match
+        update: {
+          smtp_server,
+          smtp_port,
+          username,
+          password,
+          enable_tls,
+          from_email,
+          from_name,
+          is_active,
+          auto_reply_enabled,
+          auto_reply_message,
+          updated_at: new Date(),
+        },
+        create: {
+          smtp_server,
+          smtp_port,
+          username,
+          password,
+          enable_tls,
+          from_email,
+          from_name,
+          is_active,
+          auto_reply_enabled,
+          auto_reply_message,
+        },
+      });
+
+      res.success(
+        id
+          ? "Email Configuration updated successfully"
+          : "Email Configuration created successfully",
+        serializeEmailConfiguration(emailConfiguration, true, true),
+        id ? 200 : 201
+      );
+    } catch (error: any) {
+      console.error("Error in upsertEmailConfiguration:", error);
       res.error(error.message);
     }
   },

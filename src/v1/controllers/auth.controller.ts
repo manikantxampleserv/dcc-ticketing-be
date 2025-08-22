@@ -148,7 +148,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       user.password_hash
     );
     if (!isValidPassword) {
-      res.status(401).json({ error: "Invalid credentials" });
+      res.status(401).json({ message: "Invalid credentials" });
       return;
     }
 
@@ -177,9 +177,27 @@ export async function login(req: Request, res: Response): Promise<void> {
       user: payload,
       token,
     });
-  } catch (error) {
-    logger.error(`Login error: ${error}`);
-    res.status(500).json({ error: "Internal server error during login" });
+  } catch (error: any) {
+    console.error(error);
+
+    // Prisma connection pool timeout error
+    if (
+      error.message &&
+      error.message.includes(
+        "Timed out fetching a new connection from the connection pool"
+      )
+    ) {
+      res.status(503).json({
+        success: false,
+        message:
+          "Service temporarily unavailable. The server is experiencing high load. Please try again in a few moments.",
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "An unexpected error occurred during login. Please try again.",
+      });
+    }
   }
 }
 

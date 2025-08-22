@@ -33,5 +33,10 @@ router.delete(
   authenticateToken,
   emailConfigurationController.deleteEmailConfiguration
 );
+router.post(
+  "/email-configuration/upsert",
+  authenticateToken,
+  emailConfigurationController.upsertEmailConfiguration
+);
 
 export default router;

@@ -21,7 +21,6 @@ router.get(
   authenticateToken,
   systemSettingController.getAllSystemSetting
 );
-
 router.delete(
   "/system-setting/:id",
   authenticateToken,
@@ -32,6 +31,12 @@ router.put(
   "/system-setting/:id",
   authenticateToken,
   systemSettingController.updateSystemSetting
+);
+
+router.post(
+  "/system-setting/upsert",
+  authenticateToken,
+  systemSettingController.upsertSystemSetting
 );
 
 export default router;

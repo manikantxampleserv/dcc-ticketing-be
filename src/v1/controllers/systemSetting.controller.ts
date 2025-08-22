@@ -65,16 +65,39 @@ export const systemSettingController = {
     }
   },
 
+  // async updateSystemSetting(req: Request, res: Response): Promise<void> {
+  //   try {
+  //     const { created_at, updated_at, ...systemSettingData } = req.body;
+
+  //     const systemSetting = await prisma.system_settings.update({
+  //       where: { id: Number(req.params.id) },
+  //       data: {
+  //         ...systemSettingData,
+  //         created_at: created_at ? new Date(created_at) : new Date(),
+  //         updated_at: updated_at ? new Date(updated_at) : new Date(),
+  //       },
+  //     });
+
+  //     res.success(
+  //       "System setting updated successfully",
+  //       serializeSystemSetting(systemSetting),
+  //       200
+  //     );
+  //   } catch (error: any) {
+  //     console.error(error);
+  //     res.error(error.message);
+  //   }
+  // },
+
   async updateSystemSetting(req: Request, res: Response): Promise<void> {
     try {
-      const { created_at, updated_at, ...systemSettingData } = req.body;
+      const { id, created_at, updated_at, ...systemSettingData } = req.body;
 
       const systemSetting = await prisma.system_settings.update({
         where: { id: Number(req.params.id) },
         data: {
           ...systemSettingData,
-          created_at: created_at ? new Date(created_at) : new Date(),
-          updated_at: updated_at ? new Date(updated_at) : new Date(),
+          updated_at: new Date(),
         },
       });
 
@@ -101,26 +124,58 @@ export const systemSettingController = {
       res.error(error.message);
     }
   },
+  async upsertSystemSetting(req: Request, res: Response): Promise<void> {
+    try {
+      const { id, setting_key, setting_value, description, data_type } =
+        req.body;
+
+      const systemSetting = await prisma.system_settings.upsert({
+        where: { id: id ?? 0 },
+        update: {
+          setting_key,
+          setting_value,
+          description,
+          data_type,
+          updated_at: new Date(),
+        },
+        create: {
+          setting_key,
+          setting_value,
+          description,
+          data_type,
+        },
+      });
+
+      res.success(
+        id
+          ? "System setting updated successfully"
+          : "System setting created successfully",
+        serializeSystemSetting(systemSetting, true, true),
+        id ? 200 : 201
+      );
+    } catch (error: any) {
+      console.error(error);
+      res.error(error.message);
+    }
+  },
 
   async getAllSystemSetting(req: Request, res: Response): Promise<void> {
     try {
       const { page = "1", limit = "10", search = "" } = req.query;
       const page_num = parseInt(page as string, 10);
       const limit_num = parseInt(limit as string, 10);
-
+      const searchLower = (search as string).toLowerCase();
       const filters: any = search
         ? {
             OR: [
               {
                 setting_key: {
-                  contains: search as string,
-                  mode: "insensitive",
+                  contains: searchLower,
                 },
               },
               {
                 description: {
-                  contains: search as string,
-                  mode: "insensitive",
+                  contains: searchLower,
                 },
               },
             ],
