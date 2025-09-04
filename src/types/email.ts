@@ -34,24 +34,6 @@ interface ParsedEmail {
     messageId?: string;
 }
 
-interface Customer {
-    id: string;
-    email: string;
-    name: string;
-    status: string;
-}
-
-interface Ticket {
-    id: string;
-    ticketNumber: string;
-    subject: string;
-    description: string;
-    status: string;
-    priority: string;
-    customerId: string;
-    senderEmail: string;
-}
-
 const prisma = new PrismaClient();
 // || 587
 // Email configuration
