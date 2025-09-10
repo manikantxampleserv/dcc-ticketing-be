@@ -30,6 +30,7 @@ export const SLAcontroller = {
       if (!errors.isEmpty()) {
         const firstError = errors.array()[0];
         res.error(firstError.msg, 400);
+        return;
       }
 
       const {
@@ -53,6 +54,7 @@ export const SLAcontroller = {
 
         if (!existing) {
           res.error("SLA configuration not found", 404);
+          return;
         }
 
         slaConfig = await prisma.sla_configurations.update({
@@ -75,6 +77,7 @@ export const SLAcontroller = {
           serializeSlaConfig(slaConfig, true, false),
           200
         );
+        return;
       }
 
       slaConfig = await prisma.sla_configurations.create({
@@ -95,9 +98,11 @@ export const SLAcontroller = {
         serializeSlaConfig(slaConfig, true, true),
         201
       );
+      return;
     } catch (error: any) {
       console.error(error);
       res.error(error.message);
+      return;
     }
   },
 

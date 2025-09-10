@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { paginate } from "utils/pagination";
-import { validationResult } from "express-validator";
+import { param, validationResult } from "express-validator";
 const prisma = new PrismaClient();
 
 const serializeCategory = (category: any) => ({
@@ -86,14 +86,38 @@ export const categoryController = {
   // Delete category
   async deleteCategory(req: Request, res: Response): Promise<void> {
     try {
-      await prisma.categories.delete({
-        where: { id: Number(req.params.id) },
-      });
+      const { ids } = req.body;
+      const paramId = req.params.id ? parseInt(req.params.id, 10) : null;
 
-      res.success("Category deleted successfully");
-    } catch (error: any) {
-      console.error(error);
-      res.error(error.message);
+      if (paramId && !isNaN(paramId)) {
+        const category = await prisma.categories.findUnique({
+          where: { id: paramId },
+        });
+        if (!category) {
+          res.status(404).json({ error: "Category not found" });
+          return;
+        }
+        await prisma.categories.delete({ where: { id: paramId } });
+        res.status(200).json({
+          message: "Category deleted successfully",
+          deleted_id: paramId,
+        });
+        return;
+      }
+      if (Array.isArray(ids) && ids.length > 0) {
+        const deleted_category = await prisma.categories.deleteMany({
+          where: { id: { in: ids } },
+        });
+        res.status(200).json({
+          success: true,
+          message: "Category deleted successsfully",
+        });
+        return;
+      }
+      res.status(400).json({ error: "Invalid id provided" });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error: "Internal server error" });
     }
   },
 

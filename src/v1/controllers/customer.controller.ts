@@ -186,28 +186,69 @@ export const customerController = {
   },
 
   async deleteCustomer(req: Request, res: Response): Promise<void> {
+    // try {
+    //   const id = Number(req.params.id);
+    //   if (isNaN(id)) {
+    //     res.status(400).json({ success: false, error: "Invalid customer ID" });
+    //     return;
+    //   }
+
+    //   await prisma.customers.delete({ where: { id } });
+
+    //   res.status(200).json({
+    //     success: true,
+    //     message: "Customer deleted successfully",
+    //   });
+    // } catch (error: any) {
+    //   console.error(error);
+    //   if (error.code === "P2025") {
+    //     res.status(404).json({ success: false, message: "Customer not found" });
+    //   } else {
+    //     res
+    //       .status(500)
+    //       .json({ success: false, error: "Internal Server Error" });
+    //   }
+    // }
+
     try {
-      const id = Number(req.params.id);
-      if (isNaN(id)) {
-        res.status(400).json({ success: false, error: "Invalid customer ID" });
+      const { id, ids } = req.body;
+
+      if (id && !isNaN(Number(id))) {
+        const customer = await prisma.customers.findUnique({
+          where: { id: Number(id) },
+        });
+
+        if (!customer) {
+          res.error("Customer not found", 404);
+          return;
+        }
+
+        await prisma.customers.delete({ where: { id: Number(id) } });
+        res.success(`Customer with ID ${id} deleted successfully`, 200);
         return;
       }
 
-      await prisma.customers.delete({ where: { id } });
+      if (Array.isArray(ids) && ids.length > 0) {
+        const deletedCustomer = await prisma.customers.deleteMany({
+          where: { id: { in: ids } },
+        });
 
-      res.status(200).json({
-        success: true,
-        message: "Customer deleted successfully",
-      });
-    } catch (error: any) {
-      console.error(error);
-      if (error.code === "P2025") {
-        res.status(404).json({ success: false, message: "Customer not found" });
-      } else {
-        res
-          .status(500)
-          .json({ success: false, error: "Internal Server Error" });
+        if (deletedCustomer.count === 0) {
+          res.error("No customers found for deletion", 404);
+          return;
+        }
+        res.success(
+          `${deletedCustomer.count} customers deleted successfully`,
+          200
+        );
+        return;
       }
+      res.error(
+        "Please provide a valid 'id' or 'ids[]' in the request body",
+        400
+      );
+    } catch (error: any) {
+      res.error(error.message, 500);
     }
   },
 

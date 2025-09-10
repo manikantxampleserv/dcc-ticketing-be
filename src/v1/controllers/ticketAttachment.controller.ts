@@ -229,34 +229,78 @@ export const ticketAttachmentController = {
 
   // Delete
   async deleteTicketAttachment(req: Request, res: Response): Promise<void> {
-    try {
-      const id = Number(req.params.id);
-      const existingAttachment = await prisma.ticket_attachments.findUnique({
-        where: { id },
-      });
+    // try {
+    //   const id = Number(req.params.id);
+    //   const existingAttachment = await prisma.ticket_attachments.findUnique({
+    //     where: { id },
+    //   });
 
-      if (!existingAttachment) {
-        res.error("Attachment not found", 404);
+    //   if (!existingAttachment) {
+    //     res.error("Attachment not found", 404);
+    //     return;
+    //   }
+
+    //   // Optionally delete file from storage
+    //   if (existingAttachment.file_path) {
+    //     try {
+    //       await deleteFile(existingAttachment.file_path);
+    //     } catch (deleteError) {
+    //       console.error("Error deleting file from storage:", deleteError);
+    //       // Continue with database deletion even if file deletion fails
+    //     }
+    //   }
+
+    //   await prisma.ticket_attachments.delete({
+    //     where: { id },
+    //   });
+
+    //   res.success("Attachment deleted successfully", null, 200);
+    // } catch (error: any) {
+    //   res.error(error.message || "Internal server error", 500);
+    // }
+
+    try {
+      const { id, ids } = req.body;
+
+      if (id && !isNaN(Number(id))) {
+        const ticketAttachment = await prisma.ticket_attachments.findUnique({
+          where: { id: Number(id) },
+        });
+
+        if (!ticketAttachment) {
+          res.error("Ticket Attachment not found", 404);
+          return;
+        }
+
+        await prisma.ticket_attachments.delete({ where: { id: Number(id) } });
+        res.success(`Ticket with id ${id} deleted successfully`, 200);
         return;
       }
 
-      // Optionally delete file from storage
-      if (existingAttachment.file_path) {
-        try {
-          await deleteFile(existingAttachment.file_path);
-        } catch (deleteError) {
-          console.error("Error deleting file from storage:", deleteError);
-          // Continue with database deletion even if file deletion fails
+      if (Array.isArray(ids) && ids.length > 0) {
+        const deletedTicketAttachment =
+          await prisma.ticket_attachments.deleteMany({
+            where: { id: { in: ids } },
+          });
+
+        if (deletedTicketAttachment.count === 0) {
+          res.error("No matching tickets  attachment found for deletion", 404);
+          return;
         }
+
+        res.success(
+          `${deletedTicketAttachment.count} tickets attachemnts deleted successfully`,
+          200
+        );
+        return;
       }
 
-      await prisma.ticket_attachments.delete({
-        where: { id },
-      });
-
-      res.success("Attachment deleted successfully", null, 200);
+      res.error(
+        "Please provide a valid 'id' or 'ids[]' in the request body",
+        400
+      );
     } catch (error: any) {
-      res.error(error.message || "Internal server error", 500);
+      res.error(error.message, 500);
     }
   },
 

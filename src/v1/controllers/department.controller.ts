@@ -125,21 +125,57 @@ export const departmentController = {
   },
 
   async deleteDepartment(req: Request, res: Response): Promise<void> {
-    try {
-      await prisma.department.delete({
-        where: { id: Number(req.params.id) },
-      });
-      res.status(200).send({
-        success: true,
-        message: "Department deleted successfully",
-      });
-    } catch (error) {
-      console.log("Error in department deletion", error);
+    // try {
+    //   await prisma.department.delete({
+    //     where: { id: Number(req.params.id) },
+    //   });
+    //   res.status(200).send({
+    //     success: true,
+    //     message: "Department deleted successfully",
+    //   });
+    // } catch (error) {
+    //   console.log("Error in department deletion", error);
 
-      res.status(500).send({
-        success: false,
-        message: "Internal Server Error",
-      });
+    //   res.status(500).send({
+    //     success: false,
+    //     message: "Internal Server Error",
+    //   });
+    // }
+
+    try {
+      const { id, ids } = req.body;
+      if (id && !isNaN(Number(id))) {
+        const department = await prisma.department.findUnique({
+          where: { id: Number(id) },
+        });
+        if (!department) {
+          res.error("Department not found", 404);
+          return;
+        }
+        await prisma.department.delete({ where: { id: Number(id) } });
+        res.success(`Department with id ${id} deleted successfully`, 200);
+        return;
+      }
+      if (Array.isArray(ids) && ids.length > 0) {
+        const deleteDepartment = await prisma.department.deleteMany({
+          where: { id: { in: ids } },
+        });
+        if (deleteDepartment.count === 0) {
+          res.error("No matching department found for deletion", 404);
+          return;
+        }
+        res.success(
+          `${deleteDepartment.count} department deleted successfully`,
+          200
+        );
+        return;
+      }
+      res.error(
+        "Please provide a valid 'id' or 'ids[]' in the request body",
+        400
+      );
+    } catch (error: any) {
+      res.error(error.message, 500);
     }
   },
 

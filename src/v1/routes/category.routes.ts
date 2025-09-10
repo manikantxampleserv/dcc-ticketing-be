@@ -24,8 +24,9 @@ router.put(
   categoryController.updateCategory
 );
 router.delete(
-  "/category/:id",
+  "/category",
   authenticateToken,
+  validate,
   categoryController.deleteCategory
 );
 

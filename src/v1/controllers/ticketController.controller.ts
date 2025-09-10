@@ -34,6 +34,27 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
   }),
+  users: ticket.users
+    ? {
+        username: ticket.username,
+        email: ticket.email,
+      }
+    : undefined,
+  customers: ticket.customers
+    ? {
+        id: ticket.id,
+        company_id: ticket.company_id,
+        first_name: ticket.first_name,
+        last_name: ticket.last_name,
+      }
+    : undefined,
+  agents: ticket.agents
+    ? {
+        id: ticket.id,
+        first_name: ticket.first_name,
+        last_name: ticket.last_name,
+      }
+    : undefined,
 });
 
 export const ticketController = {
@@ -90,6 +111,11 @@ export const ticketController = {
           customer_feedback,
           tags,
           merged_into_ticket_id,
+        },
+        include: {
+          users: true,
+          customers: true,
+          agents: true,
         },
       });
 
@@ -165,6 +191,11 @@ export const ticketController = {
           merged_into_ticket_id,
           updated_at: new Date(),
         },
+        include: {
+          users: true,
+          customers: true,
+          agents: true,
+        },
       });
 
       res.success(
@@ -204,10 +235,46 @@ export const ticketController = {
 
   async deleteTicket(req: Request, res: Response): Promise<void> {
     try {
-      await prisma.tickets.delete({ where: { id: Number(req.params.id) } });
-      res.success("Ticket deleted successfully");
+      const { id, ids } = req.body;
+
+      if (id && !isNaN(Number(id))) {
+        const ticket = await prisma.tickets.findUnique({
+          where: { id: Number(id) },
+        });
+
+        if (!ticket) {
+          res.error("Ticket not found", 404);
+          return;
+        }
+
+        await prisma.tickets.delete({ where: { id: Number(id) } });
+        res.success(`Ticket with id ${id} deleted successfully`, 200);
+        return;
+      }
+
+      if (Array.isArray(ids) && ids.length > 0) {
+        const deletedTickets = await prisma.tickets.deleteMany({
+          where: { id: { in: ids } },
+        });
+
+        if (deletedTickets.count === 0) {
+          res.error("No matching tickets found for deletion", 404);
+          return;
+        }
+
+        res.success(
+          `${deletedTickets.count} tickets deleted successfully`,
+          200
+        );
+        return;
+      }
+
+      res.error(
+        "Please provide a valid 'id' or 'ids[]' in the request body",
+        400
+      );
     } catch (error: any) {
-      res.error(error.message);
+      res.error(error.message, 500);
     }
   },
 
@@ -238,6 +305,11 @@ export const ticketController = {
         page: page_num,
         limit: limit_num,
         orderBy: { created_at: "desc" },
+        include: {
+          users: true,
+          customers: true,
+          agents: true,
+        },
       });
 
       res.success(

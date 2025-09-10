@@ -35,6 +35,7 @@ router.put(
 router.delete(
   "/customers/:id",
   authenticateToken,
+  validate,
   customerController.deleteCustomer
 );
 
