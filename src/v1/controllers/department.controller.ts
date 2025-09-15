@@ -93,6 +93,10 @@ export const departmentController = {
     try {
       const { created_at, updated_at, ...departmentData } = req.body;
 
+      if ("id" in departmentData) {
+        delete departmentData.id;
+      }
+
       if (departmentData.is_active !== undefined) {
         departmentData.is_active =
           departmentData.is_active === true ||

@@ -15,7 +15,7 @@ const serializeCompany = (
   contact_email: company.contact_email,
   contact_phone: company.contact_phone,
   address: company.address,
-  is_active: company.is_active,
+  is_active: company.is_active ? "Y" : "N",
   ...(includeCreatedAt && { created_at: company.created_at }),
   ...(includeUpdatedAt && { updated_at: company.updated_at }),
   customers: company.customers
@@ -101,6 +101,15 @@ export const companyController = {
   async updateCompany(req: Request, res: Response): Promise<void> {
     try {
       const { created_at, updated_at, ...companyData } = req.body;
+
+      if ("id" in companyData) {
+        delete companyData.id;
+      }
+
+      if (companyData.is_active !== undefined) {
+        companyData.is_active =
+          companyData.is_active === true || companyData.is_active === "true";
+      }
 
       const company = await prisma.companies.update({
         where: { id: Number(req.params.id) },

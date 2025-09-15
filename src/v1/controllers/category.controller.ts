@@ -20,9 +20,15 @@ export const categoryController = {
       if (!errors.isEmpty()) {
         const firstError = errors.array()[0];
         res.error(firstError.msg, 400);
+        return;
       }
 
       const { category_name, description, is_active, created_at } = req.body;
+
+      if (!category_name) {
+        res.error("Category name is required", 400);
+        return;
+      }
 
       const category = await prisma.categories.create({
         data: {
@@ -67,6 +73,15 @@ export const categoryController = {
   async updateCategory(req: Request, res: Response): Promise<void> {
     try {
       const { created_at, ...rest } = req.body;
+
+      if ("id" in rest) {
+        delete rest.id;
+      }
+
+      if ("name" in rest) {
+        rest.category_name = rest.name;
+        delete rest.name;
+      }
 
       const category = await prisma.categories.update({
         where: { id: Number(req.params.id) },
