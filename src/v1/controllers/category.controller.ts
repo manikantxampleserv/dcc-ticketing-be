@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 const serializeCategory = (category: any) => ({
   id: category.id,
-  name: category.category_name,
+  category_name: category.category_name,
   description: category.description,
   isActive: category.is_active,
   created_at: category.created_at,
