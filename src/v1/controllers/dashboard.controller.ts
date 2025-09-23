@@ -26,7 +26,7 @@ async getTicketStatus(req: Request, res: Response): Promise<void> {
         return;
       }
 
-      const isAdmin = user.user_role.name === "admin";
+      const isAdmin = user.user_role.name === "Admin";
       filter = isAdmin ? {} : { assigned_agent_id: user.id };
     }
 
