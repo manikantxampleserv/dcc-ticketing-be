@@ -7,7 +7,13 @@ import { uploadSingleFile } from "utils/fileUpload";
 
 const router = Router();
 
-router.post("/ticket", authenticateToken, ticketController.createTicket);
+uploadSingleFile("attachment"),
+  router.post(
+    "/ticket",
+    authenticateToken,
+    uploadSingleFile("attachment_urls"),
+    ticketController.createTicket
+  );
 router.post(
   "/ticket-comment",
   authenticateToken,

@@ -72,7 +72,7 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
 });
 
 export const ticketController = {
-  async createTicket(req: any, res: Response): Promise<void> {
+  async createTicket(req: Request, res: Response): Promise<void> {
     try {
       const {
         customer_id,
@@ -396,7 +396,7 @@ export const ticketController = {
     }
   },
   // Create a new comment
-  async createComment(req: Request, res: Response): Promise<void> {
+  async createComment(req: any, res: Response): Promise<void> {
     try {
       const {
         ticket_id,
