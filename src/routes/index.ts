@@ -12,6 +12,7 @@ import dashboardRoutes from "../v1/routes/dashboard.routes";
 import ticketAttachment from "../v1/routes/ticketAttachment.routes";
 import emailConfiguration from "../v1/routes/emailConfiguration.routes";
 import systemSettingRoutes from "../v1/routes/systemSetting.routes";
+import agentsRoutes from "../v1/routes/agent.routes";
 
 const routes = Router();
 
@@ -42,5 +43,6 @@ routes.use("/v1", dashboardRoutes);
 routes.use("/v1", ticketAttachment);
 routes.use("/v1", emailConfiguration);
 routes.use("/v1", systemSettingRoutes);
+routes.use("/v1", agentsRoutes);
 
 export default routes;

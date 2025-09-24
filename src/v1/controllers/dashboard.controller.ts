@@ -4,63 +4,62 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export const dashboardController = {
-async getTicketStatus(req: Request, res: Response): Promise<void> {
-  try {
-    const userId = req.body.user_id ? Number(req.body.user_id) : null;
+  async getTicketStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.query.user_id ? Number(req.query.user_id) : null;
 
-    let filter: any = {};
+      let filter: any = {};
 
-    if (userId) {
-      if (isNaN(userId)) {
-        res.error("Invalid user_id", 400);
-        return;
+      if (userId) {
+        if (isNaN(userId)) {
+          res.error("Invalid user_id", 400);
+          return;
+        }
+
+        const user = await prisma.users.findUnique({
+          where: { id: userId },
+          include: { user_role: true },
+        });
+
+        if (!user) {
+          res.error("User not found", 404);
+          return;
+        }
+
+        const isAdmin = user.user_role.name === "Admin";
+        filter = isAdmin ? {} : { assigned_agent_id: user.id };
       }
 
-      const user = await prisma.users.findUnique({
-        where: { id: userId },
-        include: { user_role: true },
+      // Count all tickets
+      const totalTickets = await prisma.tickets.count({
+        where: filter,
       });
 
-      if (!user) {
-        res.error("User not found", 404);
-        return;
-      }
+      // Count open tickets
+      const openTickets = await prisma.tickets.count({
+        where: { ...filter, status: "Open" },
+      });
 
-      const isAdmin = user.user_role.name === "Admin";
-      filter = isAdmin ? {} : { assigned_agent_id: user.id };
+      // Count resolved today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+
+      const resolvedToday = await prisma.tickets.count({
+        where: {
+          ...filter,
+          resolved_at: { gte: today, lt: tomorrow },
+        },
+      });
+
+      res.success("Ticket status fetched successfully", {
+        totalTickets,
+        openTickets,
+        resolvedToday,
+      });
+    } catch (error: any) {
+      res.error(error.message);
     }
-
-    // Count all tickets
-    const totalTickets = await prisma.tickets.count({
-      where: filter,
-    });
-
-    // Count open tickets
-    const openTickets = await prisma.tickets.count({
-      where: { ...filter, status: "Open" },
-    });
-
-    // Count resolved today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-
-    const resolvedToday = await prisma.tickets.count({
-      where: {
-        ...filter,
-        resolved_at: { gte: today, lt: tomorrow },
-      },
-    });
-
-    res.success("Ticket status fetched successfully", {
-      totalTickets,
-      openTickets,
-      resolvedToday,
-    });
-  } catch (error: any) {
-    res.error(error.message);
-  }
-}
-
+  },
 };

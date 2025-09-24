@@ -75,7 +75,6 @@ export const ticketController = {
   async createTicket(req: Request, res: Response): Promise<void> {
     try {
       const {
-        ticket_number,
         customer_id,
         assigned_agent_id,
         category_id,
@@ -99,7 +98,7 @@ export const ticketController = {
         tags,
         merged_into_ticket_id,
       } = req.body;
-
+      const ticket_number = `TCKT-${Date.now()}`;
       const ticket = await prisma.tickets.create({
         data: {
           ticket_number,
