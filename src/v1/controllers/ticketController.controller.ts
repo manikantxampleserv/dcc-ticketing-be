@@ -72,7 +72,7 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
 });
 
 export const ticketController = {
-  async createTicket(req: Request, res: Response): Promise<void> {
+  async createTicket(req: any, res: Response): Promise<void> {
     try {
       const {
         customer_id,
@@ -88,7 +88,6 @@ export const ticketController = {
         first_response_at,
         resolved_at,
         closed_at,
-        assigned_by,
         is_merged,
         reopen_count,
         time_spent_minutes,
@@ -98,7 +97,23 @@ export const ticketController = {
         tags,
         merged_into_ticket_id,
       } = req.body;
+
+      const assigned_by = Number(req?.user?.id);
       const ticket_number = `TCKT-${Date.now()}`;
+
+      let avatarUrl = null;
+      if (req.file) {
+        const fileName = `${ticket_number}/${Date.now()}_${
+          req.file.originalname
+        }`;
+        avatarUrl = await uploadFile(
+          req.file.buffer,
+          fileName,
+          req.file.mimetype
+        );
+      }
+      const attachment_urls = JSON.stringify([avatarUrl]);
+
       const ticket = await prisma.tickets.create({
         data: {
           ticket_number,
@@ -116,6 +131,7 @@ export const ticketController = {
           resolved_at,
           closed_at,
           assigned_by,
+          attachment_urls,
           is_merged: is_merged ?? false,
           reopen_count: reopen_count ?? 0,
           time_spent_minutes: time_spent_minutes ?? 0,
