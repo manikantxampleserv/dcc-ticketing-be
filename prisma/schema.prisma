@@ -79,15 +79,17 @@ model role {
   created_at DateTime? @default(now())
   updated_at DateTime? @default(now())
   user_role  users[]
+  agent_role agents[]
 }
 
 model department {
-  id              Int       @id @default(autoincrement())
-  department_name String?   @db.NVarChar(255)
-  created_at      DateTime? @default(now())
-  updated_at      DateTime? @default(now())
-  is_active       String?   @default("Y") @db.Char(1)
-  user_department users[]
+  id               Int       @id @default(autoincrement())
+  department_name  String?   @db.NVarChar(255)
+  created_at       DateTime? @default(now())
+  updated_at       DateTime? @default(now())
+  is_active        String?   @default("Y") @db.Char(1)
+  user_department  users[]
+  agent_department agents[]
 }
 
 model agents {
@@ -96,8 +98,8 @@ model agents {
   last_name                String                     @db.NVarChar(100)
   email                    String                     @unique @db.NVarChar(255)
   phone                    String?                    @db.NVarChar(50)
-  role                     String                     @default("Agent") @db.NVarChar(50)
-  department               String?                    @db.NVarChar(100)
+  role                     Int
+  department               Int?
   is_active                Boolean?                   @default(true)
   hire_date                DateTime?                  @db.Date
   avatar                   String?                    @db.NVarChar(500)
@@ -105,11 +107,13 @@ model agents {
   updated_at               DateTime?                  @default(now(), map: "DF__Agents__UpdatedA__34C8D9D1")
   user_id                  Int?
   agent_performance        agent_performance[]
-  users                    users?                     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   notification_settings    notification_settings[]
   support_ticket_responses support_ticket_responses[]
   ticket_history           ticket_history[]
   tickets                  tickets[]
+  users                    users?                     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  agent_role               role?                      @relation(fields: [role], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  agent_department         department?                @relation(fields: [department], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([email])
   @@index([is_active])

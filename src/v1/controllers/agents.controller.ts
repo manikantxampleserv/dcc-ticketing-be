@@ -31,6 +31,20 @@ const serializeAgents = (
         last_name: agent.users.last_name,
       }
     : undefined,
+
+  agent_role: agent.agent_role
+    ? {
+        id: agent.agent_role.id,
+        name: agent.agent_role.name,
+      }
+    : undefined,
+
+  agent_department: agent.agent_department
+    ? {
+        id: agent.agent_department.id,
+        department_name: agent.agent_department.department_name,
+      }
+    : undefined,
   support_ticket_responses: agent.support_ticket_responses
     ? agent.support_ticket_responses.map((response: any) => ({
         id: response.id,
@@ -85,6 +99,8 @@ export const agentsController = {
         },
         include: {
           users: true,
+          agent_role: true,
+          agent_department: true,
         },
       });
 
@@ -218,7 +234,8 @@ export const agentsController = {
     // }
 
     try {
-      const { id, ids } = req.body;
+      const { id } = req.params;
+      const { ids } = req.body;
 
       if (id && !isNaN(Number(id))) {
         const customer = await prisma.customers.findUnique({

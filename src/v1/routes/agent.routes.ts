@@ -34,5 +34,11 @@ router.delete(
   validate,
   agentsController.deleteAgent
 );
+router.delete(
+  "/agents",
+  authenticateToken,
+  validate,
+  agentsController.deleteAgent
+);
 
 export default router;
