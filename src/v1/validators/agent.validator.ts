@@ -9,8 +9,8 @@ export const createAgentValidator = [
     .withMessage("First name must be at most 100 characters"),
 
   body("last_name")
-    .notEmpty()
-    .withMessage("Last name is required")
+    .optional()
+    .isString()
     .isLength({ max: 100 })
     .withMessage("Last name must be at most 100 characters"),
 
@@ -37,22 +37,11 @@ export const createAgentValidator = [
     .isLength({ max: 100 })
     .withMessage("Department must be at most 100 characters"),
 
-  body("is_active")
-    .optional()
-    .isBoolean()
-    .withMessage("is_active must be true or false"),
-
   body("hire_date")
     .optional()
     .isISO8601()
     .toDate()
     .withMessage("hire_date must be a valid ISO 8601 date"),
-
-  body("avatar")
-    .optional()
-    .isString()
-    .isLength({ max: 500 })
-    .withMessage("Avatar must be at most 500 characters"),
 
   body("user_id").optional().isInt().withMessage("user_id must be an integer"),
 ];

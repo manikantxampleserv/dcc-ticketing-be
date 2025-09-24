@@ -4,28 +4,31 @@ import { paginate } from "utils/pagination";
 import { validationResult } from "express-validator";
 
 const prisma = new PrismaClient();
-
 const serializeAgents = (
   agent: any,
   includeCreatedAt = false,
   includeUpdatedAt = false
 ) => ({
   id: agent.id,
-  company_id: agent.company_id,
   first_name: agent.first_name,
   last_name: agent.last_name,
+  role: agent.role,
+  department: agent.department,
+  hire_date: agent.hire_date,
+  avatar: agent.avatar,
   email: agent.email,
   phone: agent.phone,
-  job_title: agent.job_title,
+  user_id: agent.user_id,
   is_active: agent.is_active,
   ...(includeCreatedAt && { created_at: agent.created_at }),
   ...(includeUpdatedAt && { updated_at: agent.updated_at }),
 
-  companies: agent.companies
+  users: agent.users
     ? {
-        id: agent.companies.id,
-        company_name: agent.companies.company_name,
-        domain: agent.companies.domain,
+        id: agent.users.id,
+        email: agent.users.email,
+        first_name: agent.users.first_name,
+        last_name: agent.users.last_name,
       }
     : undefined,
   support_ticket_responses: agent.support_ticket_responses

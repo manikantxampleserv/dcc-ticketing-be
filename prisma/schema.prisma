@@ -224,6 +224,7 @@ model tickets {
   original_email_message_id                 String?                    @db.NVarChar(255) // Original email that created ticket
   email_thread_id                           String?                    @db.NVarChar(255) // Email thread identifier
   merged_into_ticket_id                     Int?
+  attachment_urls                           String?
   support_ticket_responses                  support_ticket_responses[]
   ticket_allocations                        ticket_allocations[]
   ticket_attachments                        ticket_attachments[]

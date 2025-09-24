@@ -18,7 +18,7 @@ router.post(
 );
 router.get("/agents/:id", authenticateToken, agentsController.getAgentById);
 
-router.get("/customers", authenticateToken, agentsController.getAllAgents);
+router.get("/agents", authenticateToken, agentsController.getAllAgents);
 
 router.put(
   "/agents/:id",
