@@ -31,6 +31,7 @@ model users {
   ticket_merges                            ticket_merges[]
   ticket_reopens                           ticket_reopens[]
   tickets                                  tickets[]
+  ticket_comment_users                     ticket_comments[]
   user_permissions_granted_by_to_users     user_permissions[]   @relation("UserPermissions_GrantedByToUsers")
   user_permissions_user_id_to_users        user_permissions[]   @relation("UserPermissions_UserIDToUsers")
   user_sessions                            user_sessions[]
@@ -177,6 +178,7 @@ model customers {
   companies                companies                  @relation(fields: [company_id], references: [id], onUpdate: NoAction)
   support_ticket_responses support_ticket_responses[]
   tickets                  tickets[]
+  ticket_comment_customers ticket_comments[]
 
   @@index([company_id])
   @@index([email])
@@ -218,11 +220,15 @@ model tickets {
   tags                                      String?                    @db.NVarChar(500)
   created_at                                DateTime?                  @default(now(), map: "DF__Tickets__Created__49C3F6B7")
   updated_at                                DateTime?                  @default(now(), map: "DF__Tickets__Updated__4AB81AF0")
+  agentsId                                  Int?
+  original_email_message_id                 String?                    @db.NVarChar(255) // Original email that created ticket
+  email_thread_id                           String?                    @db.NVarChar(255) // Email thread identifier
   merged_into_ticket_id                     Int?
   support_ticket_responses                  support_ticket_responses[]
   ticket_allocations                        ticket_allocations[]
   ticket_attachments                        ticket_attachments[]
   ticket_history                            ticket_history[]
+  ticket_comments                           ticket_comments[]
   ticket_merges_child_ticket_id_to_tickets  ticket_merges[]            @relation("TicketMerges_ChildTicketIDToTickets")
   ticket_merges_parent_ticket_id_to_tickets ticket_merges[]            @relation("TicketMerges_ParentTicketIDToTickets")
   ticket_reopens                            ticket_reopens[]
@@ -232,7 +238,6 @@ model tickets {
   tickets                                   tickets?                   @relation("TicketsToTickets", fields: [merged_into_ticket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_tickets                             tickets[]                  @relation("TicketsToTickets")
   agents                                    agents?                    @relation(fields: [agentsId], references: [id])
-  agentsId                                  Int?
 
   @@index([assigned_agent_id, status])
   @@index([assigned_agent_id])
@@ -245,6 +250,30 @@ model tickets {
   @@index([status])
   @@index([status, priority])
   @@index([ticket_number])
+}
+
+model ticket_comments {
+  id               Int      @id @default(autoincrement())
+  ticket_id        Int
+  user_id          Int? // Agent/User who made the comment
+  customer_id      Int? // Customer who made the comment (for email replies)
+  comment_text     String   @db.NText
+  comment_type     String   @default("internal") @db.NVarChar(50) // "internal", "public", "email_reply"
+  is_internal      Boolean  @default(false) // true = internal note, false = visible to customer
+  email_message_id String?  @db.NVarChar(255) // For tracking email replies
+  attachment_urls  String?  @db.NText // JSON array of attachment URLs
+  mentioned_users  String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @default(now()) @updatedAt
+
+  // Relations
+  ticket_comments          tickets    @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  ticket_comment_users     users?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  ticket_comment_customers customers? @relation(fields: [customer_id], references: [id], onDelete: SetNull)
+
+  @@index([ticket_id])
+  @@index([created_at])
+  @@index([comment_type])
 }
 
 model support_ticket_responses {

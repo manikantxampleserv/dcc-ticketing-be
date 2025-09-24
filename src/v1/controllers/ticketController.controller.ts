@@ -2,6 +2,9 @@ import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { paginate } from "utils/pagination";
 import { validationResult } from "express-validator";
+import EmailService from "types/sendEmailComment";
+import { uploadToBackblaze } from "utils/backBlaze";
+import { uploadFile } from "utils/blackbaze";
 
 const prisma = new PrismaClient();
 
@@ -29,7 +32,10 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   customer_satisfaction_rating: ticket.customer_satisfaction_rating,
   customer_feedback: ticket.customer_feedback,
   tags: ticket.tags,
+  email_thread_id: ticket.email_thread_id,
+  original_email_message_id: ticket.original_email_message_id,
   merged_into_ticket_id: ticket.merged_into_ticket_id,
+  ticket_comments: ticket.ticket_comments,
   ...(includeDates && {
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
@@ -42,10 +48,18 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
     : undefined,
   customers: ticket.customers
     ? {
-        id: ticket.id,
-        company_id: ticket.company_id,
-        first_name: ticket.first_name,
-        last_name: ticket.last_name,
+        id: ticket.customers.id,
+        company_id: ticket.customers.company_id,
+        first_name: ticket.customers.first_name,
+        last_name: ticket.customers.last_name,
+        email: ticket.customers.email,
+        phone: ticket.customers.phone,
+        companies: ticket.customers.companies
+          ? {
+              id: ticket.customers.companies.id,
+              company_name: ticket.customers.companies.company_name,
+            }
+          : undefined,
       }
     : undefined,
   agents: ticket.agents
@@ -218,11 +232,55 @@ export const ticketController = {
           agents: true,
           users: true,
           categories: true,
-          customers: true,
+          ticket_comments: {
+            select: {
+              id: true,
+              ticket_id: true,
+              user_id: true,
+              comment_text: true,
+              customer_id: true,
+              comment_type: true,
+              is_internal: true,
+              mentioned_users: true,
+              attachment_urls: true,
+              email_message_id: true,
+              created_at: true,
+              updated_at: true,
+              ticket_comment_users: {
+                select: {
+                  id: true,
+                  first_name: true,
+                  last_name: true,
+                  email: true,
+                  avatar: true,
+                },
+              },
+              ticket_comment_customers: {
+                select: {
+                  id: true,
+                  first_name: true,
+                  last_name: true,
+                  email: true,
+                },
+              },
+            },
+
+            orderBy: { created_at: "desc" },
+          },
+          customers: {
+            select: {
+              id: true,
+              company_id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+              phone: true,
+              companies: { select: { id: true, company_name: true } },
+            },
+          },
         },
       });
       if (!ticket) res.error("Ticket not found", 404);
-
       res.success(
         "Ticket fetched successfully",
         serializeTicket(ticket, true),
@@ -319,6 +377,156 @@ export const ticketController = {
         pagination
       );
     } catch (error: any) {
+      res.error(error.message);
+    }
+  },
+  // Create a new comment
+  async createComment(req: Request, res: Response): Promise<void> {
+    try {
+      const {
+        ticket_id,
+        comment_text,
+        comment_type = "public",
+        is_internal = false,
+        mentioned_users,
+      } = req.body;
+      // const user_id = null;
+      const user_id = req?.user?.id; // Assuming you have user auth middleware
+
+      let imageUrl = null;
+      if (req.file) {
+        const fileName = `ticket-${ticket_id}-comment/${Date.now()}_${
+          req.file.originalname
+        }`;
+        imageUrl = await uploadFile(
+          req.file.buffer,
+          fileName,
+          req.file.mimetype
+        );
+
+        // imageUrl = await uploadToBackblaze(
+        //   req.file.buffer,
+        //   req.file.originalname,
+        //   req.file.mimetype,
+        //   "TicketComments",
+        //   `ticket-${ticket_id}-comment`
+        // );
+      }
+      console.log("Image URL:", imageUrl, req.file);
+
+      // Validate ticket exists
+      const ticket = await prisma.tickets.findUnique({
+        where: { id: Number(ticket_id) },
+        select: {
+          email_thread_id: true,
+          subject: true,
+          ticket_number: true,
+          id: true,
+          users: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+            },
+          },
+          original_email_message_id: true,
+          status: true,
+          priority: true,
+          description: true,
+          created_at: true,
+          source: true,
+          customers: {
+            select: {
+              id: true,
+              email: true,
+              first_name: true,
+              last_name: true,
+            },
+          },
+        },
+      });
+
+      if (!ticket) {
+        res.error("Ticket not found", 404);
+        return;
+      }
+      let additionalEmails: any[] = [];
+      const new_is_internal = is_internal == "true" ? true : false;
+      // ✅ FIXED: Validate mentioned users properly
+      let validatedMentionedUsers: number[] = [];
+      const mentionedUser = mentioned_users && JSON.parse(mentioned_users);
+      if (mentionedUser?.length > 0) {
+        try {
+          const userIds = mentionedUser
+            ?.map((userId: any) => Number(userId))
+            .filter(Boolean);
+
+          if (userIds.length > 0) {
+            const existingUsers = await prisma.users.findMany({
+              where: {
+                id: { in: userIds },
+              },
+              select: { id: true, email: true },
+            });
+            additionalEmails = existingUsers?.map((user) => user.email);
+            validatedMentionedUsers = existingUsers.map((user) => user.id);
+
+            if (validatedMentionedUsers.length !== userIds.length) {
+              console.warn("⚠️ Some mentioned users were not found");
+            }
+          }
+        } catch (mentionError) {
+          console.error("❌ Error validating mentioned users:", mentionError);
+          // Continue without failing the entire request
+        }
+      }
+      // Create comment
+      const comment = await prisma.ticket_comments.create({
+        data: {
+          ticket_id: Number(ticket_id),
+          user_id: user_id ? Number(user_id) : undefined,
+          comment_text,
+          comment_type,
+          is_internal: new_is_internal,
+          mentioned_users:
+            validatedMentionedUsers.length > 0
+              ? JSON.stringify(validatedMentionedUsers)
+              : null,
+          attachment_urls: imageUrl ? imageUrl : "",
+        },
+        include: {
+          ticket_comment_users: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      // Send email to customer if it's a public comment
+      // ✅ Send email to customer if it's a public comment
+      if (!new_is_internal && comment_type === "public") {
+        console.log("Sending email to customer...");
+        await EmailService.sendCommentEmailToCustomer(
+          ticket,
+          { ...comment, imageUrl },
+          additionalEmails
+        );
+      }
+
+      // Update ticket's updated_at timestamp
+      await prisma.tickets.update({
+        where: { id: Number(ticket_id) },
+        data: { updated_at: new Date() },
+      });
+
+      res.success("Comment created successfully", comment, 201);
+    } catch (error: any) {
+      console.error(error);
       res.error(error.message);
     }
   },
