@@ -42,8 +42,11 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   }),
   users: ticket.users
     ? {
-        username: ticket.username,
-        email: ticket.email,
+        id: ticket.users?.id,
+        first_name: ticket.users?.first_name,
+        last_name: ticket.users?.last_name,
+        username: ticket.users?.username,
+        email: ticket.users?.email,
       }
     : undefined,
   customers: ticket.customers
@@ -62,11 +65,13 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
           : undefined,
       }
     : undefined,
-  agents: ticket.agents
+  agents_user: ticket.agents_user
     ? {
-        id: ticket.id,
-        first_name: ticket.first_name,
-        last_name: ticket.last_name,
+        id: ticket.agents_user?.id,
+        first_name: ticket.agents_user?.first_name,
+        last_name: ticket.agents_user?.last_name,
+        username: ticket.agents_user?.username,
+        email: ticket.agents_user?.email,
       }
     : undefined,
 });
@@ -144,7 +149,7 @@ export const ticketController = {
         include: {
           users: true,
           customers: true,
-          agents: true,
+          agents_user: true,
         },
       });
 
@@ -166,64 +171,102 @@ export const ticketController = {
       if (!existing) {
         res.error("Ticket not found", 404);
       }
-      const {
-        ticket_number,
-        customer_id,
-        assigned_agent_id,
-        category_id,
-        subject,
-        description,
-        priority,
-        status,
-        source,
-        sla_deadline,
-        sla_status,
-        first_response_at,
-        resolved_at,
-        closed_at,
-        assigned_by,
-        is_merged,
-        reopen_count,
-        time_spent_minutes,
-        last_reopened_at,
-        customer_satisfaction_rating,
-        customer_feedback,
-        tags,
-        merged_into_ticket_id,
-      } = req.body;
+      // const {
+      //   ticket_number,
+      //   customer_id,
+      //   assigned_agent_id,
+      //   category_id,
+      //   subject,
+      //   description,
+      //   priority,
+      //   status,
+      //   source,
+      //   sla_deadline,
+      //   sla_status,
+      //   first_response_at,
+      //   resolved_at,
+      //   closed_at,
+      //   assigned_by,
+      //   is_merged,
+      //   reopen_count,
+      //   time_spent_minutes,
+      //   last_reopened_at,
+      //   customer_satisfaction_rating,
+      //   customer_feedback,
+      //   tags,
+      //   merged_into_ticket_id,
+      // } = req.body;
+      // Step 2: Extract and sanitize only defined fields from req.body
+      const allowedFields = [
+        "ticket_number",
+        "customer_id",
+        "assigned_agent_id",
+        "category_id",
+        "subject",
+        "description",
+        "priority",
+        "status",
+        "source",
+        "sla_deadline",
+        "sla_status",
+        "first_response_at",
+        "resolved_at",
+        "closed_at",
+        "assigned_by",
+        "is_merged",
+        "reopen_count",
+        "time_spent_minutes",
+        "last_reopened_at",
+        "customer_satisfaction_rating",
+        "customer_feedback",
+        "tags",
+        "merged_into_ticket_id",
+      ];
+
+      const dataToUpdate: Record<string, any> = {};
+
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          dataToUpdate[field] = req.body[field];
+        }
+      }
+
+      // Always update updated_at
+      dataToUpdate.updated_at = new Date();
 
       const ticket = await prisma.tickets.update({
         where: { id },
-        data: {
-          ticket_number,
-          customer_id,
-          assigned_agent_id,
-          category_id,
-          subject,
-          description,
-          priority,
-          status,
-          source,
-          sla_deadline,
-          sla_status,
-          first_response_at,
-          resolved_at,
-          closed_at,
-          assigned_by,
-          is_merged,
-          reopen_count,
-          time_spent_minutes,
-          last_reopened_at,
-          customer_satisfaction_rating,
-          customer_feedback,
-          tags,
-          merged_into_ticket_id,
-          updated_at: new Date(),
-        },
+        data: dataToUpdate,
+        // data: {
+        //   ticket_number,
+        //   customer_id,
+        //   assigned_agent_id,
+        //   category_id,
+        //   subject,
+        //   description,
+        //   priority,
+        //   status,
+        //   source,
+        //   sla_deadline,
+        //   sla_status,
+        //   first_response_at,
+        //   resolved_at,
+        //   closed_at,
+        //   assigned_by,
+        //   is_merged,
+        //   reopen_count,
+        //   time_spent_minutes,
+        //   last_reopened_at,
+        //   customer_satisfaction_rating,
+        //   customer_feedback,
+        //   tags,
+        //   merged_into_ticket_id,
+        //   updated_at: new Date(),
+        // },
         include: {
           users: true,
           customers: true,
-          agents: true,
+          agents_user: true,
         },
       });
 
@@ -244,7 +287,7 @@ export const ticketController = {
       const ticket = await prisma.tickets.findUnique({
         where: { id },
         include: {
-          agents: true,
+          agents_user: true,
           users: true,
           categories: true,
           ticket_comments: {
@@ -381,7 +424,7 @@ export const ticketController = {
         include: {
           users: true,
           customers: true,
-          agents: true,
+          agents_user: true,
         },
       });
 
@@ -409,6 +452,7 @@ export const ticketController = {
       const user_id = req?.user?.id; // Assuming you have user auth middleware
 
       let imageUrl = null;
+      console.log("File  ;: ", req.file);
       if (req.file) {
         const fileName = `ticket-${ticket_id}-comment/${Date.now()}_${
           req.file.originalname
@@ -528,7 +572,7 @@ export const ticketController = {
         console.log("Sending email to customer...");
         await EmailService.sendCommentEmailToCustomer(
           ticket,
-          { ...comment, imageUrl },
+          { ...comment, imageUrl: imageUrl ? imageUrl : null },
           additionalEmails
         );
       }

@@ -60,6 +60,7 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
       include: {
         user_role: { select: { id: true, name: true } }, // related role
         user_department: { select: { id: true, department_name: true } }, // related department
+        tickets: true,
       },
       orderBy: { id: "desc" },
     });
@@ -94,6 +95,7 @@ export async function getUser(req: Request, res: Response): Promise<void> {
       include: {
         user_role: { select: { id: true, name: true } },
         user_department: { select: { id: true, department_name: true } },
+        tickets: true,
       },
     });
 
@@ -164,6 +166,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       include: {
         user_role: { select: { id: true, name: true } },
         user_department: { select: { id: true, department_name: true } },
+        tickets: true,
       },
     });
 
@@ -257,6 +260,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       include: {
         user_role: { select: { id: true, name: true } },
         user_department: { select: { id: true, department_name: true } },
+        tickets: true,
       },
     });
 
@@ -337,12 +341,10 @@ export async function updateUserStatus(
     const updatedUser = await prisma.users.update({
       where: { id },
       data: { is_active: newStatus },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        is_active: true,
-        updated_at: true,
+      include: {
+        user_role: { select: { id: true, name: true } },
+        user_department: { select: { id: true, department_name: true } },
+        tickets: true,
       },
     });
 

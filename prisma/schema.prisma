@@ -30,10 +30,11 @@ model users {
   ticket_attachments                       ticket_attachments[]
   ticket_merges                            ticket_merges[]
   ticket_reopens                           ticket_reopens[]
-  tickets                                  tickets[]
+  tickets                                  tickets[]            @relation("TicketAssignee")
   ticket_comment_users                     ticket_comments[]
   user_permissions_granted_by_to_users     user_permissions[]   @relation("UserPermissions_GrantedByToUsers")
   user_permissions_user_id_to_users        user_permissions[]   @relation("UserPermissions_UserIDToUsers")
+  agents_user                              tickets[]            @relation("TicketAgent")
   user_sessions                            user_sessions[]
   users                                    users?               @relation("UsersToUsers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_users                              users[]              @relation("UsersToUsers")
@@ -237,11 +238,12 @@ model tickets {
   ticket_merges_child_ticket_id_to_tickets  ticket_merges[]            @relation("TicketMerges_ChildTicketIDToTickets")
   ticket_merges_parent_ticket_id_to_tickets ticket_merges[]            @relation("TicketMerges_ParentTicketIDToTickets")
   ticket_reopens                            ticket_reopens[]
-  users                                     users?                     @relation(fields: [assigned_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                                     users?                     @relation("TicketAssignee", fields: [assigned_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   categories                                categories?                @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   customers                                 customers                  @relation(fields: [customer_id], references: [id], onUpdate: NoAction)
   tickets                                   tickets?                   @relation("TicketsToTickets", fields: [merged_into_ticket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_tickets                             tickets[]                  @relation("TicketsToTickets")
+  agents_user                               users?                     @relation("TicketAgent", fields: [assigned_agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   agents                                    agents?                    @relation(fields: [agentsId], references: [id])
 
   @@index([assigned_agent_id, status])
