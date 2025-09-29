@@ -23,6 +23,17 @@ router.post(
 );
 
 router.put("/ticket/:id", authenticateToken, ticketController.updateTicket);
+router.put(
+  "/ticket-action/:id",
+  authenticateToken,
+  ticketController.actionsTicket
+);
+
+router.put(
+  "/ticket-merge/:id",
+  authenticateToken,
+  ticketController.mergeTicket
+);
 
 router.get("/ticket/:id", authenticateToken, ticketController.getTicketById);
 

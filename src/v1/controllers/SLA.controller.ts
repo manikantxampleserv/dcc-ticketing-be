@@ -46,7 +46,7 @@ export const SLAcontroller = {
       } = req.body;
 
       let slaConfig;
-
+      console.log("Body : ", req.body, id);
       if (id) {
         const existing = await prisma.sla_configurations.findUnique({
           where: { id: Number(id) },
@@ -83,8 +83,8 @@ export const SLAcontroller = {
       slaConfig = await prisma.sla_configurations.create({
         data: {
           priority,
-          response_time_hours,
-          resolution_time_hours,
+          response_time_hours: req.body?.response_time_hours,
+          resolution_time_hours: req.body?.resolution_time_hours,
           business_hours_only: business_hours_only ?? false,
           business_start_time: business_start_time ?? "09:00:00",
           business_end_time: business_end_time ?? "17:00:00",

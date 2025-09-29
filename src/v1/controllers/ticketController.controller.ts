@@ -36,16 +36,22 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   original_email_message_id: ticket.original_email_message_id,
   merged_into_ticket_id: ticket.merged_into_ticket_id,
   ticket_comments: ticket.ticket_comments,
+  start_timer_at: ticket.start_timer_at,
   ...(includeDates && {
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
   }),
+  parent_ticket: ticket?.tickets,
+  child_tickets: ticket?.other_tickets,
+  categories: ticket?.categories,
+  ticket_sla_history: ticket?.ticket_sla_history,
   users: ticket.users
     ? {
         id: ticket.users?.id,
         first_name: ticket.users?.first_name,
         last_name: ticket.users?.last_name,
         username: ticket.users?.username,
+        avatar: ticket.users?.avatar,
         email: ticket.users?.email,
       }
     : undefined,
@@ -68,13 +74,142 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   agents_user: ticket.agents_user
     ? {
         id: ticket.agents_user?.id,
+        avatar: ticket.agents_user?.avatar,
         first_name: ticket.agents_user?.first_name,
         last_name: ticket.agents_user?.last_name,
         username: ticket.agents_user?.username,
         email: ticket.agents_user?.email,
       }
     : undefined,
+  sla_priority: ticket.sla_priority
+    ? {
+        id: ticket.sla_priority?.id,
+        priority: ticket.sla_priority?.priority,
+        response_time_hours: ticket.sla_priority?.response_time_hours,
+        resolution_time_hours: ticket.sla_priority?.resolution_time_hours,
+      }
+    : undefined,
 });
+
+// Helper functions for SLA (outside the controller)
+const getDefaultResponseTime = (priority: number): number => {
+  const defaults: { [key: number]: number } = { 1: 1, 2: 4, 3: 8, 4: 24 };
+  return defaults[priority] || 24;
+};
+
+const getDefaultResolutionTime = (priority: number): number => {
+  const defaults: { [key: number]: number } = { 1: 4, 2: 24, 3: 72, 4: 168 };
+  return defaults[priority] || 168;
+};
+
+const getDefaultEscalationTime = (priority: number): number => {
+  const defaults: { [key: number]: number } = { 1: 2, 2: 12, 3: 36, 4: 84 };
+  return defaults[priority] || 84;
+};
+
+const createSLAHistoryEntries = async (
+  ticketId: number,
+  slaConfig: any,
+  createdAt: Date
+): Promise<void> => {
+  const now = createdAt;
+
+  // Calculate deadlines
+  const responseDeadline = new Date(
+    now.getTime() + slaConfig.response_time_hours * 60 * 60 * 1000
+  );
+  const resolutionDeadline = new Date(
+    now.getTime() + slaConfig.resolution_time_hours * 60 * 60 * 1000
+  );
+  // const escalationDeadline = new Date(
+  //   now.getTime() + slaConfig.escalation_time_hours * 60 * 60 * 1000
+  // );
+
+  // Create SLA history entries
+  await prisma.sla_history.createMany({
+    data: [
+      {
+        ticket_id: ticketId,
+        sla_type: "Response",
+        target_time: responseDeadline,
+        status: "Pending",
+      },
+      {
+        ticket_id: ticketId,
+        sla_type: "Resolution",
+        target_time: resolutionDeadline,
+        status: "Pending",
+      },
+      // {
+      //   ticket_id: ticketId,
+      //   sla_type: "escalation",
+      //   target_time: escalationDeadline,
+      //   status: "pending",
+      // },
+    ],
+  });
+
+  // Update main ticket with SLA deadline
+  await prisma.tickets.update({
+    where: { id: ticketId },
+    data: {
+      sla_deadline: resolutionDeadline,
+      sla_status: "Within",
+    },
+  });
+
+  console.log(`✅ Generated SLA history for ticket ${ticketId}`, {
+    response: responseDeadline,
+    resolution: resolutionDeadline,
+    // escalation: escalationDeadline,
+  });
+};
+
+const generateSLAHistory = async (
+  ticketId: number,
+  priority: number,
+  // customerTier: string,
+  createdAt: Date
+): Promise<void> => {
+  try {
+    // Get SLA configuration
+    const slaConfig = await prisma.sla_configurations.findFirst({
+      where: {
+        id: Number(priority),
+        // customer_tier: customerTier,
+        // is_active: true,
+      },
+    });
+
+    // if (!slaConfig) {
+    //   // Create default configuration if none exists
+    //   console.warn(
+    //     `No SLA configuration found for priority ${priority} . Creating default.`
+    //   );
+
+    //   const defaultConfig = await prisma.sla_configurations.create({
+    //     data: {
+    //       priority_level: priority,
+    //       // customer_tier: customerTier,
+    //       response_time_hours: getDefaultResponseTime(priority),
+    //       resolution_time_hours: getDefaultResolutionTime(priority),
+    //       escalation_time_hours: getDefaultEscalationTime(priority),
+    //       is_active: true,
+    //     },
+    //   });
+
+    //   await createSLAHistoryEntries(ticketId, defaultConfig, createdAt);
+    // } else {
+    await createSLAHistoryEntries(ticketId, slaConfig, createdAt);
+    // }
+  } catch (error) {
+    console.error(
+      `Error generating SLA history for ticket ${ticketId}:`,
+      error
+    );
+    throw error;
+  }
+};
 
 export const ticketController = {
   async createTicket(req: Request, res: Response): Promise<void> {
@@ -148,14 +283,54 @@ export const ticketController = {
         },
         include: {
           users: true,
+          other_tickets: true,
           customers: true,
+          tickets: true,
+          categories: true,
           agents_user: true,
+          sla_priority: true,
+        },
+      });
+
+      // Generate SLA history if enabled for customer
+      // if (customer.sla_enabled) {
+      try {
+        await generateSLAHistory(
+          ticket.id,
+          priority,
+          ticket.created_at || new Date()
+        );
+      } catch (slaError) {
+        console.error("Error generating SLA history:", slaError);
+        // Don't fail ticket creation if SLA generation fails
+      }
+      // }
+
+      // Fetch complete ticket with SLA history for response
+      const completeTicket = await prisma.tickets.findUnique({
+        where: { id: ticket.id },
+        include: {
+          users: true,
+          other_tickets: true,
+          customers: {
+            include: {
+              companies: true,
+            },
+          },
+          tickets: true,
+          categories: true,
+          agents_user: true,
+          sla_priority: true,
+          ticket_sla_history: true,
+          //   sla_history: {
+          //     orderBy: { created_at: "desc" },
+          //   },
         },
       });
 
       res.success(
         "Ticket created successfully",
-        serializeTicket(ticket, true),
+        serializeTicket(completeTicket, true),
         201
       );
     } catch (error: any) {
@@ -167,10 +342,14 @@ export const ticketController = {
   async updateTicket(req: Request, res: Response): Promise<void> {
     try {
       const id = Number(req.params.id);
+      const reason = req.body.reason || "";
+      const userId = Number(req.user?.id);
+
       const existing = await prisma.tickets.findUnique({ where: { id } });
       if (!existing) {
         res.error("Ticket not found", 404);
       }
+
       // const {
       //   ticket_number,
       //   customer_id,
@@ -230,45 +409,92 @@ export const ticketController = {
           dataToUpdate[field] = req.body[field];
         }
       }
+      // 3) Handle time tracking logic
+      const prevStatus = existing?.status;
+      const newStatus = req?.body?.status as string | undefined;
 
+      if (prevStatus !== "In Progress" && newStatus === "In Progress") {
+        // Started work: record start time
+        dataToUpdate.start_timer_at = new Date();
+      } else if (prevStatus === "In Progress" && newStatus !== "In Progress") {
+        // Paused/resolved/closed: compute elapsed and accumulate
+        if (existing?.start_timer_at) {
+          const now = new Date();
+          const elapsedMs = now.getTime() - existing.start_timer_at.getTime();
+          const elapsedSec = Math.floor(elapsedMs / 1000);
+
+          dataToUpdate.time_spent_minutes =
+            (existing.time_spent_minutes || 0) + elapsedSec;
+          dataToUpdate.start_timer_at = null;
+        }
+      }
       // Always update updated_at
       dataToUpdate.updated_at = new Date();
+      const commentText =
+        newStatus === "Closed"
+          ? `Ticket is closed , Remarks : "${reason}".`
+          : newStatus === "Resolved"
+          ? `Ticket is resolved , Remarks : "${reason}".`
+          : "";
+      let ticket = {};
+      if (newStatus !== "Closed" && newStatus !== "Resolved") {
+        ticket = await prisma.tickets.update({
+          where: { id },
+          data: dataToUpdate,
+          include: {
+            users: true,
+            customers: true,
+            other_tickets: true,
+            tickets: true,
+            categories: true,
+            agents_user: true,
+            sla_priority: true,
+          },
+        });
+      } else {
+        const [updatedTicket, comment] = await prisma.$transaction([
+          prisma.tickets.update({
+            where: { id },
+            data: dataToUpdate,
+            include: {
+              users: true,
+              customers: true,
+              other_tickets: true,
+              tickets: true,
+              categories: true,
+              agents_user: true,
+              ticket_sla_history: true,
+              sla_priority: true,
+            },
+          }),
+          prisma.ticket_comments.create({
+            data: {
+              ticket_id: id,
+              user_id: userId,
+              comment_text: commentText,
+              comment_type: "System",
+              is_internal: true,
+            },
+            include: {
+              ticket_comment_users: {
+                select: {
+                  id: true,
+                  first_name: true,
+                  last_name: true,
+                  email: true,
+                },
+              },
+            },
+          }),
+        ]);
 
-      const ticket = await prisma.tickets.update({
-        where: { id },
-        data: dataToUpdate,
-        // data: {
-        //   ticket_number,
-        //   customer_id,
-        //   assigned_agent_id,
-        //   category_id,
-        //   subject,
-        //   description,
-        //   priority,
-        //   status,
-        //   source,
-        //   sla_deadline,
-        //   sla_status,
-        //   first_response_at,
-        //   resolved_at,
-        //   closed_at,
-        //   assigned_by,
-        //   is_merged,
-        //   reopen_count,
-        //   time_spent_minutes,
-        //   last_reopened_at,
-        //   customer_satisfaction_rating,
-        //   customer_feedback,
-        //   tags,
-        //   merged_into_ticket_id,
-        //   updated_at: new Date(),
-        // },
-        include: {
-          users: true,
-          customers: true,
-          agents_user: true,
-        },
-      });
+        await EmailService.sendCommentEmailToCustomer(
+          updatedTicket,
+          comment,
+          []
+        );
+        ticket = updatedTicket;
+      }
 
       res.success(
         "Ticket updated successfully",
@@ -280,6 +506,259 @@ export const ticketController = {
       res.error(error.message);
     }
   },
+  async actionsTicket(req: Request, res: Response): Promise<void> {
+    const ticketId = Number(req.params.id);
+    const userId = Number(req.user?.id);
+    const action = req.body.action as
+      | "ReOpen"
+      | "Allocate"
+      | "Merge"
+      | undefined;
+    console.log("req. body : ", req.body);
+    const reason = (req.body.reason || "").trim();
+
+    if (!userId) {
+      res
+        .status(401)
+        .json({ success: false, message: "Authentication required." });
+      return;
+    }
+
+    if (isNaN(ticketId)) {
+      res.status(400).json({ success: false, message: "Invalid ticket ID." });
+      return;
+    }
+
+    const existing = await prisma.tickets.findUnique({
+      where: { id: ticketId },
+    });
+    if (!existing) {
+      res.status(404).json({ success: false, message: "Ticket not found." });
+      return;
+    }
+
+    // Build updatable fields from request body
+    const allowedFields = new Set([
+      "ticket_number",
+      "customer_id",
+      "assigned_agent_id",
+      "category_id",
+      "subject",
+      "description",
+      "priority",
+      "status",
+      "source",
+      "sla_deadline",
+      "sla_status",
+      "first_response_at",
+      "resolved_at",
+      "closed_at",
+      "assigned_by",
+      "is_merged",
+      "reopen_count",
+      "time_spent_minutes",
+      "last_reopened_at",
+      "customer_satisfaction_rating",
+      "customer_feedback",
+      "tags",
+      "merged_into_ticket_id",
+    ]);
+
+    const dataToUpdate: Record<string, any> = {};
+    for (const [key, value] of Object.entries(req.body)) {
+      if (allowedFields.has(key) && value !== undefined) {
+        dataToUpdate[key] = value;
+      }
+    }
+    dataToUpdate.updated_at = new Date();
+    let agentDetails = null;
+
+    // Determine system comment text
+    let commentText = "Ticket updated.";
+    let message = "Ticket updated.";
+    if (action === "ReOpen") {
+      commentText = `Ticket reopened. Reason: ${reason}`;
+      message = `Ticket reopened successfully. `;
+      dataToUpdate.status = "Open";
+      dataToUpdate.reopen_count = (existing.reopen_count || 0) + 1;
+      dataToUpdate.last_reopened_at = new Date();
+    } else if (action === "Allocate") {
+      const agentId = Number(req.body.assigned_agent_id);
+      const existingAgent = await prisma.users.findUnique({
+        where: { id: Number(req.body.assigned_agent_id) },
+      });
+      agentDetails = existingAgent;
+      if (!existingAgent) {
+        res.status(404).json({
+          success: false,
+          message: `Agent with id ${req.body.assigned_agent_id} not found.`,
+        });
+        return;
+      }
+      message = `Ticket allocated to agent  ${
+        existingAgent?.first_name + " " + existingAgent?.last_name
+      } successfully `;
+      commentText = `Ticket allocated to agent  ${
+        existingAgent?.first_name + " " + existingAgent?.last_name
+      }. Reason: ${reason}`;
+      dataToUpdate.status = dataToUpdate.status || "In Progress";
+      dataToUpdate.assigned_by = userId;
+    } else if (action === "Merge") {
+      const parentId = Number(req.body.merged_into_ticket_id);
+      commentText = `Ticket merged into parent ticket number ${existing.ticket_number}, subject: "${existing.subject}"`;
+      dataToUpdate.is_merged = true;
+      dataToUpdate.merged_into_ticket_id = parentId;
+      dataToUpdate.status = "Merged";
+    }
+    console.log("Comment; : ", commentText, reason);
+    try {
+      // Execute update and comment creation atomically
+      const [updatedTicket, comment] = await prisma.$transaction([
+        prisma.tickets.update({
+          where: { id: ticketId },
+          data: dataToUpdate,
+          include: {
+            users: true,
+            customers: true,
+            agents_user: true,
+            sla_priority: true,
+            ticket_sla_history: true,
+          },
+        }),
+        prisma.ticket_comments.create({
+          data: {
+            ticket_id: ticketId,
+            user_id: userId,
+            comment_text: commentText,
+            comment_type: "System",
+            is_internal: true,
+          },
+          include: {
+            ticket_comment_users: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      // Notify customer via email
+      if (action === "Allocate") {
+        await EmailService.sendCommentEmailToCustomer(updatedTicket, comment, [
+          agentDetails?.email,
+        ]);
+      } else {
+        await EmailService.sendCommentEmailToCustomer(
+          updatedTicket,
+          comment,
+          []
+        );
+      }
+
+      res.status(200).json({
+        success: true,
+        message: message,
+        data: serializeTicket(updatedTicket, true),
+      });
+    } catch (err: any) {
+      console.error("actionsTicket error:", err);
+      if (err.code === "P2025") {
+        res.status(404).json({ success: false, message: "Ticket not found." });
+      } else {
+        res
+          .status(500)
+          .json({ success: false, message: "An unexpected error occurred." });
+      }
+    }
+  },
+
+  async mergeTicket(req: Request, res: Response): Promise<void> {
+    const ticketId = Number(req.params.id);
+    const userId = req.user?.id;
+    const parentId = Number(req.body.parent_id);
+    const existing = await prisma.tickets.findUnique({
+      where: { id: Number(parentId) },
+    });
+    if (!existing) {
+      res.error("Parent Ticket not found", 404);
+    }
+    if (isNaN(parentId)) {
+      res
+        .status(400)
+        .json({ success: false, message: "Invalid parent ticket ID." });
+      return;
+    }
+
+    try {
+      // Start transaction so update + comment + email send atomically
+      const [updatedTicket, comment] = await prisma.$transaction([
+        // 1) Mark this ticket as merged
+        prisma.tickets.update({
+          where: { id: ticketId },
+          data: {
+            merged_into_ticket_id: parentId,
+            is_merged: true,
+            status: "Merged",
+            updated_at: new Date(),
+            // Optionally increment a merge count or similar
+          },
+          include: {
+            users: true,
+            customers: true,
+            agents_user: true,
+            ticket_sla_history: true,
+            sla_priority: true,
+          },
+        }),
+
+        // 2) Create an internal merge comment
+        prisma.ticket_comments.create({
+          data: {
+            ticket_id: ticketId,
+            user_id: Number(userId),
+            comment_text: `Ticket merged into parent ticket number ${existing?.ticket_number}, subject: "${existing?.subject}".`,
+            comment_type: "System",
+            is_internal: true,
+          },
+          include: {
+            ticket_comment_users: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      // 3) Notify customer via email (outside transaction)
+      await EmailService.sendCommentEmailToCustomer(updatedTicket, comment, []);
+
+      // 4) Send success response
+      res.status(200).json({
+        success: true,
+        message: "Ticket merged successfully.",
+        data: serializeTicket(updatedTicket, true),
+      });
+    } catch (err: any) {
+      console.error("mergeTicket error:", err);
+      // Distinguish Prisma not found error
+      if (err.code === "P2025") {
+        res.status(404).json({ success: false, message: "Ticket not found." });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: "An unexpected error occurred while merging the ticket.",
+        });
+      }
+    }
+  },
 
   async getTicketById(req: Request, res: Response): Promise<void> {
     try {
@@ -289,7 +768,11 @@ export const ticketController = {
         include: {
           agents_user: true,
           users: true,
+          tickets: true,
           categories: true,
+          other_tickets: true,
+          ticket_sla_history: true,
+          sla_priority: true,
           ticket_comments: {
             select: {
               id: true,
@@ -396,24 +879,111 @@ export const ticketController = {
 
   async getAllTicket(req: Request, res: Response): Promise<void> {
     try {
-      const { page = "1", limit = "10", search = "" } = req.query;
+      const {
+        page = "1",
+        limit = "10",
+        search = "",
+        status = "",
+        priority = "",
+      } = req.query;
       const page_num = parseInt(page as string, 10);
       const limit_num = parseInt(limit as string, 10);
-      const searchLower = (search as string).toLowerCase();
+      const searchTerm = (search as string).toLowerCase().trim();
+      const statusFilter = (status as string).trim();
+      const priorityFilter = (priority as string).trim();
 
-      const filters: any = search
-        ? {
+      // Build filters object
+      const filters: any = {};
+
+      // Add search filters using OR condition
+      if (searchTerm) {
+        filters.OR = [
+          {
             subject: {
-              contains: searchLower,
+              contains: searchTerm,
+              mode: "insensitive",
             },
+          },
+          {
             ticket_number: {
-              contains: searchLower,
+              contains: searchTerm,
+              mode: "insensitive",
             },
-            status: {
-              contains: searchLower,
+          },
+          {
+            description: {
+              contains: searchTerm,
+              mode: "insensitive",
             },
-          }
-        : {};
+          },
+          {
+            sla_priority: {
+              priority: {
+                contains: searchTerm,
+                mode: "insensitive",
+              },
+            },
+          },
+          {
+            agents_user: {
+              OR: [
+                {
+                  first_name: {
+                    contains: searchTerm,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  last_name: {
+                    contains: searchTerm,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          },
+          {
+            customers: {
+              OR: [
+                {
+                  first_name: {
+                    contains: searchTerm,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  last_name: {
+                    contains: searchTerm,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  email: {
+                    contains: searchTerm,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          },
+        ];
+      }
+
+      // Add status filter
+      if (statusFilter && statusFilter !== "all") {
+        filters.status = {
+          equals: statusFilter,
+          mode: "insensitive",
+        };
+      }
+      if (priorityFilter) {
+        filters.sla_priority = {
+          priority: {
+            equals: priorityFilter,
+            mode: "insensitive",
+          },
+        };
+      }
 
       const { data, pagination } = await paginate({
         model: prisma.tickets,
@@ -423,8 +993,13 @@ export const ticketController = {
         orderBy: { created_at: "desc" },
         include: {
           users: true,
+          tickets: true,
+          categories: true,
+          other_tickets: true,
           customers: true,
           agents_user: true,
+          ticket_sla_history: true,
+          sla_priority: true,
         },
       });
 
@@ -452,7 +1027,6 @@ export const ticketController = {
       const user_id = req?.user?.id; // Assuming you have user auth middleware
 
       let imageUrl = null;
-      console.log("File  ;: ", req.file);
       if (req.file) {
         const fileName = `ticket-${ticket_id}-comment/${Date.now()}_${
           req.file.originalname
@@ -471,8 +1045,6 @@ export const ticketController = {
         //   `ticket-${ticket_id}-comment`
         // );
       }
-      console.log("Image URL:", imageUrl, req.file);
-
       // Validate ticket exists
       const ticket = await prisma.tickets.findUnique({
         where: { id: Number(ticket_id) },
@@ -512,7 +1084,7 @@ export const ticketController = {
       }
       let additionalEmails: any[] = [];
       const new_is_internal = is_internal == "true" ? true : false;
-      // ✅ FIXED: Validate mentioned users properly
+
       let validatedMentionedUsers: number[] = [];
       const mentionedUser = mentioned_users && JSON.parse(mentioned_users);
       if (mentionedUser?.length > 0) {
@@ -528,8 +1100,8 @@ export const ticketController = {
               },
               select: { id: true, email: true },
             });
-            additionalEmails = existingUsers?.map((user) => user.email);
-            validatedMentionedUsers = existingUsers.map((user) => user.id);
+            additionalEmails = existingUsers?.map((user: any) => user.email);
+            validatedMentionedUsers = existingUsers.map((user: any) => user.id);
 
             if (validatedMentionedUsers.length !== userIds.length) {
               console.warn("⚠️ Some mentioned users were not found");
@@ -566,9 +1138,8 @@ export const ticketController = {
         },
       });
 
-      // Send email to customer if it's a public comment
       // ✅ Send email to customer if it's a public comment
-      if (!new_is_internal && comment_type === "public") {
+      if (!new_is_internal) {
         console.log("Sending email to customer...");
         await EmailService.sendCommentEmailToCustomer(
           ticket,

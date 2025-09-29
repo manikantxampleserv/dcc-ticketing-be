@@ -380,6 +380,11 @@ class SimpleEmailTicketSystem {
   ): Promise<any> {
     const ticketNumber = `TCKT-${Date.now()}`;
 
+    const ids = await prisma.sla_configurations.findFirst({
+      where: {
+        priority: "Medium",
+      },
+    });
     // ✅ Clean and process the email body
     // const cleanedBody = this.cleanEmailBody(body, fullEmail);
     const cleanedBody = body;
@@ -390,7 +395,7 @@ class SimpleEmailTicketSystem {
         customer_id: customer.id,
         subject: this.cleanSubject(subject),
         description: cleanedBody,
-        priority: "Medium",
+        priority: ids ? ids?.id : 0,
         status: "Open",
         source: "Email",
         original_email_message_id: emailMessageId,

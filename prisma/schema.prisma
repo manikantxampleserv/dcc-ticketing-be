@@ -207,12 +207,13 @@ model tickets {
   category_id                               Int?
   subject                                   String                     @db.NVarChar(500)
   description                               String                     @db.NText
-  priority                                  String                     @default("Medium") @db.NVarChar(20)
+  priority                                  Int
   status                                    String                     @default("Open") @db.NVarChar(50)
   source                                    String?                    @default("Email") @db.NVarChar(50)
   sla_deadline                              DateTime?
   sla_status                                String?                    @default("Within") @db.NVarChar(20)
   first_response_at                         DateTime?
+  start_timer_at                            DateTime?
   resolved_at                               DateTime?
   closed_at                                 DateTime?
   assigned_by                               Int?
@@ -235,6 +236,7 @@ model tickets {
   ticket_attachments                        ticket_attachments[]
   ticket_history                            ticket_history[]
   ticket_comments                           ticket_comments[]
+  ticket_sla_history                        sla_history[]
   ticket_merges_child_ticket_id_to_tickets  ticket_merges[]            @relation("TicketMerges_ChildTicketIDToTickets")
   ticket_merges_parent_ticket_id_to_tickets ticket_merges[]            @relation("TicketMerges_ParentTicketIDToTickets")
   ticket_reopens                            ticket_reopens[]
@@ -244,6 +246,7 @@ model tickets {
   tickets                                   tickets?                   @relation("TicketsToTickets", fields: [merged_into_ticket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_tickets                             tickets[]                  @relation("TicketsToTickets")
   agents_user                               users?                     @relation("TicketAgent", fields: [assigned_agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sla_priority                              sla_configurations?        @relation(fields: [priority], references: [id], onDelete: NoAction, onUpdate: NoAction)
   agents                                    agents?                    @relation(fields: [agentsId], references: [id])
 
   @@index([assigned_agent_id, status])
@@ -281,6 +284,22 @@ model ticket_comments {
   @@index([ticket_id])
   @@index([created_at])
   @@index([comment_type])
+}
+
+model sla_history {
+  id             Int       @id @default(autoincrement())
+  ticket_id      Int
+  sla_type       String    @db.NVarChar(20) // 'response', 'resolution', 'escalation'
+  target_time    DateTime // When SLA should be met
+  actual_time    DateTime? // When SLA was actually met
+  status         String    @db.NVarChar(20) // 'met', 'breached', 'pending'
+  time_to_breach Int? // Minutes until breach (can be negative if breached)
+  created_at     DateTime  @default(now())
+
+  ticket_sla_history tickets @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+
+  @@index([ticket_id, sla_type])
+  @@index([status, created_at])
 }
 
 model support_ticket_responses {
@@ -394,7 +413,7 @@ model ticket_reopens {
 model sla_configurations {
   id                    Int       @id @default(autoincrement())
   priority              String    @db.NVarChar(20)
-  response_time_hours   Int
+  response_time_hours   Float
   resolution_time_hours Int
   business_hours_only   Boolean?  @default(false)
   business_start_time   String?   @default("09:00:00") @db.NVarChar(8)
@@ -403,6 +422,7 @@ model sla_configurations {
   is_active             Boolean?  @default(true)
   created_at            DateTime? @default(now())
   updated_at            DateTime? @default(now())
+  sla_priority          tickets[]
 }
 
 model system_settings {

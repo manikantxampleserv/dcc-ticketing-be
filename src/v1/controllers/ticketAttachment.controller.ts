@@ -53,17 +53,17 @@ export const ticketAttachmentController = {
     try {
       const {
         ticket_id,
-        response_id,
+        response_id = null,
         file_name,
-        original_file_name,
+        original_file_name = "",
         file_size,
-        content_type,
-        file_hash,
-        uploaded_by,
-        uploaded_by_type,
+        content_type = "",
+        file_hash = "",
+        uploaded_by = null,
+        uploaded_by_type = "",
         is_public,
-        virus_scanned,
-        scan_result,
+        virus_scanned = true,
+        scan_result = "",
       } = req.body;
 
       if (!req.file) {
@@ -77,7 +77,6 @@ export const ticketAttachmentController = {
         fileName,
         req.file.mimetype
       );
-
       const attachment = await prisma.ticket_attachments.create({
         data: {
           ticket_id: Number(ticket_id),
@@ -85,10 +84,10 @@ export const ticketAttachmentController = {
           file_name,
           original_file_name,
           file_path: fileUrl,
-          file_size: BigInt(file_size),
+          file_size: BigInt(req.file?.size) || 0,
           content_type,
           file_hash,
-          uploaded_by: Number(uploaded_by),
+          uploaded_by: Number(uploaded_by) || Number(req?.user?.id),
           uploaded_by_type: uploaded_by_type ?? "User",
           is_public: is_public === "true" || is_public === true,
           virus_scanned: virus_scanned === "true" || virus_scanned === true,
