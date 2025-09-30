@@ -46,10 +46,37 @@ const serializeTicketAttachment = (
   users: attachment.users
     ? { id: attachment.users.id, name: attachment.users.first_name }
     : undefined,
+  ticket_attachments: attachment.ticket_attachments
+    ? attachment.ticket_attachments.map((att: any) => ({
+        id: att.id,
+        ticket_id: att.ticket_id,
+        response_id: att.response_id,
+        file_name: att.file_name,
+        original_file_name: att.original_file_name,
+        file_path: att.file_path,
+        file_size: att.file_size ? Number(att.file_size) : null, // ✅ BigInt to Number
+        content_type: att.content_type,
+        file_hash: att.file_hash,
+        uploaded_by: att.uploaded_by,
+        uploaded_by_type: att.uploaded_by_type,
+        is_public: att.is_public,
+        virus_scanned: att.virus_scanned,
+        scan_result: att.scan_result,
+        created_at: att.created_at,
+        users: att.users
+          ? {
+              id: att.users.id,
+              first_name: att.users.first_name,
+              last_name: att.users.last_name,
+              email: att.users.email,
+            }
+          : undefined,
+      }))
+    : [],
 });
 
 export const ticketAttachmentController = {
-  async createTicketAttachment(req: Request, res: Response): Promise<void> {
+  async createTicketAttachment(req: any, res: Response): Promise<void> {
     try {
       const {
         ticket_id,
@@ -117,9 +144,29 @@ export const ticketAttachmentController = {
   async getTicketAttachmnetById(req: Request, res: Response): Promise<void> {
     try {
       const id = Number(req.params.id);
-      const attachment = await prisma.ticket_attachments.findUnique({
+      const attachment = await prisma.tickets.findUnique({
         where: { id },
-        include: { tickets: true, users: true },
+        select: {
+          ticket_attachments: {
+            select: {
+              ticket_id: true,
+              response_id: true,
+              file_name: true,
+              original_file_name: true,
+              file_path: true,
+              file_size: true,
+              content_type: true,
+              file_hash: true,
+              uploaded_by: true,
+              uploaded_by_type: true,
+              is_public: true,
+              virus_scanned: true,
+              scan_result: true,
+              created_at: true,
+              users: true,
+            },
+          },
+        },
       });
 
       if (!attachment) {

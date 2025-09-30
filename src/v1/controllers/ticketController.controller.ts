@@ -35,6 +35,33 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   email_thread_id: ticket.email_thread_id,
   original_email_message_id: ticket.original_email_message_id,
   merged_into_ticket_id: ticket.merged_into_ticket_id,
+  ticket_attachments: ticket.ticket_attachments
+    ? ticket.ticket_attachments.map((att: any) => ({
+        id: att.id,
+        ticket_id: att.ticket_id,
+        response_id: att.response_id,
+        file_name: att.file_name,
+        original_file_name: att.original_file_name,
+        file_path: att.file_path,
+        file_size: att.file_size ? Number(att.file_size) : null, // ✅ BigInt to Number
+        content_type: att.content_type,
+        file_hash: att.file_hash,
+        uploaded_by: att.uploaded_by,
+        uploaded_by_type: att.uploaded_by_type,
+        is_public: att.is_public,
+        virus_scanned: att.virus_scanned,
+        scan_result: att.scan_result,
+        created_at: att.created_at,
+        users: att.users
+          ? {
+              id: att.users.id,
+              first_name: att.users.first_name,
+              last_name: att.users.last_name,
+              email: att.users.email,
+            }
+          : undefined,
+      }))
+    : [],
   ticket_comments: ticket.ticket_comments,
   start_timer_at: ticket.start_timer_at,
   ...(includeDates && {
@@ -212,7 +239,7 @@ const generateSLAHistory = async (
 };
 
 export const ticketController = {
-  async createTicket(req: Request, res: Response): Promise<void> {
+  async createTicket(req: any, res: Response): Promise<void> {
     try {
       const {
         customer_id,
@@ -339,7 +366,7 @@ export const ticketController = {
     }
   },
 
-  async updateTicket(req: Request, res: Response): Promise<void> {
+  async updateTicket(req: any, res: Response): Promise<void> {
     try {
       const id = Number(req.params.id);
       const reason = req.body.reason || "";
@@ -506,7 +533,7 @@ export const ticketController = {
       res.error(error.message);
     }
   },
-  async actionsTicket(req: Request, res: Response): Promise<void> {
+  async actionsTicket(req: any, res: Response): Promise<void> {
     const ticketId = Number(req.params.id);
     const userId = Number(req.user?.id);
     const action = req.body.action as
@@ -676,7 +703,7 @@ export const ticketController = {
     }
   },
 
-  async mergeTicket(req: Request, res: Response): Promise<void> {
+  async mergeTicket(req: any, res: Response): Promise<void> {
     const ticketId = Number(req.params.id);
     const userId = req.user?.id;
     const parentId = Number(req.body.parent_id);
@@ -772,6 +799,7 @@ export const ticketController = {
           categories: true,
           other_tickets: true,
           ticket_sla_history: true,
+          ticket_attachments: true,
           sla_priority: true,
           ticket_comments: {
             select: {
@@ -821,6 +849,7 @@ export const ticketController = {
           },
         },
       });
+
       if (!ticket) res.error("Ticket not found", 404);
       res.success(
         "Ticket fetched successfully",
@@ -828,6 +857,7 @@ export const ticketController = {
         200
       );
     } catch (error: any) {
+      console.log("Error : ", error);
       res.error(error.message);
     }
   },
