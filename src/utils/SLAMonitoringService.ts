@@ -1,4 +1,5 @@
 // services/BusinessHoursAwareSLAMonitoringService.ts
+// services/BusinessHoursAwareSLAMonitoringService.ts
 import cron from "node-cron";
 import { PrismaClient } from "@prisma/client";
 import { BusinessHoursSLACalculator } from "./BussinessHoursSLACalculation";
@@ -6,344 +7,223 @@ import { BusinessHoursSLACalculator } from "./BussinessHoursSLACalculation";
 const prisma = new PrismaClient();
 
 export class BusinessHoursAwareSLAMonitoringService {
-  // Track sent notifications to prevent duplicates
+  // Prevent duplicate notifications per SLA event
   private static sentNotifications = new Set<string>();
 
-  // 1. Start monitoring with business hours consideration
+  // 1. Start monitoring
   static startMonitoring() {
-    // Main monitoring every 5 minutes
-    cron.schedule("*/5 * * * *", async () => {
-      console.log("🔍 Running business-hours-aware SLA monitoring...");
-      await this.monitorAllActiveTickets();
-    });
+    // All tickets every 5 minutes
+    cron.schedule("*/5 * * * *", () => this.monitorAllActiveTickets());
 
-    // More frequent monitoring during business hours (every 2 minutes)
+    // Business‐hours only every 2 minutes
     cron.schedule("*/2 * * * *", async () => {
       if (await this.isCurrentlyBusinessHours()) {
-        console.log("🔍 Running frequent business-hours SLA check...");
         await this.monitorBusinessHoursSLAs();
       }
     });
 
-    // Critical tickets monitoring (every minute during business hours)
+    // Critical tickets every minute in business hours
     cron.schedule("* * * * *", async () => {
       if (await this.isCurrentlyBusinessHours()) {
         await this.monitorCriticalTickets();
       }
     });
 
-    // Clear notification tracking every hour
-    cron.schedule("0 * * * *", () => {
-      this.sentNotifications.clear();
-      console.log("🧹 Cleared notification tracking cache");
-    });
+    // Clear notification cache hourly
+    cron.schedule("0 * * * *", () => this.sentNotifications.clear());
 
-    console.log("✅ Business-hours-aware SLA monitoring service started");
+    console.log("✅ Business‐hours‐aware SLA monitoring started");
   }
 
-  // 2. Check if current time is business hours for any active SLA config
+  // 2. Check business hours
   static async isCurrentlyBusinessHours(): Promise<boolean> {
     const now = new Date();
-
-    const businessConfigs = await prisma.sla_configurations.findMany({
-      where: {
-        business_hours_only: true,
-        is_active: true,
-      },
+    const configs = await prisma.sla_configurations.findMany({
+      where: { business_hours_only: true, is_active: true },
       select: {
         business_start_time: true,
         business_end_time: true,
         include_weekends: true,
       },
     });
-
-    // If any config has business hours active now, return true
-    for (const config of businessConfigs) {
-      if (
-        BusinessHoursSLACalculator.isWithinBusinessHours(now, {
-          business_start_time: config.business_start_time!,
-          business_end_time: config.business_end_time!,
-          include_weekends: config.include_weekends!,
-        })
-      ) {
-        return true;
-      }
-    }
-
-    return false;
+    return configs.some((cfg) =>
+      BusinessHoursSLACalculator.isWithinBusinessHours(now, {
+        business_start_time: cfg.business_start_time!,
+        business_end_time: cfg.business_end_time!,
+        include_weekends: cfg.include_weekends!,
+      })
+    );
   }
 
-  // 3. Monitor tickets with business hours SLA configurations
+  // 3. Monitor business‐hours SLAs
   static async monitorBusinessHoursSLAs() {
-    try {
-      const businessHoursTickets = await prisma.tickets.findMany({
-        where: {
-          status: { notIn: ["Closed", "Resolved"] },
-          sla_status: { notIn: ["Breached", "Met"] }, // **FIX: Skip already breached/met tickets**
-          sla_priority: {
-            business_hours_only: true,
-            is_active: true,
-          },
-        },
-        include: {
-          ticket_sla_history: { where: { status: "Pending" } },
-          sla_priority: true,
-          customers: {
-            select: { email: true, first_name: true, last_name: true },
-          },
-          agents_user: {
-            select: { email: true, first_name: true, last_name: true },
-          },
-        },
-      });
-
-      for (const ticket of businessHoursTickets) {
-        await this.checkBusinessHoursSLAStatus(ticket);
-      }
-
-      console.log(
-        `🕐 Monitored ${businessHoursTickets.length} business hours tickets`
-      );
-    } catch (error) {
-      console.error("❌ Error monitoring business hours SLAs:", error);
-    }
+    const tickets = await prisma.tickets.findMany({
+      where: {
+        status: { notIn: ["Closed", "Resolved"] },
+        sla_status: { notIn: ["Breached", "Met"] },
+        sla_priority: { business_hours_only: true, is_active: true },
+      },
+      include: {
+        ticket_sla_history: { where: { status: "Pending" } },
+        sla_priority: true,
+        agents_user: { select: { email: true } },
+      },
+    });
+    for (const t of tickets) await this.checkTicketSLAStatus(t);
   }
 
   // 4. Monitor all active tickets
   static async monitorAllActiveTickets() {
-    try {
-      const activeTickets = await prisma.tickets.findMany({
-        where: {
-          status: { notIn: ["Closed", "Resolved"] },
-          sla_status: { notIn: ["Breached", "Met"] }, // **FIX: Skip already breached/met tickets**
-        },
-        include: {
-          ticket_sla_history: { where: { status: "Pending" } },
-          sla_priority: true,
-          customers: {
-            select: { email: true, first_name: true, last_name: true },
-          },
-          agents_user: {
-            select: { email: true, first_name: true, last_name: true },
-          },
-        },
-      });
-
-      const notifications = [];
-
-      for (const ticket of activeTickets) {
-        const slaUpdate = await this.checkTicketSLAStatus(ticket);
-        if (slaUpdate && slaUpdate.needsNotification) {
-          notifications.push(slaUpdate);
-        }
-      }
-
-      if (notifications.length > 0) {
-        await this.sendSLANotifications(notifications);
-      }
-
-      console.log(
-        `✅ Monitored ${activeTickets.length} tickets, ${notifications.length} notifications sent`
-      );
-    } catch (error) {
-      console.error("❌ Error in SLA monitoring:", error);
-    }
+    const tickets = await prisma.tickets.findMany({
+      where: {
+        status: { notIn: ["Closed", "Resolved"] },
+        sla_status: { notIn: ["Breached", "Met"] },
+      },
+      include: {
+        ticket_sla_history: { where: { status: "Pending" } },
+        sla_priority: true,
+        agents_user: { select: { email: true } },
+      },
+    });
+    for (const t of tickets) await this.checkTicketSLAStatus(t);
   }
 
-  // 5. Monitor only critical priority tickets more frequently
+  // 5. Monitor critical tickets
   static async monitorCriticalTickets() {
-    try {
-      const criticalTickets = await prisma.tickets.findMany({
-        where: {
-          priority: 1,
-          status: { notIn: ["Closed", "Resolved"] },
-          sla_status: { notIn: ["Breached", "Met"] }, // **FIX: Skip already breached/met tickets**
-        },
-        include: {
-          ticket_sla_history: { where: { status: "Pending" } },
-          sla_priority: true,
-          agents_user: {
-            select: { email: true, first_name: true, last_name: true },
-          },
-        },
-      });
-
-      for (const ticket of criticalTickets) {
-        await this.checkTicketSLAStatus(ticket, true);
-      }
-
-      console.log(`🚨 Monitored ${criticalTickets.length} critical tickets`);
-    } catch (error) {
-      console.error("❌ Error monitoring critical tickets:", error);
-    }
+    const tickets = await prisma.tickets.findMany({
+      where: {
+        priority: 1,
+        status: { notIn: ["Closed", "Resolved"] },
+        sla_status: { notIn: ["Breached", "Met"] },
+      },
+      include: {
+        ticket_sla_history: { where: { status: "Pending" } },
+        sla_priority: true,
+        agents_user: { select: { email: true } },
+      },
+    });
+    for (const t of tickets) await this.checkTicketSLAStatus(t, true);
   }
 
-  // 6. Check SLA status for business hours tickets
+  // 6. Business‐hours check wrapper
   static async checkBusinessHoursSLAStatus(ticket: any) {
     const now = new Date();
-    const slaConfig = ticket.sla_priority;
-
-    if (!slaConfig) return;
-
-    const businessConfig = {
-      business_start_time: slaConfig.business_start_time,
-      business_end_time: slaConfig.business_end_time,
-      include_weekends: slaConfig.include_weekends,
-    };
-
-    // Only check during business hours for business hours SLAs
-    if (slaConfig.business_hours_only) {
-      const isBusinessHours = BusinessHoursSLACalculator.isWithinBusinessHours(
-        now,
-        businessConfig
-      );
-
-      if (!isBusinessHours) {
-        console.log(
-          `⏰ Skipping ticket ${ticket.ticket_number} - outside business hours`
-        );
-        return;
-      }
+    const pr = ticket.sla_priority;
+    if (
+      pr.business_hours_only &&
+      !BusinessHoursSLACalculator.isWithinBusinessHours(now, {
+        business_start_time: pr.business_start_time!,
+        business_end_time: pr.business_end_time!,
+        include_weekends: pr.include_weekends!,
+      })
+    ) {
+      return;
     }
-
-    return await this.checkTicketSLAStatus(ticket);
+    await this.checkTicketSLAStatus(ticket);
   }
 
-  // 7. Check individual ticket SLA status (main function) - COMPLETELY FIXED
-  static async checkTicketSLAStatus(ticket: any, isCriticalCheck = false) {
+  // 7. Main SLA check
+  static async checkTicketSLAStatus(ticket: any, isCritical = false) {
     const now = new Date();
-    const slaConfig = ticket.sla_priority;
-
-    let hasBreaches = false;
-    let newlyBreached = [];
-
-    if (!slaConfig) {
-      return { needsNotification: false };
-    }
-
-    const businessConfig = {
-      business_start_time: slaConfig.business_start_time,
-      business_end_time: slaConfig.business_end_time,
-      include_weekends: slaConfig.include_weekends,
+    const pr = ticket.sla_priority;
+    const bhConfig = {
+      business_start_time: pr.business_start_time!,
+      business_end_time: pr.business_end_time!,
+      include_weekends: pr.include_weekends!,
     };
 
-    // For business hours SLAs, only monitor during business hours (except critical checks)
-    if (slaConfig.business_hours_only && !isCriticalCheck) {
-      const isBusinessHours = BusinessHoursSLACalculator.isWithinBusinessHours(
-        now,
-        businessConfig
-      );
-      if (!isBusinessHours) {
-        console.log(
-          `⏰ Skipping ticket ${ticket.ticket_number} - outside business hours`
-        );
-        return { needsNotification: false };
-      }
+    if (
+      pr.business_hours_only &&
+      !isCritical &&
+      !BusinessHoursSLACalculator.isWithinBusinessHours(now, bhConfig)
+    ) {
+      return;
     }
 
-    // **REMOVED: Skip if ticket is already breached check - handle in query instead**
-
     for (const sla of ticket.ticket_sla_history) {
-      const timeToDeadline = sla.target_time.getTime() - now.getTime();
-      const minutesToDeadline = Math.floor(timeToDeadline / (1000 * 60));
+      const delta = sla.target_time.getTime() - now.getTime();
+      const key = `${ticket.id}-${sla.sla_type}-${sla.status}`;
 
-      // Check for breaches
-      if (timeToDeadline <= 0 && sla.status === "Pending") {
-        hasBreaches = true;
-
-        // Calculate actual time spent (business hours aware)
-        let actualTimeSpent = 0;
-        if (slaConfig.business_hours_only) {
-          actualTimeSpent =
-            BusinessHoursSLACalculator.calculateBusinessHoursBetween(
-              ticket.created_at,
-              now,
-              businessConfig
-            );
-        } else {
-          actualTimeSpent =
-            (now.getTime() - ticket.created_at.getTime()) / (1000 * 60 * 60);
-        }
-
-        // **FIX: Create unique key to prevent duplicate notifications**
-        const notificationKey = `breach-${ticket.id}-${sla.sla_type}`;
-
-        if (!this.sentNotifications.has(notificationKey)) {
-          newlyBreached.push({
-            slaType: sla.sla_type,
-            deadline: sla.target_time,
-            overdue: Math.abs(minutesToDeadline),
-            actualTimeSpent: Math.round(actualTimeSpent * 100) / 100,
-            businessHoursOnly: slaConfig.business_hours_only,
-          });
-
-          // Mark notification as sent
-          this.sentNotifications.add(notificationKey);
-        }
-
-        // **FIX: Mark SLA history as breached**
+      // Breach
+      if (delta <= 0 && sla.status === "Pending") {
+        // Update history
         await prisma.sla_history.update({
           where: { id: sla.id },
           data: {
             status: "Breached",
-            time_to_breach: Math.abs(minutesToDeadline),
-            actual_time: now, // **ADDED: Track when it was breached**
+            time_to_breach: Math.abs(delta),
+            actual_time: now,
           },
         });
+        // Update ticket
+        await prisma.tickets.update({
+          where: { id: ticket.id },
+          data: { sla_status: "Breached" },
+        });
 
-        console.log(
-          `🚨 SLA BREACH: Ticket ${ticket.ticket_number} - ${sla.sla_type} SLA breached`
-        );
-      }
-    }
+        if (!this.sentNotifications.has(key)) {
+          this.sentNotifications.add(key);
 
-    // **FIX: Properly update ticket SLA status**
-    let newSLAStatus = ticket.sla_status;
-
-    if (hasBreaches) {
-      newSLAStatus = "Breached";
-
-      // **FIX: ALWAYS update ticket status when there are breaches**
-      await prisma.tickets.update({
-        where: { id: ticket.id },
-        data: { sla_status: "Breached" },
-      });
-
-      console.log(
-        `📊 Updated SLA status for ticket ${ticket.ticket_number}: ${ticket.sla_status} → Breached`
-      );
-    } else {
-      // Only update to "Within" if not already breached or met
-      if (ticket.sla_status !== "Breached" && ticket.sla_status !== "Met") {
-        newSLAStatus = "Within";
-
-        // Only update if different
-        if (ticket.sla_status !== "Within") {
-          await prisma.tickets.update({
-            where: { id: ticket.id },
-            data: { sla_status: "Within" },
+          // Add system comment
+          await prisma.ticket_comments.create({
+            data: {
+              ticket_id: ticket.id,
+              user_id: null,
+              comment_text: `🚨 ${sla.sla_type.toUpperCase()} SLA breached by ${Math.abs(
+                delta
+              )} minutes`,
+              comment_type: "System",
+              is_internal: true,
+            },
           });
 
-          console.log(
-            `📊 Updated SLA status for ticket ${ticket.ticket_number}: ${ticket.sla_status} → Within`
-          );
+          // Email section (integrate with your email service)
+          // await EmailService.sendEmail({
+          //   to: ticket.agents_user.email,
+          //   subject: `🚨 SLA Breach: Ticket ${ticket.ticket_number}`,
+          //   body: `The ${sla.sla_type} SLA has been breached by ${Math.abs(delta)} minutes.`,
+          //   priority: "Critical",
+          //   businessHoursOnly: pr.business_hours_only,
+          // });
+        }
+      }
+      // Due‐soon alert
+      else if (delta > 0 && sla.status === "Pending" && !isCritical) {
+        const threshold = pr.business_hours_only!
+          ? sla.sla_type === "Response"
+            ? 60 * 60 * 1000
+            : 2 * 60 * 60 * 1000
+          : pr.priority === 1
+          ? 60 * 60 * 1000
+          : 30 * 60 * 1000;
+
+        if (delta <= threshold && !this.sentNotifications.has(key)) {
+          this.sentNotifications.add(key);
+
+          // Add system comment
+          await prisma.ticket_comments.create({
+            data: {
+              ticket_id: ticket.id,
+              user_id: null,
+              comment_text: `⚠️ ${sla.sla_type.toUpperCase()} SLA due in ${Math.ceil(
+                delta / 60000
+              )} minutes`,
+              comment_type: "System",
+              is_internal: true,
+            },
+          });
+
+          // Email section (integrate with your email service)
+          // await EmailService.sendEmail({
+          //   to: ticket.agents_user.email,
+          //   subject: `⚠️ SLA Warning: Ticket ${ticket.ticket_number}`,
+          //   body: `The ${sla.sla_type} SLA is due in ${Math.ceil(delta / 60000)} minutes.`,
+          //   priority: "Warning",
+          //   businessHoursOnly: pr.business_hours_only,
+          // });
         }
       }
     }
-
-    return {
-      ticketId: ticket.id,
-      ticketNumber: ticket.ticket_number,
-      priority: slaConfig.priority,
-      previousStatus: ticket.sla_status,
-      currentStatus: newSLAStatus,
-      needsNotification: newlyBreached.length > 0,
-      newlyBreached,
-      customerEmail: ticket.customers?.email,
-      agentEmail: ticket.agents_user?.email,
-      businessHoursOnly: slaConfig.business_hours_only,
-      businessConfig: businessConfig,
-    };
   }
 
   // 8. Send SLA notifications (fixed) - COMPLETELY FIXED
@@ -695,9 +575,9 @@ export class BusinessHoursAwareSLAMonitoringService {
 
       const slaUpdate = await this.checkTicketSLAStatus(ticket, true);
 
-      if (slaUpdate && slaUpdate.needsNotification) {
-        await this.sendSLANotifications([slaUpdate]);
-      }
+      // if (slaUpdate && slaUpdate.needsNotification) {
+      //   await this.sendSLANotifications([slaUpdate]);
+      // }
 
       return slaUpdate;
     } catch (error) {
