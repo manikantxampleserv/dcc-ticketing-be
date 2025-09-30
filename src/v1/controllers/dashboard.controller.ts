@@ -39,6 +39,12 @@ export const dashboardController = {
       const openTickets = await prisma.tickets.count({
         where: { ...filter, status: "Open" },
       });
+      const progressTickets = await prisma.tickets.count({
+        where: { ...filter, status: "In Progress" },
+      });
+      const breachedTickets = await prisma.tickets.count({
+        where: { ...filter, status: "Breached" },
+      });
 
       // Count resolved today
       const today = new Date();
@@ -57,6 +63,8 @@ export const dashboardController = {
         totalTickets,
         openTickets,
         resolvedToday,
+        progressTickets,
+        breachedTickets,
       });
     } catch (error: any) {
       res.error(error.message);

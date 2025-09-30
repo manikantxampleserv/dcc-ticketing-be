@@ -504,7 +504,7 @@ export const ticketController = {
           },
         });
         // Handle specific SLA events
-        await this.handleSpecificSLAUpdates(id, existing, req.body);
+        // await this.handleSpecificSLAUpdates(id, existing, req.body);
       } else {
         const [updatedTicket, comment] = await prisma.$transaction([
           prisma.tickets.update({
