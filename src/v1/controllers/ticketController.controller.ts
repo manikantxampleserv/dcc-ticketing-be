@@ -5,6 +5,7 @@ import { validationResult } from "express-validator";
 import EmailService from "types/sendEmailComment";
 import { uploadToBackblaze } from "utils/backBlaze";
 import { uploadFile } from "utils/blackbaze";
+import { BusinessHoursSLACalculator } from "utils/BussinessHoursSLACalculation";
 
 const prisma = new PrismaClient();
 
@@ -112,37 +113,60 @@ const createSLAHistoryEntries = async (
   slaConfig: any,
   createdAt: Date
 ): Promise<void> => {
-  const now = createdAt;
+  // Extract business hours configuration from SLA config
+  const businessConfig = {
+    business_hours_only: slaConfig.business_hours_only || false,
+    business_start_time: slaConfig.business_start_time || "09:00:00",
+    business_end_time: slaConfig.business_end_time || "17:00:00",
+    include_weekends: slaConfig.include_weekends || true,
+  };
 
-  // Calculate deadlines
-  const responseDeadline = new Date(
-    now.getTime() + slaConfig.response_time_hours * 60 * 60 * 1000
-  );
-  const resolutionDeadline = new Date(
-    now.getTime() + slaConfig.resolution_time_hours * 60 * 60 * 1000
-  );
-  // const escalationDeadline = new Date(
-  //   now.getTime() + slaConfig.escalation_time_hours * 60 * 60 * 1000
-  // );
+  console.log(`📊 Creating SLA entries for ticket ${ticketId} with config:`, {
+    priority: slaConfig.priority,
+    businessHoursOnly: businessConfig.business_hours_only,
+    includeWeekends: businessConfig.include_weekends,
+    businessHours: `${businessConfig.business_start_time}-${businessConfig.business_end_time}`,
+  });
 
-  // Create SLA history entries
+  // FIXED: Use BusinessHoursSLACalculator instead of simple time addition
+  const responseDeadline = BusinessHoursSLACalculator.calculateSLADeadline(
+    createdAt,
+    slaConfig.response_time_hours,
+    businessConfig
+  );
+
+  const resolutionDeadline = BusinessHoursSLACalculator.calculateSLADeadline(
+    createdAt,
+    slaConfig.resolution_time_hours,
+    businessConfig
+  );
+
+  // Calculate escalation deadline (50% of resolution time)
+  const escalationHours = slaConfig.resolution_time_hours * 0.5;
+  const escalationDeadline = BusinessHoursSLACalculator.calculateSLADeadline(
+    createdAt,
+    escalationHours,
+    businessConfig
+  );
+
+  // Create SLA history entries with consistent naming
   await prisma.sla_history.createMany({
     data: [
       {
         ticket_id: ticketId,
-        sla_type: "Response",
+        sla_type: "Response", // lowercase for consistency
         target_time: responseDeadline,
-        status: "Pending",
+        status: "Pending", // lowercase for consistency
       },
       {
         ticket_id: ticketId,
-        sla_type: "Resolution",
+        sla_type: "Resolution", // lowercase for consistency
         target_time: resolutionDeadline,
-        status: "Pending",
+        status: "Pending", // lowercase for consistency
       },
       // {
       //   ticket_id: ticketId,
-      //   sla_type: "escalation",
+      //   sla_type: "escalation", // Re-added escalation tracking
       //   target_time: escalationDeadline,
       //   status: "pending",
       // },
@@ -158,11 +182,16 @@ const createSLAHistoryEntries = async (
     },
   });
 
-  console.log(`✅ Generated SLA history for ticket ${ticketId}`, {
-    response: responseDeadline,
-    resolution: resolutionDeadline,
-    // escalation: escalationDeadline,
-  });
+  console.log(
+    `✅ Generated business-hours-aware SLA history for ticket ${ticketId}:`,
+    {
+      response: responseDeadline,
+      resolution: resolutionDeadline,
+      escalation: escalationDeadline,
+      businessHoursOnly: businessConfig.business_hours_only,
+      includeWeekends: businessConfig.include_weekends,
+    }
+  );
 };
 
 const generateSLAHistory = async (
@@ -302,11 +331,7 @@ export const ticketController = {
         );
       } catch (slaError) {
         console.error("Error generating SLA history:", slaError);
-        // Don't fail ticket creation if SLA generation fails
       }
-      // }
-
-      // Fetch complete ticket with SLA history for response
       const completeTicket = await prisma.tickets.findUnique({
         where: { id: ticket.id },
         include: {
@@ -451,6 +476,8 @@ export const ticketController = {
             sla_priority: true,
           },
         });
+        // Handle specific SLA events
+        await this.handleSpecificSLAUpdates(id, existing, req.body);
       } else {
         const [updatedTicket, comment] = await prisma.$transaction([
           prisma.tickets.update({
@@ -488,6 +515,9 @@ export const ticketController = {
           }),
         ]);
 
+        // Mark resolution SLA as completed (monitoring service will determine if breached)
+        await this.handleSLACompletion(id, req.body.status);
+
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
           comment,
@@ -504,6 +534,75 @@ export const ticketController = {
     } catch (error: any) {
       console.error(error);
       res.error(error.message);
+    }
+  },
+  // Handle SLA completion when resolved/closed
+  async handleSLACompletion(ticketId: number, status: string) {
+    try {
+      const now = new Date();
+
+      // Mark resolution SLA as completed (monitoring service will check if it was breached)
+      await prisma.sla_history.updateMany({
+        where: {
+          ticket_id: ticketId,
+          sla_type: "resolution",
+          status: "pending",
+        },
+        data: {
+          status: "met",
+          actual_time: now,
+        },
+      });
+
+      console.log(
+        `✅ Marked resolution SLA as completed for ticket ${ticketId}`
+      );
+    } catch (error) {
+      console.error(`❌ Error handling SLA completion:`, error);
+    }
+  },
+
+  // Handle specific SLA updates during ticket changes
+  async handleSpecificSLAUpdates(
+    ticketId: number,
+    existingTicket: any,
+    updateData: any
+  ) {
+    try {
+      // Handle first response
+      if (
+        !existingTicket.first_response_at &&
+        updateData.status === "In Progress"
+      ) {
+        await prisma.tickets.update({
+          where: { id: ticketId },
+          data: { first_response_at: new Date() },
+        });
+
+        // Mark first response SLA as met
+        await prisma.sla_history.updateMany({
+          where: {
+            ticket_id: ticketId,
+            sla_type: "response",
+            status: "pending",
+          },
+          data: {
+            status: "met",
+            actual_time: new Date(),
+          },
+        });
+
+        console.log(
+          `✅ Marked first response SLA as met for ticket ${ticketId}`
+        );
+      }
+
+      // Handle priority changes (recalculate SLA deadlines)
+      // if (updateData.priority && updateData.priority !== existingTicket.priority) {
+      //   await this.recalculateSLAForPriorityChange(ticketId, updateData.priority, existingTicket);
+      // }
+    } catch (error) {
+      console.error(`❌ Error handling specific SLA updates:`, error);
     }
   },
   async actionsTicket(req: Request, res: Response): Promise<void> {
@@ -1050,6 +1149,10 @@ export const ticketController = {
         where: { id: Number(ticket_id) },
         select: {
           email_thread_id: true,
+          ticket_comments: true,
+          assigned_agent_id: true,
+          first_response_at: true,
+          ticket_sla_history: true,
           subject: true,
           ticket_number: true,
           id: true,
@@ -1147,13 +1250,47 @@ export const ticketController = {
           additionalEmails
         );
       }
+      // const countComment = await prisma.ticket_comments.count()
+      // After successfully creating the comment and before ticket update
+      const isAssignedAgent =
+        ticket?.assigned_agent_id && req?.user?.id === ticket.assigned_agent_id;
+      const isFirstAgentResponse =
+        !ticket.first_response_at &&
+        isAssignedAgent &&
+        comment.comment_type === "public" &&
+        !new_is_internal;
 
-      // Update ticket's updated_at timestamp
-      await prisma.tickets.update({
-        where: { id: Number(ticket_id) },
-        data: { updated_at: new Date() },
-      });
+      if (isFirstAgentResponse && ticket.ticket_sla_history?.length) {
+        const responseSLA = ticket.ticket_sla_history.find(
+          (sla: any) => sla.sla_type === "Response" && sla.status === "Pending"
+        );
+        if (responseSLA) {
+          let statusToUpdate = "Met";
+          const commentDate = new Date(comment.created_at);
+          const slaTargetDate = new Date(responseSLA.target_time);
 
+          // Determine if the response met the SLA deadline
+          if (commentDate <= slaTargetDate) {
+            statusToUpdate = "Met";
+          } else {
+            statusToUpdate = "Breached"; // or whatever logic your app uses
+          }
+
+          await prisma.sla_history.update({
+            where: { id: responseSLA.id },
+            data: {
+              status: statusToUpdate,
+              actual_time: commentDate,
+            },
+          });
+
+          // Also update the ticket's first_response_at timestamp
+          await prisma.tickets.update({
+            where: { id: ticket.id },
+            data: { first_response_at: commentDate },
+          });
+        }
+      }
       res.success("Comment created successfully", comment, 201);
     } catch (error: any) {
       console.error(error);

@@ -8,6 +8,7 @@ import cors from "cors";
 import express, { Application } from "express";
 import routes from "./routes";
 import { responseHandler } from "./middlewares/responseHandler";
+import { BusinessHoursAwareSLAMonitoringService } from "utils/SLAMonitoringService";
 
 /**
  * Creates and configures the Express application
@@ -19,7 +20,7 @@ export const createApp = (): Application => {
 
   // Middleware to parse JSON bodies
   app.use(express.json());
-
+  BusinessHoursAwareSLAMonitoringService.startMonitoring();
   // Middleware to parse URL-encoded bodies
   app.use(express.urlencoded({ extended: true }));
 

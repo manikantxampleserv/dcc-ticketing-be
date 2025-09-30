@@ -228,6 +228,7 @@ export async function getProfile(
         last_login_at: true,
         created_at: true,
         updated_at: true,
+        tickets: true,
         user_role: { select: { id: true, name: true } },
         user_department: { select: { id: true, department_name: true } },
       },
