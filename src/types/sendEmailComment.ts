@@ -62,8 +62,6 @@ class EmailService {
       // ✅ Get the ORIGINAL thread ID (from when ticket was created)
       const originalThreadId =
         ticket.email_thread_id || ticket.original_email_message_id;
-
-      console.log(`🧵 Original Thread ID: ${originalThreadId}`);
       console.log(`📨 New Message ID: ${newMessageId}`);
 
       // ✅ Helper function to determine image MIME type
@@ -170,8 +168,10 @@ class EmailService {
         from: `"Support Team" <${process.env.SMTP_USERNAME}>`,
         to: [customerEmail, ...additionalEmails],
         // to: customerEmail,
-        // cc:
-        //   additionalEmails.length > 0 ? additionalEmails.join(",") : undefined,
+        cc:
+          ticket?.cc_of_ticket && ticket.cc_of_ticket.length > 0
+            ? ticket.cc_of_ticket.map((cc: any) => cc.email).join(",")
+            : undefined,
         subject,
         html: htmlContent,
         messageId: originalThreadId || newMessageId, // ✅ Unique ID for this outgoing email

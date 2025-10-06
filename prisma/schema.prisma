@@ -30,6 +30,8 @@ model users {
   ticket_attachments                       ticket_attachments[]
   ticket_merges                            ticket_merges[]
   ticket_reopens                           ticket_reopens[]
+  user_of_ticket_cc                        cc_of_ticket[]       @relation("TicketCCUser")
+  ticket_cc_createdBy                      cc_of_ticket[]       @relation("TicketCCCreater")
   tickets                                  tickets[]            @relation("TicketAssignee")
   ticket_comment_users                     ticket_comments[]
   user_permissions_granted_by_to_users     user_permissions[]   @relation("UserPermissions_GrantedByToUsers")
@@ -236,6 +238,7 @@ model tickets {
   ticket_attachments                        ticket_attachments[]
   ticket_history                            ticket_history[]
   ticket_comments                           ticket_comments[]
+  cc_of_ticket                              cc_of_ticket[]
   ticket_sla_history                        sla_history[]
   ticket_merges_child_ticket_id_to_tickets  ticket_merges[]            @relation("TicketMerges_ChildTicketIDToTickets")
   ticket_merges_parent_ticket_id_to_tickets ticket_merges[]            @relation("TicketMerges_ParentTicketIDToTickets")
@@ -284,6 +287,18 @@ model ticket_comments {
   @@index([ticket_id])
   @@index([created_at])
   @@index([comment_type])
+}
+
+model cc_of_ticket {
+  id         Int      @id @default(autoincrement())
+  ticket_id  Int
+  user_id    Int
+  created_by Int
+  created_at DateTime @default(now())
+
+  cc_of_ticket        tickets @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user_of_ticket_cc   users   @relation("TicketCCUser", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ticket_cc_createdBy users   @relation("TicketCCCreater", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: Cascade)
 }
 
 model sla_history {

@@ -1,3 +1,4 @@
+import { cc_of_ticket } from "./../../../node_modules/.prisma/client/index.d";
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { paginate } from "utils/pagination";
@@ -83,6 +84,7 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
         email: ticket.users?.email,
       }
     : undefined,
+  cc_of_ticket: ticket.cc_of_ticket,
   customers: ticket.customers
     ? {
         id: ticket.customers.id,
@@ -736,7 +738,6 @@ export const ticketController = {
       dataToUpdate.merged_into_ticket_id = parentId;
       dataToUpdate.status = "Merged";
     }
-    console.log("Comment; : ", commentText, reason);
     try {
       // Execute update and comment creation atomically
       const [updatedTicket, comment] = await prisma.$transaction([
@@ -885,7 +886,84 @@ export const ticketController = {
       }
     }
   },
+  async addCCTicket(req: any, res: Response): Promise<void> {
+    try {
+      const id = Number(req.params.id);
+      const userId = Number(req.user?.id);
+      const ccUser = Number(req.body.user_id);
+      if (!ccUser) {
+        res.error("User id is required.", 400);
+      }
+      const existing = await prisma.tickets.findUnique({
+        where: { id },
+        include: {
+          cc_of_ticket: true,
+        },
+      });
+      const existingUser = await prisma.users.findUnique({
+        where: { id: ccUser },
+      });
+      if (!existing) {
+        res.error("Ticket not found", 404);
+      }
+      if (!existingUser) {
+        res.error("User not found", 404);
+      }
+      if (existing?.cc_of_ticket.find((val) => val.user_id === ccUser)) {
+        res.error("This user is already added in cc .", 409);
+      }
 
+      let commentText = `User ${
+        existingUser?.first_name + " " + existingUser?.last_name
+      } is added in CC of this ticket. `;
+      const [updatedTicket, comment] = await prisma.$transaction([
+        prisma.cc_of_ticket.create({
+          data: {
+            ticket_id: id,
+            user_id: ccUser,
+            created_by: userId,
+            created_at: new Date(),
+          },
+        }),
+        prisma.ticket_comments.create({
+          data: {
+            ticket_id: id,
+            user_id: userId,
+            comment_text: commentText,
+            comment_type: "System",
+            is_internal: true,
+          },
+          include: {
+            ticket_comment_users: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
+            },
+          },
+        }),
+      ]);
+      const finalTicket = await prisma.tickets.findUnique({
+        where: { id },
+        include: {
+          cc_of_ticket: true,
+          customers: true,
+        },
+      });
+      await EmailService.sendCommentEmailToCustomer(finalTicket, comment, []);
+
+      res.success(
+        "Ticket updated successfully",
+        serializeTicket(finalTicket, true),
+        200
+      );
+    } catch (error: any) {
+      console.error(error);
+      res.error(error.message);
+    }
+  },
   async getTicketById(req: any, res: Response): Promise<void> {
     try {
       const id = Number(req.params.id);
@@ -946,6 +1024,7 @@ export const ticketController = {
               companies: { select: { id: true, company_name: true } },
             },
           },
+          cc_of_ticket: true,
         },
       });
 
