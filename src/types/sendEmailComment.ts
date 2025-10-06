@@ -162,7 +162,10 @@ class EmailService {
       //     </p>
       //   </div>
       // `;
-
+      console.log(
+        "CCC : ",
+        ticket.cc_of_ticket.map((cc: any) => cc.email).join(",")
+      );
       // ✅ FIXED: Create mail options object with all properties
       const mailOptions: any = {
         from: `"Support Team" <${process.env.SMTP_USERNAME}>`,
@@ -246,6 +249,7 @@ class EmailService {
       const previousComments = await prisma.ticket_comments.findMany({
         where: {
           ticket_id: ticket.id,
+          is_internal: false,
           id: { not: comment.id }, // Exclude current comment
         },
         include: {
@@ -274,7 +278,7 @@ class EmailService {
       // let html = `<div style="padding:0 20px;">${imageHtml || ""}`;
       let html = "";
       html += `
-         <div style="background-color: #f8f9fa; padding: 20px; margin: 0; border-left: 5px solid #667eea;">
+         <div style="background-color: #f8f9fa;  padding: 15px; margin: 0; border-left: 5px solid #667eea;">
            <table style="width: 100%; border-collapse: collapse;">
              <tr>
                <td style="vertical-align: top;">
@@ -286,7 +290,7 @@ class EmailService {
                  }</span>
                </td>
                <td style="text-align: right; vertical-align: top;">
-                 <span style="background-color: #28a745; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;">
+                 <span style="background-color: #28a745; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
                    ${ticket.status.toUpperCase()}
                  </span>
                </td>
@@ -294,9 +298,9 @@ class EmailService {
            </table>
          </div
          <!-- Latest Comment -->
-         <div style="margin: 25px 20px;">
-           <h2 style="color: #28a745; margin-bottom: 15px;  font-size: 20px;">
-             <span style="margin-right: 10px;">💬</span>
+         <div style="margin: 15px 10px;">
+           <h2 style="color: #28a745; margin-bottom: 10px;  font-size: 15px;">
+             <span style="color: #28a745 !important;margin-right: 10px;">💬</span>
              Latest Comment from ${agentName}
            </h2>
            <div style="background-color: #c1e9fd8d; padding: 20px; border-left: 5px solid #28a745; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
@@ -410,6 +414,197 @@ class EmailService {
       return `<div style="color:#d32f2f; padding:20px;">Unable to load conversation history.</div>`;
     }
   }
+
+  // Add this method to your EmailService class
+
+  async sendTicketCreationEmailToCustomer(
+    ticket: any,
+    customerEmail: string | undefined
+  ): Promise<{ messageId: string; threadId: string } | null> {
+    try {
+      const subject = `Ticket Created: ${ticket.subject} [#${ticket.ticket_number}]`;
+
+      // Generate unique message ID for this outgoing email
+      const newMessageId = `<ticket-${
+        ticket.id
+      }-created-${Date.now()}@gmail.com>`;
+
+      // For new tickets, this will be the thread starter
+      const threadId = ticket.email_thread_id || newMessageId;
+
+      const htmlContent = await this.ticketCreationEmailTemplate(ticket);
+
+      const mailOptions: any = {
+        from: `"Support Team" <${process.env.SMTP_USERNAME}>`,
+        to: [ticket?.customers?.email, customerEmail],
+        subject,
+        html: htmlContent,
+        messageId: newMessageId,
+        headers: {
+          "Thread-Topic": ticket.subject,
+          "Thread-Index": this.generateThreadIndex(ticket.id),
+          "X-Ticket-ID": ticket.ticket_number,
+          "X-Original-Message-ID": newMessageId,
+        },
+      };
+
+      // If ticket has CC users, include them
+      if (ticket?.cc_of_ticket && ticket.cc_of_ticket.length > 0) {
+        mailOptions.cc = ticket.cc_of_ticket
+          .map((cc: any) => cc.email)
+          .join(",");
+      }
+
+      await this.transporter.sendMail(mailOptions);
+
+      console.log(
+        `✅ Ticket creation email sent to ${customerEmail} for ticket #${ticket.ticket_number}`
+      );
+
+      return {
+        messageId: newMessageId,
+        threadId: threadId,
+      };
+    } catch (error) {
+      console.error("❌ Error sending ticket creation email:", error);
+      return null;
+    }
+  }
+
+  // Email template for ticket creation
+  private async ticketCreationEmailTemplate(ticket: any): Promise<string> {
+    const ticketDate = new Date(ticket.created_at).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    // Status color mapping
+    const statusColors: Record<string, string> = {
+      open: "#0066CC",
+      pending: "#FF8C00",
+      resolved: "#28A745",
+      closed: "#6C757D",
+    };
+
+    const statusColor = statusColors[ticket.status.toLowerCase()] || "#0066CC";
+
+    return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #F5F5F5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    
+    <div style="max-width: 100%; margin: 40px auto; background-color: #FFFFFF; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+      
+      <!-- Header -->
+      <div style="background-color: #0066CC; padding: 40px 30px; text-align: center;">
+        <h1 style="color: #FFFFFF; margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.5px;">
+          Support Ticket Confirmation
+        </h1>
+        <p style="color: rgba(255, 255, 255, 0.9); margin: 10px 0 0 0; font-size: 14px;">
+          Your request has been successfully submitted
+        </p>
+      </div>
+
+      <!-- Ticket Summary Card -->
+      <div style="padding: 30px; border-bottom: 1px solid #E5E5E5;">
+        <div style="background-color: #F8F9FA; border-radius: 6px; padding: 20px; border-left: 4px solid ${statusColor};">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding-bottom: 12px;">
+                <span style="color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Ticket ID</span>
+                <div style="color: #1A1A1A; font-size: 20px; font-weight: 700; margin-top: 4px;">#${
+                  ticket.ticket_number
+                }</div>
+              </td>
+              <td style="text-align: right; padding-bottom: 12px;">
+                <span style="display: inline-block; background-color: ${statusColor}; color: #FFFFFF; padding: 6px 14px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                  ${ticket.status}
+                </span>
+              </td>
+            </tr>
+          </table>
+          
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #E5E5E5;">
+            <div style="color: #1A1A1A; font-size: 16px; font-weight: 600; margin-bottom: 8px;">
+              ${ticket.subject}
+            </div>
+            <div style="color: #666666; font-size: 13px;">
+              Created on ${ticketDate}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ticket Description -->
+      <div style="padding: 30px;">
+        <h2 style="color: #1A1A1A; font-size: 16px; font-weight: 600; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+          Request Details
+        </h2>
+        <div style="background-color: #FAFAFA; border: 1px solid #E5E5E5; border-radius: 6px; padding: 20px;">
+          <div style="color: #333333; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word;">
+            ${ticket.description.replace(/\n/g, "<br>")}
+          </div>
+        </div>
+      </div>
+
+      <!-- Next Steps -->
+      <div style="padding: 0 30px 30px 30px;">
+        <div style="background-color: #E8F4FD; border-radius: 6px; padding: 20px; border-left: 4px solid #0066CC;">
+          <h3 style="color: #0066CC; font-size: 15px; font-weight: 600; margin: 0 0 12px 0;">
+            What Happens Next?
+          </h3>
+          <p style="color: #333333; font-size: 14px; line-height: 1.6; margin: 0;">
+            Our support team is reviewing your request and will respond within <strong>24 business hours</strong>. You'll receive email notifications for all updates regarding your ticket.
+          </p>
+        </div>
+      </div>
+
+      <!-- Response Instructions -->
+      <div style="padding: 0 30px 30px 30px;">
+        <div style="background-color: #FFF9E6; border-radius: 6px; padding: 20px; border-left: 4px solid #FF8C00;">
+          <h3 style="color: #CC6F00; font-size: 15px; font-weight: 600; margin: 0 0 12px 0;">
+            Need to Add More Information?
+          </h3>
+          <p style="color: #333333; font-size: 14px; line-height: 1.6; margin: 0;">
+            Simply reply to this email with additional details. Please keep the ticket number <strong>#${
+              ticket.ticket_number
+            }</strong> in the subject line to ensure your message is properly tracked.
+          </p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="background-color: #F8F9FA; padding: 30px; text-align: center; border-top: 1px solid #E5E5E5;">
+        <p style="color: #666666; font-size: 13px; line-height: 1.6; margin: 0 0 8px 0;">
+          If you have any questions, please don't hesitate to contact us.
+        </p>
+        <p style="color: #999999; font-size: 12px; margin: 0;">
+          © ${new Date().getFullYear()} Support Team. All rights reserved.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Email Client Note -->
+    <div style="max-width: 600px; margin: 20px auto; text-align: center;">
+      <p style="color: #999999; font-size: 11px; line-height: 1.5;">
+        This is an automated message. Please do not reply to this email address.<br>
+        For assistance, reply to this ticket or contact our support team.
+      </p>
+    </div>
+
+  </body>
+  </html>`;
+  }
+
   // private async ticketCommentConversation(
   //   ticket: any,
   //   agentName: string,

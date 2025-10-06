@@ -169,9 +169,7 @@ export class BusinessHoursAwareSLAMonitoringService {
             data: {
               ticket_id: ticket.id,
               user_id: null,
-              comment_text: `🚨 ${sla.sla_type.toUpperCase()} SLA breached by ${Math.abs(
-                delta
-              )} minutes`,
+              comment_text: `🚨 ${sla.sla_type.toUpperCase()} SLA breached.`,
               comment_type: "System",
               is_internal: true,
             },

@@ -360,8 +360,18 @@ export const ticketController = {
       } catch (slaError) {
         console.error("Error generating SLA history:", slaError);
       }
-      const completeTicket = await prisma.tickets.findUnique({
+
+      const emailIds = await EmailService.sendTicketCreationEmailToCustomer(
+        ticket,
+        ticket?.agents_user?.email
+      );
+      console.log("hhhhhi", emailIds);
+      const completeTicket = await prisma.tickets.update({
         where: { id: ticket.id },
+        data: {
+          original_email_message_id: emailIds?.messageId || emailIds?.threadId,
+          email_thread_id: emailIds?.messageId || emailIds?.threadId,
+        },
         include: {
           users: true,
           other_tickets: true,
@@ -380,7 +390,6 @@ export const ticketController = {
           //   },
         },
       });
-
       res.success(
         "Ticket created successfully",
         serializeTicket(completeTicket, true),
@@ -1042,7 +1051,11 @@ export const ticketController = {
               companies: { select: { id: true, company_name: true } },
             },
           },
-          cc_of_ticket: true,
+          cc_of_ticket: {
+            include: {
+              user_of_ticket_cc: true,
+            },
+          },
         },
       });
 
