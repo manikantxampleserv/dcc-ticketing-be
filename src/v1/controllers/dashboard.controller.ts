@@ -43,7 +43,7 @@ export const dashboardController = {
         where: { ...filter, status: "In Progress" },
       });
       const breachedTickets = await prisma.tickets.count({
-        where: { ...filter, status: "Breached" },
+        where: { ...filter, sla_status: "Breached" },
       });
 
       // Count resolved today
@@ -55,7 +55,8 @@ export const dashboardController = {
       const resolvedToday = await prisma.tickets.count({
         where: {
           ...filter,
-          resolved_at: { gte: today, lt: tomorrow },
+          status: "Resolved",
+          // resolved_at: { gte: today, lt: tomorrow },
         },
       });
 
