@@ -1,4 +1,3 @@
-import { cc_of_ticket } from "./../../../node_modules/.prisma/client/index.d";
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { paginate } from "utils/pagination";
@@ -393,7 +392,7 @@ export const ticketController = {
     }
   },
 
-  async updateTicket(req: any, res: Response): Promise<void> {
+  async updateTicket(req: any, res: Response): Promise<any> {
     try {
       const id = Number(req.params.id);
       const reason = req.body.reason || "";
@@ -401,7 +400,7 @@ export const ticketController = {
 
       const existing = await prisma.tickets.findUnique({ where: { id } });
       if (!existing) {
-        res.error("Ticket not found", 404);
+        return res.error("Ticket not found", 404);
       }
 
       // const {
@@ -803,7 +802,7 @@ export const ticketController = {
     }
   },
 
-  async mergeTicket(req: any, res: Response): Promise<void> {
+  async mergeTicket(req: any, res: Response): Promise<any> {
     const ticketId = Number(req.params.id);
     const userId = req.user?.id;
     const parentId = Number(req.body.parent_id);
@@ -811,7 +810,7 @@ export const ticketController = {
       where: { id: Number(parentId) },
     });
     if (!existing) {
-      res.error("Parent Ticket not found", 404);
+      return res.error("Parent Ticket not found", 404);
     }
     if (isNaN(parentId)) {
       res
@@ -886,43 +885,48 @@ export const ticketController = {
       }
     }
   },
-  async addCCTicket(req: any, res: Response): Promise<void> {
+  async addCCTicket(req: any, res: Response): Promise<any> {
     try {
       const id = Number(req.params.id);
       const userId = Number(req.user?.id);
       const ccUser = Number(req.body.user_id);
+
       if (!ccUser) {
-        res.error("User id is required.", 400);
+        return res.error("User id is required.", 400);
       }
+
       const existing = await prisma.tickets.findUnique({
         where: { id },
         include: {
           cc_of_ticket: true,
         },
       });
+
       const existingUser = await prisma.users.findUnique({
         where: { id: ccUser },
       });
+
       if (!existing) {
-        res.error("Ticket not found", 404);
-      }
-      if (!existingUser) {
-        res.error("User not found", 404);
-      }
-      if (existing?.cc_of_ticket.find((val) => val.user_id === ccUser)) {
-        res.error("This user is already added in cc .", 409);
+        return res.error("Ticket not found", 404);
       }
 
-      let commentText = `User ${
-        existingUser?.first_name + " " + existingUser?.last_name
-      } is added in CC of this ticket. `;
+      if (!existingUser) {
+        return res.error("User not found", 404);
+      }
+
+      if (existing.cc_of_ticket.find((val) => val.user_id === ccUser)) {
+        return res.error("This user is already added in cc.", 409);
+      }
+
+      let commentText = `User ${existingUser.first_name} ${existingUser.last_name} is added in CC of this ticket.`;
+
       const [updatedTicket, comment] = await prisma.$transaction([
         prisma.cc_of_ticket.create({
           data: {
             ticket_id: id,
             user_id: ccUser,
             created_by: userId,
-            created_at: new Date(),
+            // Remove created_at: new Date() - let Prisma handle default
           },
         }),
         prisma.ticket_comments.create({
@@ -945,13 +949,26 @@ export const ticketController = {
           },
         }),
       ]);
+
       const finalTicket = await prisma.tickets.findUnique({
         where: { id },
         include: {
-          cc_of_ticket: true,
+          cc_of_ticket: {
+            include: {
+              user_of_ticket_cc: {
+                select: {
+                  id: true,
+                  first_name: true,
+                  last_name: true,
+                  email: true,
+                },
+              },
+            },
+          },
           customers: true,
         },
       });
+
       await EmailService.sendCommentEmailToCustomer(finalTicket, comment, []);
 
       res.success(
@@ -964,6 +981,7 @@ export const ticketController = {
       res.error(error.message);
     }
   },
+
   async getTicketById(req: any, res: Response): Promise<void> {
     try {
       const id = Number(req.params.id);
