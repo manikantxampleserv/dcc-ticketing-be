@@ -34,6 +34,11 @@ router.put(
   authenticateToken,
   ticketController.mergeTicket
 );
+router.put(
+  "/ticket-cc-add/:id",
+  authenticateToken,
+  ticketController.addCCTicket
+);
 
 router.get("/ticket/:id", authenticateToken, ticketController.getTicketById);
 
