@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const auth_1 = require("middlewares/auth");
+const express_1 = require("express");
+const validate_1 = require("middlewares/validate");
+const agents_controller_1 = require("v1/controllers/agents.controller");
+const agent_validator_1 = require("v1/validators/agent.validator");
+const router = (0, express_1.Router)();
+router.post("/agents", auth_1.authenticateToken, agent_validator_1.createAgentValidator, validate_1.validate, agents_controller_1.agentsController.createAgent);
+router.get("/agents/:id", auth_1.authenticateToken, agents_controller_1.agentsController.getAgentById);
+router.get("/agents", auth_1.authenticateToken, agents_controller_1.agentsController.getAllAgents);
+router.put("/agents/:id", auth_1.authenticateToken, agent_validator_1.updateAgentValidator, validate_1.validate, agents_controller_1.agentsController.updateAgent);
+router.delete("/agents/:id", auth_1.authenticateToken, validate_1.validate, agents_controller_1.agentsController.deleteAgent);
+router.delete("/agents", auth_1.authenticateToken, validate_1.validate, agents_controller_1.agentsController.deleteAgent);
+exports.default = router;

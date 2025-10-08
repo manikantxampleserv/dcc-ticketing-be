@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const user_controller_1 = require("../controllers/user.controller");
+const auth_1 = require("../../middlewares/auth");
+const multer_1 = require("../../utils/multer");
+const routes = (0, express_1.Router)();
+routes.post("/users", multer_1.upload.single("avatar"), user_controller_1.createUser);
+routes.get("/users", auth_1.authenticateToken, (req, res) => (0, user_controller_1.getUsersList)(req, res));
+routes.get("/users/:id", auth_1.authenticateToken, (req, res) => (0, user_controller_1.getUser)(req, res));
+routes.put("/users/:id", auth_1.authenticateToken, multer_1.upload.single("avatar"), user_controller_1.updateUser);
+routes.delete("/users", auth_1.authenticateToken, (req, res) => (0, user_controller_1.deleteUser)(req, res));
+routes.patch("/users/status/:id", auth_1.authenticateToken, (req, res) => (0, user_controller_1.updateUserStatus)(req, res));
+exports.default = routes;

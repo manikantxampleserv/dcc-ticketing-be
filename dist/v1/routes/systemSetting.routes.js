@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const systemSetting_controller_1 = require("../controllers/systemSetting.controller");
+const auth_1 = require("middlewares/auth");
+const router = (0, express_1.Router)();
+router.post("/system-setting", auth_1.authenticateToken, systemSetting_controller_1.systemSettingController.createSystemSetting);
+router.get("/system-setting/:id", auth_1.authenticateToken, systemSetting_controller_1.systemSettingController.getSystemSettingById);
+router.get("/system-setting", auth_1.authenticateToken, systemSetting_controller_1.systemSettingController.getAllSystemSetting);
+router.delete("/system-setting/:id", auth_1.authenticateToken, systemSetting_controller_1.systemSettingController.deleteSystemSetting);
+router.put("/system-setting/:id", auth_1.authenticateToken, systemSetting_controller_1.systemSettingController.updateSystemSetting);
+router.post("/system-setting/upsert", auth_1.authenticateToken, systemSetting_controller_1.systemSettingController.upsertSystemSetting);
+exports.default = router;

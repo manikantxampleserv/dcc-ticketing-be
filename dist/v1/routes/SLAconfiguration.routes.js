@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const auth_1 = require("middlewares/auth");
+const SLA_controller_1 = require("../controllers/SLA.controller");
+const express_1 = require("express");
+const router = (0, express_1.Router)();
+router.post("/SLA", auth_1.authenticateToken, SLA_controller_1.SLAcontroller.createOrUpdate);
+router.get("/SLA/:id", SLA_controller_1.SLAcontroller.getSLAbyId);
+router.get("/SLA", SLA_controller_1.SLAcontroller.getAllSLA);
+router.delete("/SLA/:id", SLA_controller_1.SLAcontroller.deleteSLA);
+exports.default = router;

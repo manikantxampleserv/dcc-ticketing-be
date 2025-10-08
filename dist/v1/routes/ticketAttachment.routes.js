@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const ticketAttachment_controller_1 = require("../controllers/ticketAttachment.controller");
+const auth_1 = require("../../middlewares/auth");
+const multer_1 = require("../../utils/multer");
+const validate_1 = require("middlewares/validate");
+const routes = (0, express_1.Router)();
+routes.post("/ticket-attachment", auth_1.authenticateToken, multer_1.upload.single("file_path"), ticketAttachment_controller_1.ticketAttachmentController.createTicketAttachment);
+routes.get("/ticket-attachment", auth_1.authenticateToken, ticketAttachment_controller_1.ticketAttachmentController.getAllTicketAttachment);
+routes.get("/ticket-attachment/:id", auth_1.authenticateToken, ticketAttachment_controller_1.ticketAttachmentController.getTicketAttachmnetById);
+routes.put("/ticket-attachment/:id", auth_1.authenticateToken, multer_1.upload.single("file_path"), ticketAttachment_controller_1.ticketAttachmentController.updateTicketAttachment);
+routes.delete("/ticket-attachment/:id", auth_1.authenticateToken, validate_1.validate, ticketAttachment_controller_1.ticketAttachmentController.deleteTicketAttachment);
+exports.default = routes;

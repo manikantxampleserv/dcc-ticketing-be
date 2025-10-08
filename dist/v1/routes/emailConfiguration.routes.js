@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_1 = require("middlewares/auth");
+const emailConfiguration_controller_1 = require("../controllers/emailConfiguration.controller");
+const router = (0, express_1.Router)();
+router.post("/email-configuration", auth_1.authenticateToken, emailConfiguration_controller_1.emailConfigurationController.createEmailConfiguration);
+router.get("/email-configuration/:id", auth_1.authenticateToken, emailConfiguration_controller_1.emailConfigurationController.getEmailConfigurationById);
+router.get("/email-configuration", auth_1.authenticateToken, emailConfiguration_controller_1.emailConfigurationController.getAllEmailConfiguration);
+router.put("/email-configuration/:id", auth_1.authenticateToken, emailConfiguration_controller_1.emailConfigurationController.updateEmailConfiguration);
+router.delete("/email-configuration/:id", auth_1.authenticateToken, emailConfiguration_controller_1.emailConfigurationController.deleteEmailConfiguration);
+router.post("/email-configuration/upsert", auth_1.authenticateToken, emailConfiguration_controller_1.emailConfigurationController.upsertEmailConfiguration);
+exports.default = router;

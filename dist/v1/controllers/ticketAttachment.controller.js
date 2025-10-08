@@ -1,0 +1,312 @@
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ticketAttachmentController = void 0;
+const client_1 = require("@prisma/client");
+const pagination_1 = require("utils/pagination");
+const blackbaze_1 = require("utils/blackbaze");
+const prisma = new client_1.PrismaClient();
+const formatFileAttachment = (attachment) => {
+    if (!attachment)
+        return null;
+    if (attachment.file_path && !/^https?:\/\//.test(attachment.file_path)) {
+        return Object.assign(Object.assign({}, attachment), { file_path: `${process.env.BACKBLAZE_BUCKET_URL}/${attachment.file_path}` });
+    }
+    return attachment;
+};
+const formatFileAttachments = (file = []) => file.map(formatFileAttachment);
+const serializeTicketAttachment = (attachment, includeCreatedAt = false) => (Object.assign(Object.assign({ id: attachment.id, ticket_id: Number(attachment.ticket_id), response_id: attachment.response_id, file_name: attachment.file_name, original_file_name: attachment.original_file_name, file_path: attachment.file_path, file_size: attachment.file_size ? Number(attachment.file_size) : 0, content_type: attachment.content_type, file_hash: attachment.file_hash, uploaded_by: attachment.uploaded_by, uploaded_by_type: attachment.uploaded_by_type, is_public: Boolean(attachment.is_public), virus_scanned: Boolean(attachment.virus_scanned), scan_result: attachment.scan_result }, (includeCreatedAt && { created_at: attachment.created_at })), { tickets: attachment.tickets
+        ? { id: attachment.tickets.id, subject: attachment.tickets.subject }
+        : undefined, users: attachment.users
+        ? { id: attachment.users.id, name: attachment.users.first_name }
+        : undefined, ticket_attachments: attachment.ticket_attachments
+        ? attachment.ticket_attachments.map((att) => ({
+            id: att.id,
+            ticket_id: att.ticket_id,
+            response_id: att.response_id,
+            file_name: att.file_name,
+            original_file_name: att.original_file_name,
+            file_path: att.file_path,
+            file_size: att.file_size ? Number(att.file_size) : null, // ✅ BigInt to Number
+            content_type: att.content_type,
+            file_hash: att.file_hash,
+            uploaded_by: att.uploaded_by,
+            uploaded_by_type: att.uploaded_by_type,
+            is_public: att.is_public,
+            virus_scanned: att.virus_scanned,
+            scan_result: att.scan_result,
+            created_at: att.created_at,
+            users: att.users
+                ? {
+                    id: att.users.id,
+                    first_name: att.users.first_name,
+                    last_name: att.users.last_name,
+                    email: att.users.email,
+                }
+                : undefined,
+        }))
+        : [] }));
+exports.ticketAttachmentController = {
+    createTicketAttachment(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            try {
+                const { ticket_id, response_id = null, file_name, original_file_name = "", file_size, content_type = "", file_hash = "", uploaded_by = null, uploaded_by_type = "", is_public, virus_scanned = true, scan_result = "", } = req.body;
+                if (!req.file) {
+                    res.error("File is required", 400);
+                    return;
+                }
+                const fileName = `fileAttachments/${Date.now()}_${req.file.originalname}`;
+                const fileUrl = yield (0, blackbaze_1.uploadFile)(req.file.buffer, fileName, req.file.mimetype);
+                const attachment = yield prisma.ticket_attachments.create({
+                    data: {
+                        ticket_id: Number(ticket_id),
+                        response_id: response_id ? Number(response_id) : null,
+                        file_name,
+                        original_file_name,
+                        file_path: fileUrl,
+                        file_size: BigInt((_a = req.file) === null || _a === void 0 ? void 0 : _a.size) || 0,
+                        content_type,
+                        file_hash,
+                        uploaded_by: Number(uploaded_by) || Number((_b = req === null || req === void 0 ? void 0 : req.user) === null || _b === void 0 ? void 0 : _b.id),
+                        uploaded_by_type: uploaded_by_type !== null && uploaded_by_type !== void 0 ? uploaded_by_type : "User",
+                        is_public: is_public === "true" || is_public === true,
+                        virus_scanned: virus_scanned === "true" || virus_scanned === true,
+                        scan_result,
+                    },
+                    include: {
+                        tickets: true,
+                        users: true,
+                    },
+                });
+                const serializedAttachment = serializeTicketAttachment(attachment, true);
+                res.success("Attachment created successfully", Object.assign(Object.assign({}, formatFileAttachment(serializedAttachment)), { serialized: serializedAttachment }), 201);
+            }
+            catch (error) {
+                res.error(error.message || "Internal server error", 500);
+            }
+        });
+    },
+    getTicketAttachmnetById(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const id = Number(req.params.id);
+                const attachment = yield prisma.tickets.findUnique({
+                    where: { id },
+                    select: {
+                        ticket_attachments: {
+                            select: {
+                                ticket_id: true,
+                                response_id: true,
+                                file_name: true,
+                                original_file_name: true,
+                                file_path: true,
+                                file_size: true,
+                                content_type: true,
+                                file_hash: true,
+                                uploaded_by: true,
+                                uploaded_by_type: true,
+                                is_public: true,
+                                virus_scanned: true,
+                                scan_result: true,
+                                created_at: true,
+                                users: true,
+                            },
+                        },
+                    },
+                });
+                if (!attachment) {
+                    res.error("Attachment not found", 404);
+                    return;
+                }
+                res.success("Attachment fetched successfully", serializeTicketAttachment(attachment, true), 200);
+            }
+            catch (error) {
+                res.error(error.message);
+            }
+        });
+    },
+    updateTicketAttachment(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const id = Number(req.params.id);
+                if (isNaN(id)) {
+                    res.error("Invalid attachment ID", 400);
+                    return;
+                }
+                const existingAttachment = yield prisma.ticket_attachments.findUnique({
+                    where: { id },
+                });
+                if (!existingAttachment) {
+                    res.error("Attachment not found", 404);
+                    return;
+                }
+                const _a = req.body, { created_at } = _a, attachmentData = __rest(_a, ["created_at"]);
+                const updateData = Object.assign({}, attachmentData);
+                if (req.file) {
+                    if (existingAttachment.file_path) {
+                        try {
+                            const fileName = existingAttachment.file_path.replace(`${process.env.BACKBLAZE_BUCKET_URL}/`, "");
+                            yield (0, blackbaze_1.deleteFile)(fileName);
+                        }
+                        catch (deleteError) {
+                            console.error("Error deleting old file:", deleteError);
+                        }
+                    }
+                    const fileName = `fileAttachments/${Date.now()}_${req.file.originalname}`;
+                    const fileUrl = yield (0, blackbaze_1.uploadFile)(req.file.buffer, fileName, req.file.mimetype);
+                    updateData.file_path = fileUrl;
+                    updateData.original_file_name = req.file.originalname;
+                    updateData.file_size = BigInt(req.file.size);
+                    updateData.content_type = req.file.mimetype;
+                    updateData.file_name = req.file.originalname;
+                }
+                if (attachmentData.ticket_id)
+                    updateData.ticket_id = Number(attachmentData.ticket_id);
+                if (attachmentData.response_id)
+                    updateData.response_id = Number(attachmentData.response_id);
+                if (attachmentData.uploaded_by)
+                    updateData.uploaded_by = Number(attachmentData.uploaded_by);
+                if (attachmentData.is_public !== undefined) {
+                    updateData.is_public =
+                        attachmentData.is_public === "true" ||
+                            attachmentData.is_public === true;
+                }
+                if (attachmentData.virus_scanned !== undefined) {
+                    updateData.virus_scanned =
+                        attachmentData.virus_scanned === "true" ||
+                            attachmentData.virus_scanned === true;
+                }
+                if (attachmentData.file_size && !req.file) {
+                    updateData.file_size = BigInt(attachmentData.file_size);
+                }
+                const updated = yield prisma.ticket_attachments.update({
+                    where: { id },
+                    data: updateData,
+                    include: { tickets: true, users: true },
+                });
+                const serializedAttachment = serializeTicketAttachment(updated, true);
+                res.success("Attachment updated successfully", serializedAttachment, 200);
+            }
+            catch (error) {
+                console.error("Error updating attachment:", error);
+                res.error(error.message || "Internal server error", 500);
+            }
+        });
+    },
+    // Delete
+    deleteTicketAttachment(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // try {
+            //   const id = Number(req.params.id);
+            //   const existingAttachment = await prisma.ticket_attachments.findUnique({
+            //     where: { id },
+            //   });
+            //   if (!existingAttachment) {
+            //     res.error("Attachment not found", 404);
+            //     return;
+            //   }
+            //   // Optionally delete file from storage
+            //   if (existingAttachment.file_path) {
+            //     try {
+            //       await deleteFile(existingAttachment.file_path);
+            //     } catch (deleteError) {
+            //       console.error("Error deleting file from storage:", deleteError);
+            //       // Continue with database deletion even if file deletion fails
+            //     }
+            //   }
+            //   await prisma.ticket_attachments.delete({
+            //     where: { id },
+            //   });
+            //   res.success("Attachment deleted successfully", null, 200);
+            // } catch (error: any) {
+            //   res.error(error.message || "Internal server error", 500);
+            // }
+            try {
+                const { id, ids } = req.body;
+                if (id && !isNaN(Number(id))) {
+                    const ticketAttachment = yield prisma.ticket_attachments.findUnique({
+                        where: { id: Number(id) },
+                    });
+                    if (!ticketAttachment) {
+                        res.error("Ticket Attachment not found", 404);
+                        return;
+                    }
+                    yield prisma.ticket_attachments.delete({ where: { id: Number(id) } });
+                    res.success(`Ticket with id ${id} deleted successfully`, 200);
+                    return;
+                }
+                if (Array.isArray(ids) && ids.length > 0) {
+                    const deletedTicketAttachment = yield prisma.ticket_attachments.deleteMany({
+                        where: { id: { in: ids } },
+                    });
+                    if (deletedTicketAttachment.count === 0) {
+                        res.error("No matching tickets  attachment found for deletion", 404);
+                        return;
+                    }
+                    res.success(`${deletedTicketAttachment.count} tickets attachemnts deleted successfully`, 200);
+                    return;
+                }
+                res.error("Please provide a valid 'id' or 'ids[]' in the request body", 400);
+            }
+            catch (error) {
+                res.error(error.message, 500);
+            }
+        });
+    },
+    getAllTicketAttachment(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const { page = "1", limit = "10", search = "" } = req.query;
+                const page_num = parseInt(page, 10);
+                const limit_num = parseInt(limit, 10);
+                const searchLower = search.toLowerCase();
+                const filters = search
+                    ? {
+                        OR: [
+                            {
+                                file_name: { contains: searchLower },
+                            },
+                            {
+                                original_file_name: {
+                                    contains: searchLower,
+                                },
+                            },
+                        ],
+                    }
+                    : {};
+                const { data, pagination } = yield (0, pagination_1.paginate)({
+                    model: prisma.ticket_attachments,
+                    filters,
+                    page: page_num,
+                    limit: limit_num,
+                    orderBy: { created_at: "desc" },
+                    include: { tickets: true, users: true },
+                });
+                res.success("Attachments retrieved successfully", data.map((a) => serializeTicketAttachment(a, true)), 200, pagination);
+            }
+            catch (error) {
+                res.error(error.message || "Internal server error", 500);
+            }
+        });
+    },
+};

@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const auth_1 = require("middlewares/auth");
+const department_controller_1 = require("../controllers/department.controller");
+const express_1 = require("express");
+const validate_1 = require("middlewares/validate");
+const department_validator_1 = require("v1/validators/department.validator");
+const router = (0, express_1.Router)();
+router.post("/department", auth_1.authenticateToken, department_validator_1.createDepartmentValidation, validate_1.validate, department_controller_1.departmentController.createDepartment);
+router.get("/department/:id", auth_1.authenticateToken, department_controller_1.departmentController.getDepartmentById);
+router.get("/department", auth_1.authenticateToken, department_controller_1.departmentController.getAllDepartment);
+router.put("/department/:id", auth_1.authenticateToken, department_validator_1.updateDepartmentValidation, validate_1.validate, department_controller_1.departmentController.updateDepartment);
+router.delete("/department", auth_1.authenticateToken, validate_1.validate, department_controller_1.departmentController.deleteDepartment);
+exports.default = router;
