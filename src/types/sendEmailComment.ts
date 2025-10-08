@@ -438,7 +438,7 @@ class EmailService {
               </td>
             </tr>`;
 
-        previousComments.forEach((pc) => {
+        previousComments.forEach((pc: any) => {
           const isCustomer = !!pc.ticket_comment_customers;
           const author = pc.ticket_comment_customers
             ? `${pc.ticket_comment_customers.first_name} ${pc.ticket_comment_customers.last_name}`

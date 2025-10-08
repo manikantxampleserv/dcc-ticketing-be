@@ -6,7 +6,7 @@
   "scripts": {
     "start": "nodemon --exec ts-node -r tsconfig-paths/register src/index.ts",
     "build": "tsc",
-    "serve": "node dist/index.js",
+    "serve": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/index.js",
     "seed-create": "ts-node prisma/seed.create.ts",
     "seed-clean": "ts-node prisma/seed.clean.ts",
     "seed": "ts-node prisma/seed.clean.ts && ts-node prisma/seed.create.ts"

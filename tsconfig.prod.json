@@ -6,8 +6,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": "./src",
-    "outDir": "./dist",
+    "baseUrl": "./dist",
     "paths": {
       "middlewares/*": ["middlewares/*"],
       "config/*": ["config/*"],
@@ -20,8 +19,6 @@
       "v1/validators/*": ["v1/validators/*"],
       "types/*": ["types/*"]
     }
-  },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules"]
+  }
 }
  
