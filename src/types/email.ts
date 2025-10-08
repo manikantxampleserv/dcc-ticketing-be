@@ -4,6 +4,8 @@ import Imap from "imap";
 import { simpleParser } from "mailparser";
 import { PrismaClient } from "@prisma/client";
 import * as dotenv from "dotenv";
+import { generateTicketNumber } from "utils/GenerateTicket";
+import { uploadFile } from "utils/blackbaze";
 
 dotenv.config();
 
@@ -36,39 +38,109 @@ interface ParsedEmail {
   references?: string[];
   inReplyTo?: string;
   body?: any;
+  attachments?: any;
+}
+interface EmailConfigurationRecord {
+  id: number;
+  log_inst: number | null;
+  username: string | null;
+  password: string | null;
+  smtp_server: string;
+  smtp_port: number | null;
+  is_active: boolean | null;
 }
 
+// const emailConfiguration = await prisma.email_configurations.findFirst({
+//   where: { log_inst: 1 },
+// });
+// const prisma = new PrismaClient();
+// const emailConfig: EmailConfig = {
+//   user: emailConfiguration.username || process.env.SMTP_USERNAME!,
+//   password: emailConfiguration?.password || process.env.SMTP_PASSWORD!,
+//   host: emailConfiguration?.smtp_server || process.env.MAIL_HOST!,
+//   port: emailConfiguration?.smtp_port || 993,
+//   connTimeout: 60000, // 60 seconds connection timeout
+//   authTimeout: 30000,
+//   tls: true,
+//   tlsOptions: {
+//     rejectUnauthorized: false,
+//     debug: console.log, // <-- Add this line to allow self-signed certificates
+//   },
+// };
+
 const prisma = new PrismaClient();
-// || 587
-// Email configuration
-const emailConfig: EmailConfig = {
-  user: process.env.SMTP_USERNAME!,
-  password: process.env.SMTP_PASSWORD!,
-  host: process.env.MAIL_HOST!,
-  port: 993,
-  connTimeout: 60000, // 60 seconds connection timeout
-  authTimeout: 30000,
-  tls: true,
-  tlsOptions: {
-    rejectUnauthorized: false,
-    debug: console.log, // <-- Add this line to allow self-signed certificates
-  },
-};
 
 class SimpleEmailTicketSystem {
-  private imap: Imap;
+  private imap: Imap | null = null;
   private lastUid = 0;
-  private lastUidFilePath: string = path.join(__dirname, "lastUid.txt");
+  private lastUidFilePath: string;
+  private emailConfig: EmailConfig | null = null;
+  private configId: number;
+  private logInst: number;
 
-  constructor() {
-    this.imap = new Imap(emailConfig);
+  // Dynamic constructor - accepts configuration parameters
+  constructor(logInst: number = 1, configId?: number) {
+    this.logInst = logInst;
+    this.configId = configId || 0;
+    this.lastUidFilePath = path.join(__dirname, `lastUid_${logInst}.txt`);
+  }
+
+  // Dynamic configuration loader
+  private async loadEmailConfiguration(): Promise<EmailConfig> {
+    try {
+      let emailConfiguration: Partial<EmailConfigurationRecord> | null;
+
+      emailConfiguration = await prisma.email_configurations.findFirst({
+        where: { log_inst: 1 },
+      });
+
+      if (!emailConfiguration) {
+        throw new Error(
+          `No email configuration found for logInst: ${this.logInst} or configId: ${this.configId}`
+        );
+      }
+
+      return {
+        user: emailConfiguration.username || process.env.SMTP_USERNAME!,
+        password: emailConfiguration.password || process.env.SMTP_PASSWORD!,
+        host: emailConfiguration.smtp_server || process.env.MAIL_HOST!,
+        port: emailConfiguration.smtp_port || 993,
+        connTimeout: 60000,
+        authTimeout: 30000,
+        tls: true,
+        tlsOptions: {
+          rejectUnauthorized: false,
+          debug: console.log,
+        },
+      };
+    } catch (error) {
+      console.error("❌ Error loading email configuration:", error);
+      throw error;
+    }
+  }
+
+  // Initialize with dynamic configuration
+  private async initializeConnection(): Promise<void> {
+    if (!this.emailConfig) {
+      this.emailConfig = await this.loadEmailConfiguration();
+    }
+
+    if (this.imap) {
+      this.imap.destroy();
+    }
+
+    this.imap = new Imap(this.emailConfig);
   }
   async start(): Promise<void> {
     await this.loadLastUid();
+    await this.initializeConnection();
 
     return new Promise((resolve, reject) => {
+      if (!this.imap) {
+        reject(new Error("IMAP connection not initialized"));
+        return;
+      }
       this.imap.once("ready", () => {
-        console.log("✅ Connected to IMAP");
         this.openInbox()
           .then(() => {
             this.listenForNewEmails();
@@ -116,13 +188,20 @@ class SimpleEmailTicketSystem {
 
   private openInbox(): Promise<void> {
     return new Promise((resolve, reject) => {
+      if (!this.imap) {
+        reject(new Error("IMAP not initialized"));
+        return;
+      }
+
       this.imap.openBox("INBOX", false, (err, box) => {
         if (err) {
           console.error("❌ Failed to open inbox:", err);
           return reject(err);
         }
         console.log(
-          `📬 Inbox opened: total=${box.messages.total} unseen=${box.messages.unseen} uidnext=${box.uidnext}`
+          `📬 Inbox opened: total=${box.messages.total} unseen=${
+            box.messages.unseen || 0
+          } uidnext=${box.uidnext}`
         );
 
         // If first run and lastUid = 0, initialize to uidnext - 1 to skip old emails
@@ -138,6 +217,7 @@ class SimpleEmailTicketSystem {
   }
 
   private listenForNewEmails(): void {
+    if (!this.imap) return;
     this.imap.on("mail", (numNewMsgs: any) => {
       console.log(`📧 Mail event: ${numNewMsgs} new email(s)`);
       this.fetchNewEmails();
@@ -145,6 +225,7 @@ class SimpleEmailTicketSystem {
   }
 
   private fetchNewEmails(): void {
+    if (!this.imap) return;
     this.imap.openBox("INBOX", (err, box) => {
       if (err) {
         console.error("❌ Error fetching mailbox status:", err);
@@ -157,7 +238,7 @@ class SimpleEmailTicketSystem {
       if (newUidNext > this.lastUid) {
         const uidRange = `${this.lastUid + 1}:${newUidNext}`;
         console.log(`⬇️ Fetching emails with UID range: ${uidRange}`);
-
+        if (!this.imap) return;
         const fetcher = this.imap.fetch(uidRange, {
           bodies: "",
           markSeen: true,
@@ -265,6 +346,10 @@ class SimpleEmailTicketSystem {
   private async handleParsedEmail(email: ParsedEmail): Promise<void> {
     try {
       const senderEmail = email.from?.value?.[0]?.address?.toLowerCase();
+      const senderName =
+        email.from?.value?.[0]?.name ||
+        senderEmail?.split("@")[0] ||
+        "Unknown Sender";
       const subject = email.subject || "No Subject";
       // const body = email.html || email.text || "No content";
       const body = email.html || `<pre>${email.text}</pre>`;
@@ -280,7 +365,9 @@ class SimpleEmailTicketSystem {
         console.error("❌ No sender email found");
         return;
       }
-
+      // ✅ Process attachments (without ticket number for now)
+      let attachments = await this.processEmailAttachments(email);
+      console.log("Attachments : ", email.attachments, attachments);
       let existingTicket = null;
 
       if (threadId) {
@@ -293,22 +380,21 @@ class SimpleEmailTicketSystem {
             senderEmail,
             body,
             messageId,
-            email // ✅ Pass full email object for better processing
+            email,
+            attachments
           );
           return;
         } else {
-          console.log(
-            `❌ No existing ticket found with thread ID: ${threadId}`
-          );
+          console.log(` No existing ticket found with thread ID: ${threadId}`);
         }
       }
 
       const customer = await this.findCustomer(senderEmail);
 
-      if (!customer) {
-        console.log(`❌ Email ignored - ${senderEmail} is not a customer`);
-        return;
-      }
+      // if (!customer) {
+      //   console.log(`❌ Email ignored - ${senderEmail} is not a customer`);
+      //   return;
+      // }
 
       const ticket = await this.createTicket(
         customer,
@@ -317,47 +403,57 @@ class SimpleEmailTicketSystem {
         senderEmail,
         messageId,
         threadId ?? "",
-        email // ✅ Pass full email object
+        email,
+        senderName,
+        attachments
       );
 
       console.log(
-        `Ticket created: #${ticket.ticket_number} for ${customer.first_name} ${customer.last_name}`
+        `Ticket created: #${ticket.ticket_number} for ${customer?.first_name} ${customer?.last_name}`
       );
     } catch (error) {
       console.error("Error handling email:", error);
     }
   }
 
-  // ✅ IMPROVED: Create comment from email reply with better content handling
   private async createCommentFromEmail(
     ticket: any,
     senderEmail: string,
     body: string,
     messageId?: string,
-    fullEmail?: ParsedEmail
+    fullEmail?: ParsedEmail,
+    attachments?: any[]
   ): Promise<void> {
     try {
       // Determine if this is from customer or internal user
       const isCustomer =
-        ticket.customers.email.toLowerCase() === senderEmail.toLowerCase();
+        ticket.customers?.email.toLowerCase() === senderEmail?.toLowerCase();
 
       // ✅ Clean and process the email body
       // const cleanedBody = this.cleanEmailBody(body, fullEmail);
       const cleanedBody = body;
 
       console.log(`Adding comment to ticket #${ticket.ticket_number} `);
+      const attachment_urls = JSON.stringify(
+        attachments?.map((val: any) => val.fileUrl)
+      );
       const res = await prisma.ticket_comments.create({
         data: {
           ticket_id: ticket.id,
-          customer_id: isCustomer ? ticket.customers.id : null,
+          customer_id: isCustomer ? ticket.customers?.id : null,
           user_id: isCustomer ? null : undefined,
           comment_text: cleanedBody,
           comment_type: "email_reply",
           is_internal: false,
           email_message_id: messageId,
+          attachment_urls,
         },
       });
 
+      // ✅ Save attachments if any
+      if (attachments && attachments.length > 0) {
+        await this.saveTicketAttachments(ticket.id, attachments);
+      }
       // Update ticket timestamp
       await prisma.tickets.update({
         where: { id: ticket.id },
@@ -367,7 +463,98 @@ class SimpleEmailTicketSystem {
       console.error("❌ Error creating comment from email:", error);
     }
   }
+  // ✅ CORRECTED: Process email attachments with Backblaze B2
+  private async processEmailAttachments(
+    email: any,
+    ticketNumber?: string
+  ): Promise<any[]> {
+    const attachments: any[] = [];
 
+    try {
+      if (email.attachments && email.attachments.length > 0) {
+        console.log(`📎 Processing ${email.attachments.length} attachment(s)`);
+
+        for (const attachment of email.attachments) {
+          try {
+            // Skip inline images that are embedded in HTML
+            if (attachment.cid && attachment.contentDisposition === "inline") {
+              continue;
+            }
+
+            // Validate file type and size
+            if (
+              !this.isAllowedFileType(
+                attachment.filename || "",
+                attachment.contentType || ""
+              )
+            ) {
+              console.warn(
+                `❌ Skipping disallowed file type: ${attachment.filename}`
+              );
+              continue;
+            }
+
+            const maxSize = parseInt(
+              process.env.MAX_ATTACHMENT_SIZE || "10485760"
+            ); // 10MB default
+            if (attachment.size && attachment.size > maxSize) {
+              console.warn(
+                `❌ Skipping oversized file: ${attachment.filename} (${attachment.size} bytes)`
+              );
+              continue;
+            }
+
+            // Generate unique filename for Backblaze B2
+            const timestamp = Date.now();
+            const fileExtension =
+              path.extname(attachment.filename || "") || ".bin";
+            const sanitizedName = (attachment.filename || "unknown").replace(
+              /[^a-zA-Z0-9.-]/g,
+              "_"
+            ); // Replace special chars
+
+            const fileName = ticketNumber
+              ? `email-attachments/${ticketNumber}/${timestamp}_${sanitizedName}`
+              : `email-attachments/temp/${timestamp}_${sanitizedName}`;
+
+            // ✅ Upload to Backblaze B2
+            console.log(
+              `📤 Uploading ${attachment.filename} to Backblaze B2...`
+            );
+            const fileUrl = await uploadFile(
+              attachment.content,
+              fileName,
+              attachment.contentType || "application/octet-stream"
+            );
+
+            const attachmentData = {
+              originalName: attachment.filename || "unknown",
+              fileName: fileName,
+              fileUrl: fileUrl,
+              mimeType: attachment.contentType || "application/octet-stream",
+              size: attachment.size || attachment.content?.length || 0,
+              uploadedAt: new Date(),
+            };
+
+            attachments.push(attachmentData);
+            console.log(
+              `✅ Uploaded attachment: ${attachment.filename} → ${fileUrl}`
+            );
+          } catch (attachmentError) {
+            console.log("Error in attachment convert : ", attachmentError);
+            console.error(
+              `❌ Error processing attachment ${attachment.filename}:`,
+              attachmentError
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error processing email attachments:", error);
+    }
+
+    return attachments;
+  }
   // ✅ IMPROVED: Create ticket with better content handling
   private async createTicket(
     customer: any,
@@ -376,7 +563,9 @@ class SimpleEmailTicketSystem {
     senderEmail: string,
     emailMessageId?: string,
     threadId?: string,
-    fullEmail?: ParsedEmail
+    fullEmail?: ParsedEmail,
+    senderNames?: string,
+    attachments?: any[]
   ): Promise<any> {
     const ticketNumber = `TCKT-${Date.now()}`;
 
@@ -388,11 +577,15 @@ class SimpleEmailTicketSystem {
     // ✅ Clean and process the email body
     // const cleanedBody = this.cleanEmailBody(body, fullEmail);
     const cleanedBody = body;
-
-    return await prisma.tickets.create({
+    const attachment_urls = JSON.stringify(
+      attachments?.map((val: any) => val.fileUrl)
+    );
+    const tickets = await prisma.tickets.create({
       data: {
         ticket_number: ticketNumber,
-        customer_id: customer.id,
+        customer_id: customer?.id || null,
+        customer_name: senderNames || "",
+        customer_email: senderEmail,
         subject: this.cleanSubject(subject),
         description: cleanedBody,
         priority: ids ? ids?.id : 0,
@@ -400,132 +593,87 @@ class SimpleEmailTicketSystem {
         source: "Email",
         original_email_message_id: emailMessageId,
         email_thread_id: threadId || emailMessageId,
+        attachment_urls,
+      },
+    });
+    if (attachments && attachments.length > 0) {
+      await this.saveTicketAttachments(tickets.id, attachments);
+    }
+    return await prisma.tickets.update({
+      where: { id: tickets.id },
+      data: {
+        ticket_number: generateTicketNumber(tickets.id),
       },
     });
   }
-
-  // ✅ NEW: Enhanced email body cleaning function
-  private cleanEmailBody(body: string, fullEmail?: ParsedEmail): string {
+  // ✅ NEW: Save ticket attachments to database
+  private async saveTicketAttachments(
+    ticketId: number,
+    attachments: any[]
+  ): Promise<void> {
     try {
-      // If it's HTML content, extract meaningful text and preserve some formatting
-      if (body.includes("<") && body.includes(">")) {
-        // Remove common email client artifacts
-        let cleanedHtml = body
-          // Remove email client specific elements
-          .replace(
-            /<div[^>]*class="[^"]*gmail[^"]*"[^>]*>[\s\S]*?<\/div>/gi,
-            ""
-          )
-          .replace(/<div[^>]*id="[^"]*gmail[^"]*"[^>]*>.*?<\/div>/gi, "")
-          // Remove tracking pixels and tiny images
-          .replace(/<img[^>]*width="1"[^>]*>/gi, "")
-          .replace(/<img[^>]*height="1"[^>]*>/gi, "")
-          // Remove script and style tags
-          .replace(/<script[^>]*>.*?<\/script>/gi, "")
-          .replace(/<style[^>]*>.*?<\/style>/gi, "")
-          // Remove excessive whitespace
-          .replace(/\s+/g, " ")
-          .trim();
+      const attachmentRecords = attachments.map((att) => ({
+        ticket_id: ticketId,
+        file_name: att.originalName,
+        original_file_name: att.originalName,
+        file_path: att.fileUrl, // Store Backblaze B2 URL
+        file_size: att.size,
+        content_type: att.mimeType,
+        uploaded_by_type: "Customer",
+        uploaded_by: null, // From email, so no user
+        created_at: att.uploadedAt,
+      }));
 
-        // Convert to readable text while preserving some structure
-        const textContent = this.htmlToText(cleanedHtml);
-        return this.removeEmailSignatures(textContent);
-      } else {
-        // Plain text email
-        return this.removeEmailSignatures(body);
-      }
+      await prisma.ticket_attachments.createMany({
+        data: attachmentRecords,
+      });
+
+      console.log(
+        `✅ Saved ${attachments.length} Backblaze B2 attachment(s) for ticket ${ticketId}`
+      );
     } catch (error) {
-      console.error("❌ Error cleaning email body:", error);
-      return body.substring(0, 1000); // Fallback: return first 1000 chars
+      console.error(`❌ Error saving ticket attachments:`, error);
     }
   }
 
-  // ✅ NEW: Convert HTML to readable text while preserving structure
-  private htmlToText(html: string): string {
+  // ✅ Utility: Check if file type is allowed
+  private isAllowedFileType(filename: string, mimeType: string): boolean {
+    const allowedExtensions = [
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".gif",
+      ".pdf",
+      ".doc",
+      ".docx",
+      ".txt",
+      ".zip",
+      ".xlsx",
+      ".pptx",
+      ".csv",
+    ];
+    const allowedMimeTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
+      "application/zip",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "text/csv",
+    ];
+
+    const extension = path.extname(filename).toLowerCase();
     return (
-      html
-        // Convert common HTML elements to text equivalents
-        .replace(/<br\s*\/?>/gi, "\n")
-        .replace(/<\/p>/gi, "\n\n")
-        .replace(/<p[^>]*>/gi, "")
-        .replace(/<\/div>/gi, "\n")
-        .replace(/<div[^>]*>/gi, "")
-        .replace(/<\/h[1-6]>/gi, "\n")
-        .replace(/<h[1-6][^>]*>/gi, "")
-        // Handle lists
-        .replace(/<\/li>/gi, "\n")
-        .replace(/<li[^>]*>/gi, "• ")
-        .replace(/<\/(ul|ol)>/gi, "\n")
-        .replace(/<(ul|ol)[^>]*>/gi, "")
-        // Remove remaining HTML tags
-        .replace(/<[^>]*>/g, "")
-        // Decode HTML entities
-        .replace(/&nbsp;/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        // Clean up excessive whitespace
-        .replace(/\n\s*\n\s*\n/g, "\n\n")
-        .replace(/[ \t]+/g, " ")
-        .trim()
+      allowedExtensions.includes(extension) ||
+      allowedMimeTypes.includes(mimeType)
     );
   }
-
-  // ✅ IMPROVED: Remove email signatures and quoted content
-  private removeEmailSignatures(body: string): string {
-    const lines = body.split("\n");
-    const cleanLines: string[] = [];
-    let foundSignature = false;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-
-      // Common signature indicators
-      if (
-        line.match(/^--\s*$/) ||
-        line.match(/^_{3,}$/) ||
-        line.match(/^-{3,}$/) ||
-        line.match(/^={3,}$/) ||
-        line.match(/^Best regards,?\s*$/i) ||
-        line.match(/^Sincerely,?\s*$/i) ||
-        line.match(/^Thanks?,?\s*$/i) ||
-        line.match(/^Thank you,?\s*$/i) ||
-        // Email thread indicators
-        line.match(/^From:.*$/i) ||
-        line.match(/^Sent:.*$/i) ||
-        line.match(/^To:.*$/i) ||
-        line.match(/^Subject:.*$/i) ||
-        line.match(/^Date:.*$/i) ||
-        // Gmail/Outlook quote indicators
-        line.match(/^On .* wrote:$/i) ||
-        line.match(/^On .* at .* wrote:$/i) ||
-        line.match(/^>+/m) || // Quoted text
-        // Mobile signature indicators
-        line.match(/^Sent from my (iPhone|iPad|Android)/i) ||
-        line.match(/^Get Outlook for/i)
-      ) {
-        foundSignature = true;
-        break;
-      }
-
-      // If we haven't found a signature yet, keep the line
-      if (!foundSignature && line.length > 0) {
-        cleanLines.push(line);
-      }
-    }
-
-    const result = cleanLines.join("\n").trim();
-
-    // If the result is too short, return the original (might have been over-cleaned)
-    if (result.length < 10 && body.length > 50) {
-      return body.substring(0, 500); // Return first 500 chars of original
-    }
-
-    return result || "No content available";
-  }
-
   // ✅ IMPROVED: Clean email subject
   private cleanSubject(subject: string): string {
     return subject
@@ -535,30 +683,6 @@ class SimpleEmailTicketSystem {
       .substring(0, 255);
   }
 
-  private extractThreadId(email: ParsedEmail): string | null {
-    // Priority 1: Use existing thread reference (In-Reply-To)
-    if (email.inReplyTo) {
-      console.log(`🧵 Using In-Reply-To as Thread ID: ${email.inReplyTo}`);
-      return email.inReplyTo;
-    }
-
-    // Priority 2: Use first reference (original email in thread)
-    if (email.references && email.references.length > 0) {
-      console.log(
-        `🧵 Using References[0] as Thread ID: ${email.references[0]}`
-      );
-      return email.references[0];
-    }
-
-    // Priority 3: Use message ID as new thread root (for new conversations)
-    if (email.messageId) {
-      console.log(`🧵 Using Message ID as new Thread ID: ${email.messageId}`);
-      return email.messageId;
-    }
-
-    console.log("🧵 No Thread ID found");
-    return null;
-  }
   //  STEP 6: Find customer in database
   private async findCustomer(email: string): Promise<any | null> {
     try {
@@ -692,6 +816,7 @@ class SimpleEmailTicketSystem {
 
   //  Stop the service
   stop(): void {
+    if (!this.imap) return;
     this.imap.end();
     console.log("📪 Email service stopped");
   }

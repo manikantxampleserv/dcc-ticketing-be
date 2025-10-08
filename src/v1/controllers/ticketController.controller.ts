@@ -6,6 +6,7 @@ import EmailService from "types/sendEmailComment";
 import { uploadToBackblaze } from "utils/backBlaze";
 import { uploadFile } from "utils/blackbaze";
 import { BusinessHoursSLACalculator } from "utils/BussinessHoursSLACalculation";
+import { generateTicketNumber } from "utils/GenerateTicket";
 
 const prisma = new PrismaClient();
 
@@ -13,6 +14,8 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   id: Number(ticket.id),
   ticket_number: ticket.ticket_number,
   customer_id: ticket.customer_id,
+  customer_name: ticket.customer_name,
+  customer_email: ticket.customer_email,
   assigned_agent_id: ticket.assigned_agent_id,
   category_id: ticket.category_id,
   subject: ticket.subject,
@@ -36,6 +39,7 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   email_thread_id: ticket.email_thread_id,
   original_email_message_id: ticket.original_email_message_id,
   merged_into_ticket_id: ticket.merged_into_ticket_id,
+  attachment_urls: ticket?.attachment_urls || "",
   ticket_attachments: ticket.ticket_attachments
     ? ticket.ticket_attachments.map((att: any) => ({
         id: att.id,
@@ -83,7 +87,16 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
         email: ticket.users?.email,
       }
     : undefined,
-  cc_of_ticket: ticket.cc_of_ticket,
+  cc_of_ticket: ticket.cc_of_ticket
+    ? ticket.cc_of_ticket?.map((val: any) => ({
+        id: val.user_of_ticket_ccid,
+        first_name: val.user_of_ticket_cc.first_name,
+        last_name: val.user_of_ticket_cc.last_name,
+        email: val.user_of_ticket_cc.email,
+        phone: val.user_of_ticket_cc.phone,
+        avatar: val.user_of_ticket_cc.avatar,
+      }))
+    : undefined,
   customers: ticket.customers
     ? {
         id: ticket.customers.id,
@@ -311,7 +324,7 @@ export const ticketController = {
       }
       const attachment_urls = JSON.stringify([avatarUrl]);
 
-      const ticket = await prisma.tickets.create({
+      const tickets = await prisma.tickets.create({
         data: {
           ticket_number,
           customer_id,
@@ -348,29 +361,10 @@ export const ticketController = {
           sla_priority: true,
         },
       });
-
-      // Generate SLA history if enabled for customer
-      // if (customer.sla_enabled) {
-      try {
-        await generateSLAHistory(
-          ticket.id,
-          priority,
-          ticket.created_at || new Date()
-        );
-      } catch (slaError) {
-        console.error("Error generating SLA history:", slaError);
-      }
-
-      const emailIds = await EmailService.sendTicketCreationEmailToCustomer(
-        ticket,
-        ticket?.agents_user?.email
-      );
-      console.log("hhhhhi", emailIds);
-      const completeTicket = await prisma.tickets.update({
-        where: { id: ticket.id },
+      const ticket = await prisma.tickets.update({
+        where: { id: tickets.id },
         data: {
-          original_email_message_id: emailIds?.messageId || emailIds?.threadId,
-          email_thread_id: emailIds?.messageId || emailIds?.threadId,
+          ticket_number: generateTicketNumber(tickets.id),
         },
         include: {
           users: true,
@@ -390,9 +384,47 @@ export const ticketController = {
           //   },
         },
       });
+      try {
+        await generateSLAHistory(
+          ticket.id,
+          priority,
+          ticket.created_at || new Date()
+        );
+      } catch (slaError) {
+        console.error("Error generating SLA history:", slaError);
+      }
+
+      // const emailIds = await EmailService.sendTicketCreationEmailToCustomer(
+      //   ticket,
+      //   ticket?.agents_user?.email
+      // );
+      // const completeTicket = await prisma.tickets.update({
+      //   where: { id: ticket.id },
+      //   data: {
+      //     original_email_message_id: emailIds?.messageId || emailIds?.threadId,
+      //     email_thread_id: emailIds?.messageId || emailIds?.threadId,
+      //   },
+      //   include: {
+      //     users: true,
+      //     other_tickets: true,
+      //     customers: {
+      //       include: {
+      //         companies: true,
+      //       },
+      //     },
+      //     tickets: true,
+      //     categories: true,
+      //     agents_user: true,
+      //     sla_priority: true,
+      //     ticket_sla_history: true,
+      //     //   sla_history: {
+      //     //     orderBy: { created_at: "desc" },
+      //     //   },
+      //   },
+      // });
       res.success(
         "Ticket created successfully",
-        serializeTicket(completeTicket, true),
+        serializeTicket(ticket, true),
         201
       );
     } catch (error: any) {
@@ -551,9 +583,8 @@ export const ticketController = {
             },
           }),
         ]);
-
         // Mark resolution SLA as completed (monitoring service will determine if breached)
-        await this.handleSLACompletion(id, req.body.status);
+        await ticketController.handleSLACompletion(id, req.body.status);
 
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
@@ -582,11 +613,11 @@ export const ticketController = {
       await prisma.sla_history.updateMany({
         where: {
           ticket_id: ticketId,
-          sla_type: "resolution",
-          status: "pending",
+          sla_type: "Resolution",
+          status: "Pending",
         },
         data: {
-          status: "met",
+          status: "Met",
           actual_time: now,
         },
       });
@@ -1310,12 +1341,18 @@ export const ticketController = {
           description: true,
           created_at: true,
           source: true,
+          agents_user: true,
           customers: {
             select: {
               id: true,
               email: true,
               first_name: true,
               last_name: true,
+            },
+          },
+          cc_of_ticket: {
+            include: {
+              user_of_ticket_cc: true,
             },
           },
         },
@@ -1355,6 +1392,7 @@ export const ticketController = {
           // Continue without failing the entire request
         }
       }
+      const attachment_urls = JSON.stringify([imageUrl]);
       // Create comment
       const comment = await prisma.ticket_comments.create({
         data: {
@@ -1367,7 +1405,7 @@ export const ticketController = {
             validatedMentionedUsers.length > 0
               ? JSON.stringify(validatedMentionedUsers)
               : null,
-          attachment_urls: imageUrl ? imageUrl : "",
+          attachment_urls,
         },
         include: {
           ticket_comment_users: {
@@ -1385,7 +1423,7 @@ export const ticketController = {
       if (!new_is_internal) {
         console.log("Sending email to customer...");
         await EmailService.sendCommentEmailToCustomer(
-          ticket,
+          serializeTicket(ticket),
           { ...comment, imageUrl: imageUrl ? imageUrl : null },
           additionalEmails
         );

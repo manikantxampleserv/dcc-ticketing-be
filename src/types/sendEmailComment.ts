@@ -2,39 +2,147 @@
 import { PrismaClient } from "@prisma/client";
 import nodemailer from "nodemailer";
 const prisma = new PrismaClient();
-class EmailService {
-  private transporter;
-  private static instance: EmailService;
 
-  constructor() {
-    this.transporter = nodemailer.createTransport({
-      service: "gmail", // ✅ Use Gmail service preset
-      auth: {
-        user: process.env.SMTP_USERNAME,
-        pass: process.env.SMTP_PASSWORD, // App password, not regular password
-      },
-      // ✅ Connection pool and timeout settings
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
-      rateDelta: 20000,
-      rateLimit: 10,
-      socketTimeout: 60000,
-      connectionTimeout: 60000,
-      greetingTimeout: 30000,
-      // ✅ TLS settings
-      tls: {
-        rejectUnauthorized: false,
-        minVersion: "TLSv1.2",
-      },
-    });
+interface EmailConfigurationRecord {
+  id: number;
+  log_inst: number | null;
+  username: string;
+  password: string;
+  smtp_server: string;
+  smtp_port: number;
+  enable_tls: boolean | null;
+  from_email: string;
+  // Add other fields that actually exist in your database
+}
+
+class EmailService {
+  private transporter: nodemailer.Transporter | null = null;
+  private static instance: EmailService;
+  private logInst: number;
+
+  constructor(logInst: number = 1) {
+    this.logInst = logInst;
   }
-  // ✅ Singleton pattern
-  public static getInstance(): EmailService {
+
+  // ✅ Singleton pattern with dynamic configuration
+  public static getInstance(logInst: number = 1): EmailService {
     if (!EmailService.instance) {
-      EmailService.instance = new EmailService();
+      EmailService.instance = new EmailService(logInst);
     }
     return EmailService.instance;
+  }
+
+  // ✅ Dynamic transporter initialization
+  private async initializeTransporter(): Promise<void> {
+    try {
+      const emailConfiguration = await this.loadEmailConfiguration();
+
+      // Determine if using Gmail service or custom SMTP
+      const isGmailService =
+        emailConfiguration.smtp_server?.includes("gmail.com") ||
+        emailConfiguration.username?.includes("@gmail.com");
+
+      if (isGmailService) {
+        // ✅ Gmail-specific configuration - FIXED: createTransport
+        this.transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: emailConfiguration.username || process.env.SMTP_USERNAME,
+            pass: emailConfiguration.password || process.env.SMTP_PASSWORD,
+          },
+          pool: true,
+          maxConnections: 5,
+          maxMessages: 100,
+          rateDelta: 20000,
+          rateLimit: 10,
+          socketTimeout: 60000,
+          connectionTimeout: 60000,
+          greetingTimeout: 30000,
+          tls: {
+            rejectUnauthorized: false,
+            minVersion: "TLSv1.2",
+          },
+        });
+      } else {
+        // ✅ Custom SMTP configuration - FIXED: createTransport
+        const port = emailConfiguration.smtp_port || 587;
+        const isSecurePort = port === 465; // Port 465 is SSL from start
+
+        this.transporter = nodemailer.createTransport({
+          host: emailConfiguration.smtp_server || process.env.MAIL_HOST,
+          port: port,
+          secure: isSecurePort, // true for 465 (SSL), false for other ports
+          auth: {
+            user: emailConfiguration.username || process.env.SMTP_USERNAME,
+            pass: emailConfiguration.password || process.env.SMTP_PASSWORD,
+          },
+          tls: {
+            rejectUnauthorized: false,
+            minVersion: "TLSv1.2",
+          },
+          pool: true,
+          maxConnections: 5,
+          maxMessages: 100,
+          socketTimeout: 60000,
+          connectionTimeout: 60000,
+          greetingTimeout: 30000,
+        });
+      }
+
+      // ✅ Test the connection with null check
+      if (this.transporter) {
+        await this.transporter.verify();
+        console.log(
+          `✅ Email transporter initialized successfully for logInst: ${this.logInst}`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `❌ Failed to initialize email transporter for logInst ${this.logInst}:`,
+        error
+      );
+      this.transporter = null;
+      throw error;
+    }
+  }
+
+  // ✅ Load email configuration from database
+  private async loadEmailConfiguration(): Promise<EmailConfigurationRecord> {
+    try {
+      const emailConfiguration = await prisma.email_configurations.findFirst({
+        where: {
+          log_inst: 1,
+        },
+      });
+
+      if (!emailConfiguration) {
+        throw new Error(
+          `No active email configuration found for logInst: ${this.logInst}`
+        );
+      }
+
+      console.log(`📧 Loaded email config for logInst: ${this.logInst}`);
+
+      // ✅ Return the configuration as-is from database
+      return emailConfiguration as EmailConfigurationRecord;
+    } catch (error) {
+      console.error(
+        `❌ Error loading email configuration for logInst ${this.logInst}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  // ✅ Ensure transporter is ready before sending with proper null checks
+  private async ensureTransporter(): Promise<void> {
+    if (!this.transporter) {
+      await this.initializeTransporter();
+    }
+
+    if (!this.transporter) {
+      throw new Error("Failed to initialize email transporter");
+    }
   }
 
   async sendCommentEmailToCustomer(
@@ -43,10 +151,19 @@ class EmailService {
     additionalEmails: any[]
   ): Promise<any> {
     try {
+      // ✅ Ensure transporter is initialized
+      await this.ensureTransporter();
+
+      // ✅ Transporter is guaranteed to be non-null here due to ensureTransporter
+      if (!this.transporter) {
+        throw new Error("Email transporter not available");
+      }
+
       const subject = additionalEmails?.length
         ? `Re: ${ticket.subject}`
         : `Re: ${ticket.subject}`;
-      const customerEmail = ticket.customers.email;
+
+      const customerEmail = ticket.agents_user?.email;
       const agentName = comment.users
         ? `${comment.users.first_name} ${comment.users.last_name}`
         : "Support Team";
@@ -169,7 +286,7 @@ class EmailService {
       // ✅ FIXED: Create mail options object with all properties
       const mailOptions: any = {
         from: `"Support Team" <${process.env.SMTP_USERNAME}>`,
-        to: [customerEmail, ...additionalEmails],
+        to: Emails,
         // to: customerEmail,
         cc:
           ticket?.cc_of_ticket && ticket.cc_of_ticket.length > 0
@@ -415,13 +532,18 @@ class EmailService {
     }
   }
 
-  // Add this method to your EmailService class
-
   async sendTicketCreationEmailToCustomer(
     ticket: any,
     customerEmail: string | undefined
   ): Promise<{ messageId: string; threadId: string } | null> {
     try {
+      // ✅ Ensure transporter is initialized
+      await this.ensureTransporter();
+
+      // ✅ Transporter is guaranteed to be non-null here due to ensureTransporter
+      if (!this.transporter) {
+        throw new Error("Email transporter not available");
+      }
       const subject = `Ticket Created: ${ticket.subject} [#${ticket.ticket_number}]`;
 
       // Generate unique message ID for this outgoing email
@@ -436,7 +558,7 @@ class EmailService {
 
       const mailOptions: any = {
         from: `"Support Team" <${process.env.SMTP_USERNAME}>`,
-        to: [ticket?.customers?.email, customerEmail],
+        to: [ticket?.agents_user?.email, customerEmail],
         subject,
         html: htmlContent,
         messageId: newMessageId,
@@ -493,116 +615,262 @@ class EmailService {
     const statusColor = statusColors[ticket.status.toLowerCase()] || "#0066CC";
 
     return `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  </head>
-  <body style="margin: 0; padding: 0; background-color: #F5F5F5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-    
-    <div style="max-width: 100%; margin: 40px auto; background-color: #FFFFFF; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-      
-      <!-- Header -->
-      <div style="background-color: #0066CC; padding: 40px 30px; text-align: center;">
-        <h1 style="color: #FFFFFF; margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.5px;">
-          Support Ticket Confirmation
-        </h1>
-        <p style="color: rgba(255, 255, 255, 0.9); margin: 10px 0 0 0; font-size: 14px;">
-          Your request has been successfully submitted
-        </p>
-      </div>
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Support Ticket Created - #${ticket.ticket_number}</title>
+  
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
 
-      <!-- Ticket Summary Card -->
-      <div style="padding: 30px; border-bottom: 1px solid #E5E5E5;">
-        <div style="background-color: #F8F9FA; border-radius: 6px; padding: 20px; border-left: 4px solid ${statusColor};">
-          <table style="width: 100%; border-collapse: collapse;">
+  <style>
+    /* Reset styles for email clients */
+    * { box-sizing: border-box; }
+    body, table, td, p, a, li, blockquote { 
+      -webkit-text-size-adjust: 100%; 
+      -ms-text-size-adjust: 100%; 
+    }
+    table, td { 
+      mso-table-lspace: 0pt; 
+      mso-table-rspace: 0pt; 
+    }
+    img { 
+      -ms-interpolation-mode: bicubic; 
+      border: 0; 
+      display: block; 
+    }
+    .main-container{
+    }
+
+    /* Responsive media queries */
+    @media screen and (max-width: 600px) {
+      /* Container adjustments */
+      .email-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: auto !important;
+      }
+      .main-container{
+        padding: auto !important;
+      }
+      /* Padding adjustments for mobile */
+      .mobile-padding {
+        padding: 20px !important;
+      }
+      
+      .mobile-padding-small {
+        padding: 15px !important;
+      }
+
+      
+      /* Text adjustments */
+      .mobile-text-center {
+        text-align: center !important;
+      }
+      
+      .mobile-font-large {
+        font-size: 24px !important;
+        line-height: 30px !important;
+      }
+      
+      .mobile-font-medium {
+        font-size: 18px !important;
+        line-height: 24px !important;
+      }
+      
+      .mobile-font-small {
+        font-size: 14px !important;
+        line-height: 20px !important;
+      }
+      
+      .mobile-font-tiny {
+        font-size: 12px !important;
+        line-height: 16px !important;
+      }
+      
+      /* Table adjustments */
+      .mobile-stack {
+        display: block !important;
+        width: 100% !important;
+        text-align: center !important;
+      }
+      
+      .mobile-stack td {
+        display: block !important;
+        width: 100% !important;
+        text-align: center !important;
+        padding-bottom: 10px !important;
+      }
+      
+      /* Hide desktop-only elements */
+      .mobile-hide {
+        display: none !important;
+      }
+      
+      /* Full width on mobile */
+      .mobile-full-width {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      
+      /* Spacing adjustments */
+      .mobile-spacing {
+        margin-bottom: 15px !important;
+      }
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      .dark-bg { background-color: #1a1a1a !important; }
+      .dark-text { color: #ffffff !important; }
+      .dark-border { border-color: #333333 !important; }
+    }
+  </style>
+</head>
+
+<body style="margin: 0; padding: 0; background-color: #F5F5F5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  
+  <!-- Outer table for full width background -->
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #F5F5F5;">
+    <tr>
+      <td align="center" class="main-container" style="padding: 40px 20px;">
+        
+        <!-- Main email container -->
+        <div class="email-container" style=" width: 100%; margin: auto; border: 1px solid #b3b1b1b2; background-color: #FFFFFF; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+          
+          <!-- Header Section -->
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
             <tr>
-              <td style="padding-bottom: 12px;">
-                <span style="color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Ticket ID</span>
-                <div style="color: #1A1A1A; font-size: 20px; font-weight: 700; margin-top: 4px;">#${
-                  ticket.ticket_number
-                }</div>
-              </td>
-              <td style="text-align: right; padding-bottom: 12px;">
-                <span style="display: inline-block; background-color: ${statusColor}; color: #FFFFFF; padding: 6px 14px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-                  ${ticket.status}
-                </span>
+              <td style="background-color: #052e5699; padding: 40px 30px; text-align: center;" class="mobile-padding">
+                <h1 class="mobile-font-large" style="color: #FFFFFF; margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.5px;">
+                  Support Ticket Confirmation
+                </h1>
+                <p class="mobile-font-small" style="color: rgba(255, 255, 255, 0.9); margin: 10px 0 0 0; font-size: 14px;">
+                  Your request has been successfully submitted
+                </p>
               </td>
             </tr>
           </table>
-          
-          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #E5E5E5;">
-            <div style="color: #1A1A1A; font-size: 16px; font-weight: 600; margin-bottom: 8px;">
-              ${ticket.subject}
-            </div>
-            <div style="color: #666666; font-size: 13px;">
-              Created on ${ticketDate}
-            </div>
-          </div>
+
+          <!-- Ticket Summary Card -->
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              <td style="padding: 30px; border-bottom: 1px solid #E5E5E5;" class="mobile-padding">
+                <div style="background-color: #F8F9FA; border-radius: 6px; padding: 20px; border-left: 4px solid ${statusColor};" class="mobile-padding-small">
+                  
+                  <!-- Ticket ID and Status Row - Responsive Table -->
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="mobile-stack">
+                    <tr>
+                      <td style="padding-bottom: 12px; vertical-align: top;" class="mobile-spacing">
+                        <span class="mobile-font-tiny" style="color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; display: block;">Ticket ID</span>
+                        <div class="mobile-font-medium" style="color: #1A1A1A; font-size: 20px; font-weight: 700; margin-top: 4px;">#${
+                          ticket.ticket_number
+                        }</div>
+                      </td>
+                      <td style="text-align: right; padding-bottom: 12px; vertical-align: top;" class="mobile-text-center">
+                        <span style="display: inline-block; background-color: ${statusColor}; color: #FFFFFF; padding: 6px 14px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;">
+                          ${ticket.status}
+                        </span>
+                      </td>
+                    </tr>
+                  </table>
+                  
+                  <!-- Subject and Date Section -->
+                  <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #E5E5E5;">
+                    <div class="mobile-font-small" style="color: #1A1A1A; font-size: 16px; font-weight: 600; margin-bottom: 8px; word-wrap: break-word; line-height: 1.4;">
+                      ${ticket.subject}
+                    </div>
+                    <div class="mobile-font-tiny" style="color: #666666; font-size: 13px;">
+                      Created on ${ticketDate}
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Ticket Description Section -->
+         ${
+           ticket.description &&
+           ` <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              <td style="padding: 30px;" class="mobile-padding">
+                <h2 class="mobile-font-small" style="color: #1A1A1A; font-size: 16px; font-weight: 600; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Request Details
+                </h2>
+                <div style="background-color: #FAFAFA; border: 1px solid #E5E5E5; border-radius: 6px; padding: 20px;" class="mobile-padding-small">
+                  <div class="mobile-font-small" style="color: #333333; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word;">
+                    ${ticket.description.replace(/\n/g, "<br>")}
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </table>`
+         }
+
+          <!-- Response Instructions Section -->
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              <td style="padding: 0 30px 30px 30px;" class="mobile-padding">
+                <div style="background-color: #FFF9E6; border-radius: 6px; padding: 20px; border-left: 4px solid #FF8C00;" class="mobile-padding-small">
+                  <h3 class="mobile-font-small" style="color: #CC6F00; font-size: 15px; font-weight: 600; margin: 0 0 12px 0;">
+                    Need to Add More Information?
+                  </h3>
+                  <p class="mobile-font-small" style="color: #333333; font-size: 14px; line-height: 1.6; margin: 0; word-wrap: break-word;">
+                    Simply reply to this email with additional details. Please keep the ticket number <strong>#${
+                      ticket.ticket_number
+                    }</strong> in the subject line to ensure your message is properly tracked.
+                  </p>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Footer Section -->
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+              <td style="background-color: #F8F9FA; padding: 30px; text-align: center; border-top: 1px solid #E5E5E5;" class="mobile-padding">
+                <p class="mobile-font-small" style="color: #666666; font-size: 13px; line-height: 1.6; margin: 0 0 8px 0;">
+                  If you have any questions, please don't hesitate to contact us.
+                </p>
+                <p class="mobile-font-tiny" style="color: #999999; font-size: 12px; margin: 0; line-height: 1.4;">
+                  © ${new Date().getFullYear()} DoubleClick Support Team. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+
         </div>
-      </div>
+        
+        <!-- Mobile disclaimer -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; width: 100%; margin-top: 20px;" class="mobile-full-width">
+          <tr>
+            <td align="center" style="padding: 0 20px;">
+              <p class="mobile-font-tiny" style="color: #999999; font-size: 11px; line-height: 1.4; margin: 0; text-align: center;">
+                If you're having trouble viewing this email, please ensure images are enabled.<br class="mobile-hide">
+                Add our email to your contacts for better delivery.
+              </p>
+            </td>
+          </tr>
+        </table>
 
-      <!-- Ticket Description -->
-      <div style="padding: 30px;">
-        <h2 style="color: #1A1A1A; font-size: 16px; font-weight: 600; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">
-          Request Details
-        </h2>
-        <div style="background-color: #FAFAFA; border: 1px solid #E5E5E5; border-radius: 6px; padding: 20px;">
-          <div style="color: #333333; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word;">
-            ${ticket.description.replace(/\n/g, "<br>")}
-          </div>
-        </div>
-      </div>
+      </td>
+    </tr>
+  </table>
 
-      <!-- Next Steps -->
-      <div style="padding: 0 30px 30px 30px;">
-        <div style="background-color: #E8F4FD; border-radius: 6px; padding: 20px; border-left: 4px solid #0066CC;">
-          <h3 style="color: #0066CC; font-size: 15px; font-weight: 600; margin: 0 0 12px 0;">
-            What Happens Next?
-          </h3>
-          <p style="color: #333333; font-size: 14px; line-height: 1.6; margin: 0;">
-            Our support team is reviewing your request and will respond within <strong>24 business hours</strong>. You'll receive email notifications for all updates regarding your ticket.
-          </p>
-        </div>
-      </div>
-
-      <!-- Response Instructions -->
-      <div style="padding: 0 30px 30px 30px;">
-        <div style="background-color: #FFF9E6; border-radius: 6px; padding: 20px; border-left: 4px solid #FF8C00;">
-          <h3 style="color: #CC6F00; font-size: 15px; font-weight: 600; margin: 0 0 12px 0;">
-            Need to Add More Information?
-          </h3>
-          <p style="color: #333333; font-size: 14px; line-height: 1.6; margin: 0;">
-            Simply reply to this email with additional details. Please keep the ticket number <strong>#${
-              ticket.ticket_number
-            }</strong> in the subject line to ensure your message is properly tracked.
-          </p>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div style="background-color: #F8F9FA; padding: 30px; text-align: center; border-top: 1px solid #E5E5E5;">
-        <p style="color: #666666; font-size: 13px; line-height: 1.6; margin: 0 0 8px 0;">
-          If you have any questions, please don't hesitate to contact us.
-        </p>
-        <p style="color: #999999; font-size: 12px; margin: 0;">
-          © ${new Date().getFullYear()} Support Team. All rights reserved.
-        </p>
-      </div>
-
-    </div>
-
-    <!-- Email Client Note -->
-    <div style="max-width: 600px; margin: 20px auto; text-align: center;">
-      <p style="color: #999999; font-size: 11px; line-height: 1.5;">
-        This is an automated message. Please do not reply to this email address.<br>
-        For assistance, reply to this ticket or contact our support team.
-      </p>
-    </div>
-
-  </body>
-  </html>`;
+</body>
+</html>`;
   }
 
   // private async ticketCommentConversation(
@@ -867,6 +1135,13 @@ class EmailService {
   // ✅ Test email connection
   async testConnection(): Promise<boolean> {
     try {
+      // ✅ Ensure transporter is initialized
+      await this.ensureTransporter();
+
+      // ✅ Transporter is guaranteed to be non-null here due to ensureTransporter
+      if (!this.transporter) {
+        throw new Error("Email transporter not available");
+      }
       await this.transporter.verify();
       console.log("✅ Email service connection verified");
       return true;

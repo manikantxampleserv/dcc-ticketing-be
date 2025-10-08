@@ -191,9 +191,11 @@ export class BusinessHoursAwareSLAMonitoringService {
           ? sla.sla_type === "Response"
             ? 60 * 60 * 1000
             : 2 * 60 * 60 * 1000
-          : pr.priority === 1
+          : pr.sla_priority.priority == "Critical"
+          ? 30 * 60 * 1000
+          : pr.sla_priority.priority == "High"
           ? 60 * 60 * 1000
-          : 30 * 60 * 1000;
+          : 120 * 60 * 1000;
 
         if (delta <= threshold && !this.sentNotifications.has(key)) {
           this.sentNotifications.add(key);
