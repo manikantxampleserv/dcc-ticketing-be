@@ -32,12 +32,11 @@ export const createApp = (): Application => {
     cors({
       origin: [
         "https://ticketing.dcctz.com",
-        "https://ticketing_live.dcctz.com/",
+        "https://ticketing_live.dcctz.com",
         "http://192.168.29.127:3000",
-        "http://localhost:3000",
-        "http://10.160.5.101:3000",
-        "http://localhost:3002",
-        "http://localhost:3003",
+        "http://localhost:5174",
+        "http://localhost:5173",
+        "http://localhost:5175",
       ],
       credentials: true,
     })
