@@ -22,7 +22,7 @@ var __rest = (this && this.__rest) || function (s, e) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.emailConfigurationController = void 0;
 const client_1 = require("@prisma/client");
-const pagination_1 = require("utils/pagination");
+const pagination_1 = require("../../utils/pagination");
 const prisma = new client_1.PrismaClient();
 const serializeEmailConfiguration = (email, includeCreatedAt = false, includeUpdatedAt = false) => (Object.assign(Object.assign({ id: email.id, smtp_server: email.smtp_server, smtp_port: Number(email.smtp_port), username: email.username, password: email.password, enable_tls: Boolean(email.enable_tls), from_email: email.from_email, from_name: email.from_name, auto_reply_enabled: Boolean(email.auto_reply_enabled), is_active: email.is_active }, (includeCreatedAt && { created_at: email.created_at })), (includeUpdatedAt && { updated_at: email.updated_at })));
 exports.emailConfigurationController = {

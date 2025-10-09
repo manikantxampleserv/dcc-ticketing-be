@@ -12,10 +12,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.testDirectAuth = exports.deleteFromBackblaze = exports.uploadToBackblaze = void 0;
+exports.uploadToBackblaze = exports.testDirectAuth = exports.deleteFromBackblaze = void 0;
 // backblaze.ts
-const backblaze_b2_1 = __importDefault(require("backblaze-b2"));
 const axios_1 = __importDefault(require("axios"));
+const backblaze_b2_1 = __importDefault(require("backblaze-b2"));
 // Helper function to sanitize names
 const sanitizeName = (str) => str.replace(/\s+/g, "_");
 // Test direct authentication function

@@ -1,7 +1,7 @@
 import prisma from "../../utils/prisma.config";
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { deleteFile, uploadFile } from "utils/blackbaze";
+import { deleteFile, uploadFile } from "../../utils/blackbaze";
 
 const formatUserAvatar = (user: any) => {
   if (!user) return null;

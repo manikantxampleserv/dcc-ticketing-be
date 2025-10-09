@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const auth_1 = require("middlewares/auth");
-const category_controller_1 = require("../controllers/category.controller");
 const express_1 = require("express");
+const auth_1 = require("../../middlewares/auth");
+const validate_1 = require("../../middlewares/validate");
+const category_controller_1 = require("../controllers/category.controller");
 const category_validator_1 = require("../validators/category.validator");
-const validate_1 = require("middlewares/validate");
 const router = (0, express_1.Router)();
 router.post("/category", auth_1.authenticateToken, category_controller_1.categoryController.createCategory);
 router.get("/category/:id", auth_1.authenticateToken, category_validator_1.getCategoryByIdValidation, validate_1.validate, category_controller_1.categoryController.getCategoryById);

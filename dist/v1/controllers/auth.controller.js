@@ -16,10 +16,10 @@ exports.register = register;
 exports.login = login;
 exports.getProfile = getProfile;
 exports.updateProfile = updateProfile;
-const prisma_config_1 = __importDefault(require("utils/prisma.config"));
+const prisma_config_1 = __importDefault(require("../../utils/prisma.config"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const logger_1 = __importDefault(require("config/logger"));
+const logger_1 = __importDefault(require("../../config/logger"));
 function register(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         try {

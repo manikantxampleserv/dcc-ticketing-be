@@ -22,7 +22,7 @@ var __rest = (this && this.__rest) || function (s, e) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.customerController = void 0;
 const client_1 = require("@prisma/client");
-const pagination_1 = require("utils/pagination");
+const pagination_1 = require("../../utils/pagination");
 const express_validator_1 = require("express-validator");
 const prisma = new client_1.PrismaClient();
 const serializeCustomer = (customer, includeCreatedAt = false, includeUpdatedAt = false) => (Object.assign(Object.assign(Object.assign({ id: customer.id, company_id: customer.company_id, first_name: customer.first_name, last_name: customer.last_name, email: customer.email, phone: customer.phone, job_title: customer.job_title, is_active: customer.is_active }, (includeCreatedAt && { created_at: customer.created_at })), (includeUpdatedAt && { updated_at: customer.updated_at })), { companies: customer.companies

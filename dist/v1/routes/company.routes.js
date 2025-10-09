@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const auth_1 = require("middlewares/auth");
+const auth_1 = require("../../middlewares/auth");
 const comapny_controller_1 = require("../controllers/comapny.controller");
 const express_1 = require("express");
-const validate_1 = require("middlewares/validate");
-const company_validator_1 = require("v1/validators/company.validator");
+const validate_1 = require("../../middlewares/validate");
+const company_validator_1 = require("../../v1/validators/company.validator");
 const router = (0, express_1.Router)();
 router.post("/company", auth_1.authenticateToken, company_validator_1.createCompanyValidation, validate_1.validate, comapny_controller_1.companyController.createCompany);
 router.get("/company/:id", auth_1.authenticateToken, company_validator_1.getCompanyByIdValidation, validate_1.validate, comapny_controller_1.companyController.getCompanyById);

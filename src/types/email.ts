@@ -4,8 +4,8 @@ import Imap from "imap";
 import { simpleParser } from "mailparser";
 import { PrismaClient } from "@prisma/client";
 import * as dotenv from "dotenv";
-import { generateTicketNumber } from "utils/GenerateTicket";
-import { uploadFile } from "utils/blackbaze";
+import { generateTicketNumber } from "../utils/GenerateTicket";
+import { uploadFile } from "../utils/blackbaze";
 
 dotenv.config();
 

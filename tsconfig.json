@@ -6,20 +6,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": "./src",
     "outDir": "./dist",
-    "paths": {
-      "middlewares/*": ["middlewares/*"],
-      "config/*": ["config/*"],
-      "utils/*": ["utils/*"],
-      "v1/*": ["v1/*"],
-      "v1/controllers/*": ["v1/controllers/*"],
-      "v1/models/*": ["v1/models/*"],
-      "v1/routes/*": ["v1/routes/*"],
-      "v1/services/*": ["v1/services/*"],
-      "v1/validators/*": ["v1/validators/*"],
-      "types/*": ["types/*"]
-    }
+   
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]

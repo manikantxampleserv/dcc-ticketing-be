@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticateToken } from "middlewares/auth";
+import { authenticateToken } from "../../middlewares/auth";
 import { emailConfigurationController } from "../controllers/emailConfiguration.controller";
 
 const router = Router();

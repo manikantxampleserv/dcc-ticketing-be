@@ -13,7 +13,7 @@ const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
 const routes_1 = __importDefault(require("./routes"));
 const responseHandler_1 = require("./middlewares/responseHandler");
-const SLAMonitoringService_1 = require("utils/SLAMonitoringService");
+const SLAMonitoringService_1 = require("./utils/SLAMonitoringService");
 /**
  * Creates and configures the Express application
  * @returns {Application} Configured Express application

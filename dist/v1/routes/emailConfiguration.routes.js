@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const auth_1 = require("middlewares/auth");
+const auth_1 = require("../../middlewares/auth");
 const emailConfiguration_controller_1 = require("../controllers/emailConfiguration.controller");
 const router = (0, express_1.Router)();
 router.post("/email-configuration", auth_1.authenticateToken, emailConfiguration_controller_1.emailConfigurationController.createEmailConfiguration);

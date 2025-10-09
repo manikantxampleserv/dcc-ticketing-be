@@ -1,9 +1,8 @@
-import { authenticateToken } from "middlewares/auth";
-import { ticketController } from "../controllers/ticketController.controller";
 import { Router } from "express";
-import { validate } from "middlewares/validate";
-import { upload } from "utils/multer";
-import { uploadSingleFile } from "utils/fileUpload";
+import { authenticateToken } from "../../middlewares/auth";
+import { validate } from "../../middlewares/validate";
+import { uploadSingleFile } from "../../utils/fileUpload";
+import { ticketController } from "../controllers/ticketController.controller";
 
 const router = Router();
 

@@ -1,11 +1,11 @@
-import { authenticateToken } from "middlewares/auth";
+import { authenticateToken } from "../../middlewares/auth";
 import { customerController } from "../controllers/customer.controller";
 import { Router } from "express";
-import { validate } from "middlewares/validate";
+import { validate } from "../../middlewares/validate";
 import {
   createCustomerValidation,
   updateCustomerValidation,
-} from "v1/validators/customer.validator";
+} from "../../v1/validators/customer.validator";
 
 const router = Router();
 

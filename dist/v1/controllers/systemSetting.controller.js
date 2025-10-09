@@ -22,7 +22,7 @@ var __rest = (this && this.__rest) || function (s, e) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.systemSettingController = void 0;
 const client_1 = require("@prisma/client");
-const pagination_1 = require("utils/pagination");
+const pagination_1 = require("../../utils/pagination");
 const prisma = new client_1.PrismaClient();
 const serializeSystemSetting = (setting, includeCreatedAt = false, includeUpdatedAt = false) => (Object.assign(Object.assign({ id: setting.id, setting_key: setting.setting_key, setting_value: setting.setting_value, description: setting.description, data_type: setting.data_type }, (includeCreatedAt && { created_at: setting.created_at })), (includeUpdatedAt && { updated_at: setting.updated_at })));
 exports.systemSettingController = {

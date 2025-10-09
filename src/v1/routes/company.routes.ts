@@ -1,12 +1,12 @@
-import { authenticateToken } from "middlewares/auth";
+import { authenticateToken } from "../../middlewares/auth";
 import { companyController } from "../controllers/comapny.controller";
 import { Router } from "express";
-import { validate } from "middlewares/validate";
+import { validate } from "../../middlewares/validate";
 import {
   createCompanyValidation,
   getCompanyByIdValidation,
   updateCompanyValidation,
-} from "v1/validators/company.validator";
+} from "../../v1/validators/company.validator";
 
 const router = Router();
 

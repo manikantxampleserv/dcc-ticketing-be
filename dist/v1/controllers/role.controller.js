@@ -22,7 +22,7 @@ var __rest = (this && this.__rest) || function (s, e) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.roleController = void 0;
 const client_1 = require("@prisma/client");
-const pagination_1 = require("utils/pagination");
+const pagination_1 = require("../../utils/pagination");
 const express_validator_1 = require("express-validator");
 const prisma = new client_1.PrismaClient();
 const serializeRole = (role, includeCreatedAt = false, includeUpdatedAt = false) => (Object.assign(Object.assign({ id: role.id, name: role.name, is_active: Boolean(role.is_active) }, (includeCreatedAt && { created_at: role.created_at })), (includeUpdatedAt && { updated_at: role.updated_at })));

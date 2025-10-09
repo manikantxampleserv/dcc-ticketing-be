@@ -1,7 +1,6 @@
 // backblaze.ts
-import B2 from "backblaze-b2";
-import path from "path";
 import axios from "axios";
+import B2 from "backblaze-b2";
 
 // Type definitions for better type safety
 interface B2Bucket {
@@ -220,4 +219,4 @@ const deleteFromBackblaze = async (fileUrl: string): Promise<boolean> => {
 };
 
 // Export functions
-export { uploadToBackblaze, deleteFromBackblaze, testDirectAuth };
+export { deleteFromBackblaze, testDirectAuth, uploadToBackblaze };

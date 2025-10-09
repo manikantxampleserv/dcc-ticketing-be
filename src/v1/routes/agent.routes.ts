@@ -1,11 +1,11 @@
-import { authenticateToken } from "middlewares/auth";
+import { authenticateToken } from "../../middlewares/auth";
 import { Router } from "express";
-import { validate } from "middlewares/validate";
-import { agentsController } from "v1/controllers/agents.controller";
+import { validate } from "../../middlewares/validate";
+import { agentsController } from "../../v1/controllers/agents.controller";
 import {
   createAgentValidator,
   updateAgentValidator,
-} from "v1/validators/agent.validator";
+} from "../../v1/validators/agent.validator";
 
 const router = Router();
 

@@ -22,8 +22,8 @@ var __rest = (this && this.__rest) || function (s, e) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ticketAttachmentController = void 0;
 const client_1 = require("@prisma/client");
-const pagination_1 = require("utils/pagination");
-const blackbaze_1 = require("utils/blackbaze");
+const blackbaze_1 = require("../../utils/blackbaze");
+const pagination_1 = require("../../utils/pagination");
 const prisma = new client_1.PrismaClient();
 const formatFileAttachment = (attachment) => {
     if (!attachment)

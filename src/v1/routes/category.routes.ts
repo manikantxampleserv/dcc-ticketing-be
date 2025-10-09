@@ -1,12 +1,8 @@
-import { authenticateToken } from "middlewares/auth";
-import { categoryController } from "../controllers/category.controller";
 import { Router } from "express";
-import {
-  createCategoryValidation,
-  updateCategoryValidation,
-  getCategoryByIdValidation,
-} from "../validators/category.validator";
-import { validate } from "middlewares/validate";
+import { authenticateToken } from "../../middlewares/auth";
+import { validate } from "../../middlewares/validate";
+import { categoryController } from "../controllers/category.controller";
+import { getCategoryByIdValidation } from "../validators/category.validator";
 const router = Router();
 
 router.post("/category", authenticateToken, categoryController.createCategory);

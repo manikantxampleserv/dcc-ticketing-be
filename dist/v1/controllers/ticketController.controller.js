@@ -14,11 +14,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ticketController = void 0;
 const client_1 = require("@prisma/client");
-const pagination_1 = require("utils/pagination");
-const sendEmailComment_1 = __importDefault(require("types/sendEmailComment"));
-const blackbaze_1 = require("utils/blackbaze");
-const BussinessHoursSLACalculation_1 = require("utils/BussinessHoursSLACalculation");
-const GenerateTicket_1 = require("utils/GenerateTicket");
+const BussinessHoursSLACalculation_1 = require("../../utils/BussinessHoursSLACalculation");
+const GenerateTicket_1 = require("../../utils/GenerateTicket");
+const sendEmailComment_1 = __importDefault(require("../../types/sendEmailComment"));
+const blackbaze_1 = require("../../utils/blackbaze");
+const pagination_1 = require("../../utils/pagination");
 const prisma = new client_1.PrismaClient();
 const serializeTicket = (ticket, includeDates = false) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;

@@ -1,8 +1,7 @@
-import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
-import { paginate } from "utils/pagination";
-import { validationResult } from "express-validator";
-import { deleteFile, uploadFile } from "utils/blackbaze";
+import { Request, Response } from "express";
+import { deleteFile, uploadFile } from "../../utils/blackbaze";
+import { paginate } from "../../utils/pagination";
 
 const prisma = new PrismaClient();
 

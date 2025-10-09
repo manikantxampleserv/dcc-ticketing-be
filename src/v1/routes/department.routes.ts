@@ -1,11 +1,11 @@
-import { authenticateToken } from "middlewares/auth";
+import { authenticateToken } from "../../middlewares/auth";
 import { departmentController } from "../controllers/department.controller";
 import { Router } from "express";
-import { validate } from "middlewares/validate";
+import { validate } from "../../middlewares/validate";
 import {
   createDepartmentValidation,
   updateDepartmentValidation,
-} from "v1/validators/department.validator";
+} from "../../v1/validators/department.validator";
 
 const router = Router();
 

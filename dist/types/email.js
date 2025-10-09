@@ -53,8 +53,8 @@ const imap_1 = __importDefault(require("imap"));
 const mailparser_1 = require("mailparser");
 const client_1 = require("@prisma/client");
 const dotenv = __importStar(require("dotenv"));
-const GenerateTicket_1 = require("utils/GenerateTicket");
-const blackbaze_1 = require("utils/blackbaze");
+const GenerateTicket_1 = require("../utils/GenerateTicket");
+const blackbaze_1 = require("../utils/blackbaze");
 dotenv.config();
 // const emailConfiguration = await prisma.email_configurations.findFirst({
 //   where: { log_inst: 1 },

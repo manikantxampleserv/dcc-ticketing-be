@@ -20,7 +20,7 @@ exports.deleteUser = deleteUser;
 exports.updateUserStatus = updateUserStatus;
 const prisma_config_1 = __importDefault(require("../../utils/prisma.config"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const blackbaze_1 = require("utils/blackbaze");
+const blackbaze_1 = require("../../utils/blackbaze");
 const formatUserAvatar = (user) => {
     if (!user)
         return null;

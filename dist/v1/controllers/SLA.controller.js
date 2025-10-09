@@ -11,7 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SLAcontroller = void 0;
 const client_1 = require("@prisma/client");
-const pagination_1 = require("utils/pagination");
+const pagination_1 = require("../../utils/pagination");
 const express_validator_1 = require("express-validator");
 const prisma = new client_1.PrismaClient();
 const serializeSlaConfig = (sla, includeCreatedAt = false, includeUpdatedAt = false) => (Object.assign(Object.assign({ id: Number(sla.id), priority: sla.priority, response_time_hours: sla.response_time_hours, resolution_time_hours: sla.resolution_time_hours, business_hours_only: sla.business_hours_only, business_start_time: sla.business_start_time, business_end_time: sla.business_end_time, include_weekends: sla.include_weekends, is_active: sla.is_active }, (includeCreatedAt && { created_at: sla.created_at })), (includeUpdatedAt && { updated_at: sla.updated_at })));

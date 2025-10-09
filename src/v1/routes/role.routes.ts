@@ -1,11 +1,11 @@
-import { authenticateToken } from "middlewares/auth";
+import { authenticateToken } from "../../middlewares/auth";
 import { roleController } from "../controllers/role.controller";
 import { Router } from "express";
-import { validate } from "middlewares/validate";
+import { validate } from "../../middlewares/validate";
 import {
   createRoleValidation,
   updateRoleValidation,
-} from "v1/validators/role.validator";
+} from "../../v1/validators/role.validator";
 
 const router = Router();
 

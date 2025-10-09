@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
-import { paginate } from "utils/pagination";
+import { paginate } from "../../utils/pagination";
 
 const prisma = new PrismaClient();
 

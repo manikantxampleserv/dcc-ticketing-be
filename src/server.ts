@@ -1,4 +1,4 @@
-import { main } from "types/email";
+import { main } from "./types/email";
 import { createApp } from "./app";
 import logger from "./config/logger";
 import dotenv from "dotenv";

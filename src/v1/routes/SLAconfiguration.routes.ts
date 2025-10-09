@@ -1,4 +1,4 @@
-import { authenticateToken } from "middlewares/auth";
+import { authenticateToken } from "../../middlewares/auth";
 import { SLAcontroller } from "../controllers/SLA.controller";
 import { Router } from "express";
 

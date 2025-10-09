@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const auth_1 = require("middlewares/auth");
-const ticketController_controller_1 = require("../controllers/ticketController.controller");
 const express_1 = require("express");
-const validate_1 = require("middlewares/validate");
-const fileUpload_1 = require("utils/fileUpload");
+const auth_1 = require("../../middlewares/auth");
+const validate_1 = require("../../middlewares/validate");
+const fileUpload_1 = require("../../utils/fileUpload");
+const ticketController_controller_1 = require("../controllers/ticketController.controller");
 const router = (0, express_1.Router)();
 (0, fileUpload_1.uploadSingleFile)("attachment"),
     router.post("/ticket", auth_1.authenticateToken, (0, fileUpload_1.uploadSingleFile)("attachment_urls"), ticketController_controller_1.ticketController.createTicket);

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { ticketAttachmentController } from "../controllers/ticketAttachment.controller";
 import { authenticateToken } from "../../middlewares/auth";
 import { upload } from "../../utils/multer";
-import { validate } from "middlewares/validate";
+import { validate } from "../../middlewares/validate";
 
 const routes = Router();
 

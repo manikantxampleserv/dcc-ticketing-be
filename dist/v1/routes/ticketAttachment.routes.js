@@ -4,7 +4,7 @@ const express_1 = require("express");
 const ticketAttachment_controller_1 = require("../controllers/ticketAttachment.controller");
 const auth_1 = require("../../middlewares/auth");
 const multer_1 = require("../../utils/multer");
-const validate_1 = require("middlewares/validate");
+const validate_1 = require("../../middlewares/validate");
 const routes = (0, express_1.Router)();
 routes.post("/ticket-attachment", auth_1.authenticateToken, multer_1.upload.single("file_path"), ticketAttachment_controller_1.ticketAttachmentController.createTicketAttachment);
 routes.get("/ticket-attachment", auth_1.authenticateToken, ticketAttachment_controller_1.ticketAttachmentController.getAllTicketAttachment);

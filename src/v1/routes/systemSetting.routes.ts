@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { systemSettingController } from "../controllers/systemSetting.controller";
 
-import { authenticateToken } from "middlewares/auth";
+import { authenticateToken } from "../../middlewares/auth";
 const router = Router();
 
 router.post(

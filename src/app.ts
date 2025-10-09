@@ -8,7 +8,7 @@ import cors from "cors";
 import express, { Application } from "express";
 import routes from "./routes";
 import { responseHandler } from "./middlewares/responseHandler";
-import { BusinessHoursAwareSLAMonitoringService } from "utils/SLAMonitoringService";
+import { BusinessHoursAwareSLAMonitoringService } from "./utils/SLAMonitoringService";
 
 /**
  * Creates and configures the Express application
