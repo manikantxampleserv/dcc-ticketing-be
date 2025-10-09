@@ -28,7 +28,20 @@ export const createApp = (): Application => {
   app.use(cookieParser());
 
   // Enable CORS for all origins with credentials
-  app.use(cors({ origin: "*", credentials: true }));
+  app.use(
+    cors({
+      origin: [
+        "https://ticketing.dcctz.com",
+        "https://ticketing_live.dcctz.com/",
+        "http://192.168.29.127:3000",
+        "http://localhost:3000",
+        "http://10.160.5.101:3000",
+        "http://localhost:3002",
+        "http://localhost:3003",
+      ],
+      credentials: true,
+    })
+  );
   app.use(responseHandler);
 
   // Mount API routes under /api (AFTER middleware setup)
