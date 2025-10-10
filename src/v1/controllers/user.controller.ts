@@ -3,8 +3,9 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { deleteFile, uploadFile } from "../../utils/blackbaze";
 
-const formatUserAvatar = (user: any) => {
-  if (!user) return null;
+const formatUserAvatar = (users: any) => {
+  if (!users) return null;
+  const { password_hash, ...user } = users;
 
   if (user.avatar && !/^https?:\/\//.test(user.avatar)) {
     return {

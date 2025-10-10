@@ -232,8 +232,9 @@ class SimpleEmailTicketSystem {
         return;
       }
       console.log(
-        `Mailbox status: total=${box.messages.total} unseen=${box.messages.unseen} uidnext=${box.uidnext}`
+        `Mailbox status: total=${box.messages.total} unseen=${box.messages.unseen} uidnext=${box.uidnext} uiOld=${this.lastUid} UiNew=${box.uidnext}`
       );
+
       const newUidNext = box.uidnext - 1;
       if (newUidNext > this.lastUid) {
         const uidRange = `${this.lastUid + 1}:${newUidNext}`;
@@ -431,7 +432,7 @@ class SimpleEmailTicketSystem {
 
       // ✅ Clean and process the email body
       // const cleanedBody = this.cleanEmailBody(body, fullEmail);
-      const cleanedBody = body;
+      const cleanedBody = this.cleanBody(body);
 
       console.log(`Adding comment to ticket #${ticket.ticket_number} `);
       const attachment_urls = JSON.stringify(
@@ -576,7 +577,7 @@ class SimpleEmailTicketSystem {
     });
     // ✅ Clean and process the email body
     // const cleanedBody = this.cleanEmailBody(body, fullEmail);
-    const cleanedBody = body;
+    const cleanedBody = this.cleanBody(body);
     const attachment_urls = JSON.stringify(
       attachments?.map((val: any) => val.fileUrl)
     );
@@ -791,6 +792,7 @@ class SimpleEmailTicketSystem {
 
   //  UTILITY: Clean email body (remove signatures, replies)
   private cleanBody(body: string): string {
+    return body.replace("\n", "");
     const lines = body.split("\n");
     const cleanLines: string[] = [];
 

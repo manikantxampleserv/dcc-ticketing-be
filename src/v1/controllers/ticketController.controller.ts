@@ -87,7 +87,7 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
     : undefined,
   cc_of_ticket: ticket.cc_of_ticket
     ? ticket.cc_of_ticket?.map((val: any) => ({
-        id: val.user_of_ticket_ccid,
+        id: val.user_of_ticket_cc.id,
         first_name: val.user_of_ticket_cc.first_name,
         last_name: val.user_of_ticket_cc.last_name,
         email: val.user_of_ticket_cc.email,
@@ -925,71 +925,86 @@ export const ticketController = {
   },
   async addCCTicket(req: any, res: Response): Promise<any> {
     try {
-      const id = Number(req.params.id);
-      const userId = Number(req.user?.id);
-      const ccUser = Number(req.body.user_id);
+      const ticketId = Number(req.params.id);
+      const currentUserId = Number(req.user?.id);
+      const toAdd: number[] = req.body.add_user_id || [];
+      const toDelete: number[] = req.body.delete_user_ids || [];
 
-      if (!ccUser) {
-        return res.error("User id is required.", 400);
+      if (!Array.isArray(toAdd) && !Array.isArray(toDelete)) {
+        return res.error("add_user_id or delete_user_ids must be arrays.", 400);
       }
 
       const existing = await prisma.tickets.findUnique({
-        where: { id },
-        include: {
-          cc_of_ticket: true,
-        },
+        where: { id: ticketId },
+        include: { cc_of_ticket: true },
       });
-
-      const existingUser = await prisma.users.findUnique({
-        where: { id: ccUser },
-      });
-
       if (!existing) {
         return res.error("Ticket not found", 404);
       }
 
-      if (!existingUser) {
-        return res.error("User not found", 404);
-      }
+      const txOps: any[] = [];
 
-      if (existing.cc_of_ticket.find((val) => val.user_id === ccUser)) {
-        return res.error("This user is already added in cc.", 409);
-      }
-
-      let commentText = `User ${existingUser.first_name} ${existingUser.last_name} is added in CC of this ticket.`;
-
-      const [updatedTicket, comment] = await prisma.$transaction([
-        prisma.cc_of_ticket.create({
-          data: {
-            ticket_id: id,
-            user_id: ccUser,
-            created_by: userId,
-            // Remove created_at: new Date() - let Prisma handle default
-          },
-        }),
-        prisma.ticket_comments.create({
-          data: {
-            ticket_id: id,
-            user_id: userId,
-            comment_text: commentText,
-            comment_type: "System",
-            is_internal: true,
-          },
-          include: {
-            ticket_comment_users: {
-              select: {
-                id: true,
-                first_name: true,
-                last_name: true,
-                email: true,
-              },
+      // Deletions
+      if (toDelete.length > 0) {
+        txOps.push(
+          prisma.cc_of_ticket.deleteMany({
+            where: {
+              ticket_id: ticketId,
+              user_id: { in: toDelete },
             },
-          },
-        }),
-      ]);
+          })
+        );
+        // Add comments for each removal
+        toDelete.forEach((uid) => {
+          txOps.push(
+            prisma.ticket_comments.create({
+              data: {
+                ticket_id: ticketId,
+                user_id: currentUserId,
+                comment_text: `User ID ${uid} removed from CC of this ticket.`,
+                comment_type: "System",
+                is_internal: true,
+              },
+            })
+          );
+        });
+      }
 
+      // Additions
+      if (toAdd.length > 0) {
+        // Prevent duplicates
+        const existingCCIds = existing.cc_of_ticket.map((cc) => cc.user_id);
+        const newAdds = toAdd.filter((uid) => !existingCCIds.includes(uid));
+        newAdds.forEach((uid) => {
+          txOps.push(
+            prisma.cc_of_ticket.create({
+              data: {
+                ticket_id: ticketId,
+                user_id: uid,
+                created_by: currentUserId,
+              },
+            })
+          );
+          txOps.push(
+            prisma.ticket_comments.create({
+              data: {
+                ticket_id: ticketId,
+                user_id: currentUserId,
+                comment_text: `User ID ${uid} added to CC of this ticket.`,
+                comment_type: "System",
+                is_internal: true,
+              },
+            })
+          );
+        });
+      }
+
+      // Run all operations in one transaction
+      await prisma.$transaction(txOps);
+
+      // Reload ticket
       const finalTicket = await prisma.tickets.findUnique({
-        where: { id },
+        where: { id: ticketId },
         include: {
           cc_of_ticket: {
             include: {
@@ -1007,7 +1022,8 @@ export const ticketController = {
         },
       });
 
-      await EmailService.sendCommentEmailToCustomer(finalTicket, comment, []);
+      // Notify customers
+      await EmailService.sendCommentEmailToCustomer(finalTicket, null, []);
 
       res.success(
         "Ticket updated successfully",
@@ -1019,7 +1035,6 @@ export const ticketController = {
       res.error(error.message);
     }
   },
-
   async getTicketById(req: any, res: Response): Promise<void> {
     try {
       const id = Number(req.params.id);
@@ -1169,26 +1184,38 @@ export const ticketController = {
           {
             subject: {
               contains: searchTerm,
-              mode: "insensitive",
+              // mode: "insensitive",
+            },
+          },
+          {
+            customer_name: {
+              contains: searchTerm,
+              // mode: "insensitive",
+            },
+          },
+          {
+            customer_email: {
+              contains: searchTerm,
+              // mode: "insensitive",
             },
           },
           {
             ticket_number: {
               contains: searchTerm,
-              mode: "insensitive",
+              // mode: "insensitive",
             },
           },
           {
             description: {
               contains: searchTerm,
-              mode: "insensitive",
+              // mode: "insensitive",
             },
           },
           {
             sla_priority: {
               priority: {
                 contains: searchTerm,
-                mode: "insensitive",
+                // mode: "insensitive",
               },
             },
           },
@@ -1198,13 +1225,13 @@ export const ticketController = {
                 {
                   first_name: {
                     contains: searchTerm,
-                    mode: "insensitive",
+                    // mode: "insensitive",
                   },
                 },
                 {
                   last_name: {
                     contains: searchTerm,
-                    mode: "insensitive",
+                    // mode: "insensitive",
                   },
                 },
               ],
@@ -1216,19 +1243,19 @@ export const ticketController = {
                 {
                   first_name: {
                     contains: searchTerm,
-                    mode: "insensitive",
+                    // mode: "insensitive",
                   },
                 },
                 {
                   last_name: {
                     contains: searchTerm,
-                    mode: "insensitive",
+                    // mode: "insensitive",
                   },
                 },
                 {
                   email: {
                     contains: searchTerm,
-                    mode: "insensitive",
+                    // mode: "insensitive",
                   },
                 },
               ],
@@ -1278,6 +1305,7 @@ export const ticketController = {
         pagination
       );
     } catch (error: any) {
+      console.log("Error : ", error);
       res.error(error.message);
     }
   },

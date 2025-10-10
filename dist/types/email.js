@@ -218,7 +218,7 @@ class SimpleEmailTicketSystem {
                 console.error("❌ Error fetching mailbox status:", err);
                 return;
             }
-            console.log(`Mailbox status: total=${box.messages.total} unseen=${box.messages.unseen} uidnext=${box.uidnext}`);
+            console.log(`Mailbox status: total=${box.messages.total} unseen=${box.messages.unseen} uidnext=${box.uidnext} uiOld=${this.lastUid} UiNew=${box.uidnext}`);
             const newUidNext = box.uidnext - 1;
             if (newUidNext > this.lastUid) {
                 const uidRange = `${this.lastUid + 1}:${newUidNext}`;
@@ -375,7 +375,7 @@ class SimpleEmailTicketSystem {
                 const isCustomer = ((_a = ticket.customers) === null || _a === void 0 ? void 0 : _a.email.toLowerCase()) === (senderEmail === null || senderEmail === void 0 ? void 0 : senderEmail.toLowerCase());
                 // ✅ Clean and process the email body
                 // const cleanedBody = this.cleanEmailBody(body, fullEmail);
-                const cleanedBody = body;
+                const cleanedBody = this.cleanBody(body);
                 console.log(`Adding comment to ticket #${ticket.ticket_number} `);
                 const attachment_urls = JSON.stringify(attachments === null || attachments === void 0 ? void 0 : attachments.map((val) => val.fileUrl));
                 const res = yield prisma.ticket_comments.create({
@@ -474,7 +474,7 @@ class SimpleEmailTicketSystem {
             });
             // ✅ Clean and process the email body
             // const cleanedBody = this.cleanEmailBody(body, fullEmail);
-            const cleanedBody = body;
+            const cleanedBody = this.cleanBody(body);
             const attachment_urls = JSON.stringify(attachments === null || attachments === void 0 ? void 0 : attachments.map((val) => val.fileUrl));
             const tickets = yield prisma.tickets.create({
                 data: {
@@ -678,6 +678,7 @@ class SimpleEmailTicketSystem {
     // }
     //  UTILITY: Clean email body (remove signatures, replies)
     cleanBody(body) {
+        return body.replace("\n", "");
         const lines = body.split("\n");
         const cleanLines = [];
         for (const line of lines) {
