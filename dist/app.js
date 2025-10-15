@@ -23,6 +23,8 @@ const createApp = () => {
     const app = (0, express_1.default)();
     // Middleware to parse JSON bodies
     app.use(express_1.default.json());
+    app.use(express_1.default.json({ limit: "10mb" }));
+    app.use(express_1.default.urlencoded({ limit: "10mb", extended: true }));
     SLAMonitoringService_1.BusinessHoursAwareSLAMonitoringService.startMonitoring();
     // Middleware to parse URL-encoded bodies
     app.use(express_1.default.urlencoded({ extended: true }));

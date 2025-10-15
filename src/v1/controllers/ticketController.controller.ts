@@ -1174,7 +1174,6 @@ export const ticketController = {
       const searchTerm = (search as string).toLowerCase().trim();
       const statusFilter = (status as string).trim();
       const priorityFilter = (priority as string).trim();
-
       // Build filters object
       const filters: any = {};
 

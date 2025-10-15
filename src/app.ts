@@ -20,6 +20,8 @@ export const createApp = (): Application => {
 
   // Middleware to parse JSON bodies
   app.use(express.json());
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ limit: "10mb", extended: true }));
   BusinessHoursAwareSLAMonitoringService.startMonitoring();
   // Middleware to parse URL-encoded bodies
   app.use(express.urlencoded({ extended: true }));

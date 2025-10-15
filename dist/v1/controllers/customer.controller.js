@@ -228,11 +228,38 @@ exports.customerController = {
     getAllCustomer(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const { page = "1", limit = "10" } = req.query;
+                const { page = "1", limit = "10", search = "" } = req.query;
                 const page_num = parseInt(page, 10);
                 const limit_num = parseInt(limit, 10);
+                const searchTerm = search.toLowerCase().trim();
+                // Base filter object
+                let filters = {};
+                if (searchTerm) {
+                    // If there’s a space, assume “first last”
+                    const parts = searchTerm.split(/\s+/);
+                    if (parts.length >= 2) {
+                        // Use first part for first_name and last part for last_name
+                        const [firstPart, ...rest] = parts;
+                        const lastPart = rest.join(" ");
+                        filters.AND = [
+                            { first_name: { contains: firstPart } },
+                            { last_name: { contains: lastPart } },
+                        ];
+                    }
+                    else {
+                        // Single term: OR across all fields
+                        filters.OR = [
+                            { email: { contains: searchTerm } },
+                            { first_name: { contains: searchTerm } },
+                            { last_name: { contains: searchTerm } },
+                            { job_title: { contains: searchTerm } },
+                            { phone: { contains: searchTerm } },
+                        ];
+                    }
+                }
                 const { data, pagination } = yield (0, pagination_1.paginate)({
                     model: prisma.customers,
+                    filters,
                     page: page_num,
                     limit: limit_num,
                     orderBy: { id: "desc" },
