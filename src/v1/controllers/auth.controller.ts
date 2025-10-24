@@ -256,10 +256,21 @@ export async function getProfile(
       res.status(401).json({ error: "Account is deactivated" });
       return;
     }
+    const totals = await prisma.tickets.count({
+      where: { OR: [{ assigned_agent_id: userId }, { assigned_by: userId }] },
+    });
+    const ActiveTotals = await prisma.tickets.count({
+      where: {
+        OR: [{ assigned_agent_id: userId }, { assigned_by: userId }],
+        status: {
+          in: ["Open", "In Progress"],
+        },
+      },
+    });
 
     res.json({
       message: "Profile retrieved successfully",
-      user,
+      user: { ...user, total_tickets: totals, active_tickets: ActiveTotals },
     });
   } catch (error) {
     logger.error(`Get profile error: ${error}`);
