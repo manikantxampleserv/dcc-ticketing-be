@@ -2,23 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const notification_controller_1 = require("../controllers/notification.controller");
-// import { authenticateToken } from "../../middlewares/auth";
+const auth_1 = require("../../middlewares/auth");
 const router = (0, express_1.Router)();
-router.get("/notifications/:userId", 
-// authenticateToken,
-notification_controller_1.notificationController.getNotifications);
-router.put("/notifications/:id/read", 
-// authenticateToken,
-notification_controller_1.notificationController.markNotificationRead);
-router.put("/notifications/user/:userId/read-all", 
-// authenticateToken,
-notification_controller_1.notificationController.markAllNotificationRead);
-router.get("/notifications/settings/:userId", 
-// authenticateToken,
-notification_controller_1.notificationController.getNotificationSettings);
-router.get("/notifications/user/:userId/unread-count", 
-// authenticateToken,
-notification_controller_1.notificationController.updateNotificationSettings);
+router.get("/notifications/:userId", auth_1.authenticateToken, notification_controller_1.notificationController.getNotifications);
+router.put("/notifications/:id/read", auth_1.authenticateToken, notification_controller_1.notificationController.markNotificationRead);
+router.put("/notifications/user/:userId/read-all", auth_1.authenticateToken, notification_controller_1.notificationController.markAllNotificationRead);
+router.get("/notifications/settings/:userId", auth_1.authenticateToken, notification_controller_1.notificationController.getNotificationSettings);
+router.get("/notifications/user/:userId/unread-count", auth_1.authenticateToken, notification_controller_1.notificationController.updateNotificationSettings);
 exports.default = router;
 // import express from "express";
 // import { PrismaClient } from "@prisma/client";

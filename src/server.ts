@@ -269,7 +269,7 @@ import { createApp } from "./app";
 import logger from "./config/logger";
 import dotenv from "dotenv";
 dotenv.config({ quiet: true });
-import slaMonitor from "../src/types/slaMonitorService";
+// import slaMonitor from "../src/types/slaMonitorService";
 import { SimpleEmailTicketSystem } from "../src/types/email";
 
 export const startServer = async () => {
@@ -284,13 +284,13 @@ export const startServer = async () => {
         const emailSystem = new SimpleEmailTicketSystem();
         emailSystem.start().then(() => console.log("📧 Email system started"));
 
-        slaMonitor.start(5); // Check every 5 minutes
+        // slaMonitor.start(5); // Check every 5 minutes
 
         // Graceful shutdown
         process.on("SIGINT", () => {
           console.log("\n🔄 Shutting down...");
           emailSystem.stop();
-          slaMonitor.stop();
+          // slaMonitor.stop();
           process.exit(0);
         });
         logger.info("Starting email ticket system...");

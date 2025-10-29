@@ -239,7 +239,7 @@ const app_1 = require("./app");
 const logger_1 = __importDefault(require("./config/logger"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config({ quiet: true });
-const slaMonitorService_1 = __importDefault(require("../src/types/slaMonitorService"));
+// import slaMonitor from "../src/types/slaMonitorService";
 const email_2 = require("../src/types/email");
 const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -251,12 +251,12 @@ const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
                 // Start services
                 const emailSystem = new email_2.SimpleEmailTicketSystem();
                 emailSystem.start().then(() => console.log("📧 Email system started"));
-                slaMonitorService_1.default.start(5); // Check every 5 minutes
+                // slaMonitor.start(5); // Check every 5 minutes
                 // Graceful shutdown
                 process.on("SIGINT", () => {
                     console.log("\n🔄 Shutting down...");
                     emailSystem.stop();
-                    slaMonitorService_1.default.stop();
+                    // slaMonitor.stop();
                     process.exit(0);
                 });
                 logger_1.default.info("Starting email ticket system...");

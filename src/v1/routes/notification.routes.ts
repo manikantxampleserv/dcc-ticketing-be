@@ -1,35 +1,35 @@
 import { Router } from "express";
 import { notificationController } from "../controllers/notification.controller";
 
-// import { authenticateToken } from "../../middlewares/auth";
+import { authenticateToken } from "../../middlewares/auth";
 const router = Router();
 
 router.get(
   "/notifications/:userId",
-  // authenticateToken,
+  authenticateToken,
   notificationController.getNotifications
 );
 
 router.put(
   "/notifications/:id/read",
-  // authenticateToken,
+  authenticateToken,
   notificationController.markNotificationRead
 );
 
 router.put(
   "/notifications/user/:userId/read-all",
-  // authenticateToken,
+  authenticateToken,
   notificationController.markAllNotificationRead
 );
 router.get(
   "/notifications/settings/:userId",
-  // authenticateToken,
+  authenticateToken,
   notificationController.getNotificationSettings
 );
 
 router.get(
   "/notifications/user/:userId/unread-count",
-  // authenticateToken,
+  authenticateToken,
   notificationController.updateNotificationSettings
 );
 

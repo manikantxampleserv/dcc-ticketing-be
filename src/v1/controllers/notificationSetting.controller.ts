@@ -236,7 +236,7 @@ export const notificationSettingController = {
     try {
       // const { page = "1", limit = "10", search = "" } = req.query;
       console.log("agent_id ???????????????", req.user?.id);
-      const agent_id = req.user ? (req.user as any)?.id : null;
+      const agent_id = (req.user as any)?.id;
       // const page_num = parseInt(page as string, 10);
       // const limit_num = parseInt(limit as string, 10);
       // const searchLower = (search as string).toLowerCase();

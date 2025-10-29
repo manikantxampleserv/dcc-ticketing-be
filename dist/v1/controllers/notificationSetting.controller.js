@@ -204,7 +204,7 @@ exports.notificationSettingController = {
             try {
                 // const { page = "1", limit = "10", search = "" } = req.query;
                 console.log("agent_id ???????????????", (_a = req.user) === null || _a === void 0 ? void 0 : _a.id);
-                const agent_id = req.user ? (_b = req.user) === null || _b === void 0 ? void 0 : _b.id : null;
+                const agent_id = (_b = req.user) === null || _b === void 0 ? void 0 : _b.id;
                 // const page_num = parseInt(page as string, 10);
                 // const limit_num = parseInt(limit as string, 10);
                 // const searchLower = (search as string).toLowerCase();
