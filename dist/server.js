@@ -13,36 +13,91 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startServer = void 0;
-const email_1 = require("./types/email");
+// server.ts
+const http_1 = require("http");
+const socket_io_1 = require("socket.io");
 const app_1 = require("./app");
 const logger_1 = __importDefault(require("./config/logger"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const slaMonitorService_1 = __importDefault(require("./types/slaMonitorService"));
+const email_1 = require("./types/email");
+const notification_1 = __importDefault(require("./v1/services/notification"));
 dotenv_1.default.config({ quiet: true });
 const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const app = (0, app_1.createApp)();
+        // Create HTTP server from Express app
+        const httpServer = (0, http_1.createServer)(app);
+        // Socket.IO setup
+        const io = new socket_io_1.Server(httpServer, {
+            cors: {
+                origin: [
+                    "https://ticketing.dcctz.com",
+                    "https://ticketing_live.dcctz.com",
+                    "http://192.168.29.127:3000",
+                    "http://localhost:5174",
+                    "http://localhost:5173",
+                    "http://localhost:5175",
+                ],
+                methods: ["GET", "POST"],
+                credentials: true,
+            },
+        });
+        // Socket.IO connection handling
+        io.on("connection", (socket) => {
+            logger_1.default.info(`✅ Client connected: ${socket.id}`);
+            socket.on("join", (userId) => {
+                const room = `user_${userId}`;
+                socket.join(`user_${userId}`);
+                logger_1.default.info(`👤 User ${userId} joined notification room`);
+                // ✅ ADDED: Confirm room membership
+                const rooms = Array.from(socket.rooms);
+                logger_1.default.info(`📍 Socket ${socket.id} is now in rooms:`, rooms);
+                // Send confirmation back to client
+                socket.emit("joined", { userId, room, socketId: socket.id });
+            });
+            socket.on("leave", (userId) => {
+                socket.leave(`user_${userId}`);
+                logger_1.default.info(`👋 User ${userId} left notification room`);
+            });
+            socket.on("disconnect", () => {
+                logger_1.default.info(`❌ Client disconnected: ${socket.id}`);
+            });
+        });
+        // Attach Socket.IO to notification service
+        notification_1.default.setSocketIO(io);
+        logger_1.default.success("✅ Socket.IO attached to NotificationService");
         const port = process.env.PORT || 8000;
-        const server = app.listen(port, () => __awaiter(void 0, void 0, void 0, function* () {
+        httpServer.listen(port, () => __awaiter(void 0, void 0, void 0, function* () {
             logger_1.default.success(`Server running at http://localhost:${port}`);
             try {
-                logger_1.default.info("Starting email ticket system...");
-                yield (0, email_1.main)();
-                logger_1.default.success("Email ticket system started successfully");
+                // Start email ticket system
+                const emailSystem = new email_1.SimpleEmailTicketSystem();
+                yield emailSystem.start();
+                logger_1.default.success("📧 Email ticket system started");
+                // Start SLA monitoring
+                slaMonitorService_1.default.start(5); // Check every 5 minutes
+                logger_1.default.success("🔍 SLA monitoring started");
+                // Graceful shutdown
+                const shutdown = () => {
+                    logger_1.default.info("\n🔄 Shutting down gracefully...");
+                    emailSystem.stop();
+                    slaMonitorService_1.default.stop();
+                    httpServer.close(() => {
+                        logger_1.default.success("✅ Server closed");
+                        process.exit(0);
+                    });
+                };
+                process.on("SIGINT", shutdown);
+                process.on("SIGTERM", shutdown);
             }
             catch (emailError) {
                 logger_1.default.error("Failed to start email system:", emailError);
             }
         }));
-        server.on("error", (error) => {
+        httpServer.on("error", (error) => {
             logger_1.default.error("Server error:", error);
         });
-        process.on("SIGINT", () => __awaiter(void 0, void 0, void 0, function* () {
-            logger_1.default.info("Shutting down gracefully...");
-            server.close(() => {
-                logger_1.default.info("HTTP server closed");
-            });
-            process.exit(0);
-        }));
     }
     catch (error) {
         logger_1.default.error("Failed to start server:", error);
@@ -50,3 +105,52 @@ const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.startServer = startServer;
+// Start the server
+(0, exports.startServer)();
+// import { main } from "./types/email";
+// import { createApp } from "./app";
+// import logger from "./config/logger";
+// import dotenv from "dotenv";
+// dotenv.config({ quiet: true });
+// import slaMonitor from "../src/types/slaMonitorService";
+// import { SimpleEmailTicketSystem } from "../src/types/email";
+// export const startServer = async () => {
+//   try {
+//     const app = createApp();
+//     const port = process.env.PORT || 8000;
+//     const server = app.listen(port, async () => {
+//       logger.success(`Server running at http://localhost:${port}`);
+//       try {
+//         // Start services
+//         const emailSystem = new SimpleEmailTicketSystem();
+//         emailSystem.start().then(() => console.log("📧 Email system started"));
+//         slaMonitor.start(5); // Check every 5 minutes
+//         // Graceful shutdown
+//         process.on("SIGINT", () => {
+//           console.log("\n🔄 Shutting down...");
+//           emailSystem.stop();
+//           slaMonitor.stop();
+//           process.exit(0);
+//         });
+//         logger.info("Starting email ticket system...");
+//         await main();
+//         logger.success("Email ticket system started successfully");
+//       } catch (emailError) {
+//         logger.error("Failed to start email system:", emailError);
+//       }
+//     });
+//     server.on("error", (error) => {
+//       logger.error("Server error:", error);
+//     });
+//     process.on("SIGINT", async () => {
+//       logger.info("Shutting down gracefully...");
+//       server.close(() => {
+//         logger.info("HTTP server closed");
+//       });
+//       process.exit(0);
+//     });
+//   } catch (error) {
+//     logger.error("Failed to start server:", error);
+//     process.exit(1);
+//   }
+// };

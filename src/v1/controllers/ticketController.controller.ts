@@ -5,6 +5,7 @@ import { generateTicketNumber } from "../../utils/GenerateTicket";
 import EmailService from "../../types/sendEmailComment";
 import { uploadFile } from "../../utils/blackbaze";
 import { paginate } from "../../utils/pagination";
+import notificationService from "../services/notification";
 
 const prisma = new PrismaClient();
 
@@ -382,6 +383,19 @@ export const ticketController = {
           //   },
         },
       });
+      await notificationService.notify(
+        "new_ticket",
+        [Number(assigned_agent_id)],
+        {
+          ticketId: ticket.id,
+          ticketNumber: ticket.ticket_number,
+          subject: ticket.subject,
+          priority: "Medium",
+          customerName:
+            ticket.customer_name ||
+            ticket?.customers?.first_name + " " + ticket?.customers?.last_name,
+        }
+      );
       try {
         await generateSLAHistory(
           ticket.id,
@@ -812,6 +826,21 @@ export const ticketController = {
 
       // Notify customer via email
       if (action === "Allocate") {
+        await notificationService.notify(
+          "new_ticket",
+          [Number(updatedTicket?.assigned_agent_id)],
+          {
+            ticketId: updatedTicket.id,
+            ticketNumber: updatedTicket.ticket_number,
+            subject: updatedTicket.subject,
+            priority: "Medium",
+            customerName:
+              updatedTicket.customer_name ||
+              updatedTicket?.customers?.first_name +
+                " " +
+                updatedTicket?.customers?.last_name,
+          }
+        );
         await EmailService.sendCommentEmailToCustomer(updatedTicket, comment, [
           agentDetails?.email,
         ]);

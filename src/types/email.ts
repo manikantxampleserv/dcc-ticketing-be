@@ -6,6 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import * as dotenv from "dotenv";
 import { generateTicketNumber } from "../utils/GenerateTicket";
 import { uploadFile } from "../utils/blackbaze";
+import notificationService from "../v1/services/notification";
 
 dotenv.config();
 
@@ -624,14 +625,64 @@ class SimpleEmailTicketSystem {
       await this.saveTicketAttachments(tickets.id, attachments);
     }
 
-    return await prisma.tickets.update({
+    const updatedTicket = await prisma.tickets.update({
       where: { id: tickets.id },
       data: {
         ticket_number: generateTicketNumber(tickets.id),
       },
     });
-  }
 
+    // 🔔 TRIGGER NEW TICKET NOTIFICATION
+    // await notificationService.notify(
+    //   "new_ticket",
+    //   [Number(assigned_agent_id)],
+    //   {
+    //     ticketId: tickets.id,
+    //     ticketNumber: tickets.ticket_number,
+    //     subject: tickets.subject,
+    //     priority: "Medium",
+    //     customerName:
+    //       tickets.customer_name || tickets.customer_email,
+    //   }
+    // );
+    return updatedTicket;
+  }
+  // Add this new method to the class:
+  // private async triggerNewTicketNotification(
+  //   ticket: any,
+  //   customer: any,
+  //   senderName: string
+  // ): Promise<void> {
+  //   try {
+  //     // Import the notification service
+  //     const notificationService = require("./notificationService").default;
+
+  //     // Get available agents (you can customize this logic)
+  //     const agents = await prisma.users.findMany({
+  //       where: {
+  //         // role: { in: ['AGENT', 'SUPERVISOR', 'ADMIN'] },
+  //         is_active: true,
+  //       },
+  //     });
+
+  //     if (agents.length > 0) {
+  //       await notificationService.notify(
+  //         "new_ticket",
+  //         agents.map((a) => a.id),
+  //         {
+  //           ticketId: tickets.id,
+  //           ticketNumber: ticket.ticket_number,
+  //           subject: ticket.subject,
+  //           priority: ticket.priority,
+  //           customerName:
+  //             senderName || customer?.first_name || ticket.customer_email,
+  //         }
+  //       );
+  //     }
+  //   } catch (error) {
+  //     console.error("❌ Error triggering new ticket notification:", error);
+  //   }
+  // }
   private async saveTicketAttachments(
     ticketId: number,
     attachments: any[]

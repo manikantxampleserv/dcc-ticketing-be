@@ -19,6 +19,7 @@ const GenerateTicket_1 = require("../../utils/GenerateTicket");
 const sendEmailComment_1 = __importDefault(require("../../types/sendEmailComment"));
 const blackbaze_1 = require("../../utils/blackbaze");
 const pagination_1 = require("../../utils/pagination");
+const notification_1 = __importDefault(require("../services/notification"));
 const prisma = new client_1.PrismaClient();
 const serializeTicket = (ticket, includeDates = false) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
@@ -214,7 +215,7 @@ createdAt) => __awaiter(void 0, void 0, void 0, function* () {
 exports.ticketController = {
     createTicket(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
+            var _a, _b, _c;
             try {
                 const { customer_id, assigned_agent_id, category_id, subject, description, priority, status, source, sla_deadline, sla_status, first_response_at, resolved_at, closed_at, is_merged, reopen_count, time_spent_minutes, last_reopened_at, customer_satisfaction_rating, customer_feedback, tags, merged_into_ticket_id, } = req.body;
                 const assigned_by = Number((_a = req === null || req === void 0 ? void 0 : req.user) === null || _a === void 0 ? void 0 : _a.id);
@@ -284,6 +285,14 @@ exports.ticketController = {
                         //     orderBy: { created_at: "desc" },
                         //   },
                     },
+                });
+                yield notification_1.default.notify("new_ticket", [Number(assigned_agent_id)], {
+                    ticketId: ticket.id,
+                    ticketNumber: ticket.ticket_number,
+                    subject: ticket.subject,
+                    priority: "Medium",
+                    customerName: ticket.customer_name ||
+                        ((_b = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _b === void 0 ? void 0 : _b.first_name) + " " + ((_c = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _c === void 0 ? void 0 : _c.last_name),
                 });
                 try {
                     yield generateSLAHistory(ticket.id, priority, ticket.created_at || new Date());
@@ -548,7 +557,7 @@ exports.ticketController = {
     },
     actionsTicket(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
+            var _a, _b, _c;
             const ticketId = Number(req.params.id);
             const userId = Number((_a = req.user) === null || _a === void 0 ? void 0 : _a.id);
             const action = req.body.action;
@@ -676,6 +685,16 @@ exports.ticketController = {
                 ]);
                 // Notify customer via email
                 if (action === "Allocate") {
+                    yield notification_1.default.notify("new_ticket", [Number(updatedTicket === null || updatedTicket === void 0 ? void 0 : updatedTicket.assigned_agent_id)], {
+                        ticketId: updatedTicket.id,
+                        ticketNumber: updatedTicket.ticket_number,
+                        subject: updatedTicket.subject,
+                        priority: "Medium",
+                        customerName: updatedTicket.customer_name ||
+                            ((_b = updatedTicket === null || updatedTicket === void 0 ? void 0 : updatedTicket.customers) === null || _b === void 0 ? void 0 : _b.first_name) +
+                                " " +
+                                ((_c = updatedTicket === null || updatedTicket === void 0 ? void 0 : updatedTicket.customers) === null || _c === void 0 ? void 0 : _c.last_name),
+                    });
                     yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, comment, [
                         agentDetails === null || agentDetails === void 0 ? void 0 : agentDetails.email,
                     ]);

@@ -483,14 +483,62 @@ class SimpleEmailTicketSystem {
             if (attachments && attachments.length > 0) {
                 yield this.saveTicketAttachments(tickets.id, attachments);
             }
-            return yield prisma.tickets.update({
+            const updatedTicket = yield prisma.tickets.update({
                 where: { id: tickets.id },
                 data: {
                     ticket_number: (0, GenerateTicket_1.generateTicketNumber)(tickets.id),
                 },
             });
+            // 🔔 TRIGGER NEW TICKET NOTIFICATION
+            // await notificationService.notify(
+            //   "new_ticket",
+            //   [Number(assigned_agent_id)],
+            //   {
+            //     ticketId: tickets.id,
+            //     ticketNumber: tickets.ticket_number,
+            //     subject: tickets.subject,
+            //     priority: "Medium",
+            //     customerName:
+            //       tickets.customer_name || tickets.customer_email,
+            //   }
+            // );
+            return updatedTicket;
         });
     }
+    // Add this new method to the class:
+    // private async triggerNewTicketNotification(
+    //   ticket: any,
+    //   customer: any,
+    //   senderName: string
+    // ): Promise<void> {
+    //   try {
+    //     // Import the notification service
+    //     const notificationService = require("./notificationService").default;
+    //     // Get available agents (you can customize this logic)
+    //     const agents = await prisma.users.findMany({
+    //       where: {
+    //         // role: { in: ['AGENT', 'SUPERVISOR', 'ADMIN'] },
+    //         is_active: true,
+    //       },
+    //     });
+    //     if (agents.length > 0) {
+    //       await notificationService.notify(
+    //         "new_ticket",
+    //         agents.map((a) => a.id),
+    //         {
+    //           ticketId: tickets.id,
+    //           ticketNumber: ticket.ticket_number,
+    //           subject: ticket.subject,
+    //           priority: ticket.priority,
+    //           customerName:
+    //             senderName || customer?.first_name || ticket.customer_email,
+    //         }
+    //       );
+    //     }
+    //   } catch (error) {
+    //     console.error("❌ Error triggering new ticket notification:", error);
+    //   }
+    // }
     saveTicketAttachments(ticketId, attachments) {
         return __awaiter(this, void 0, void 0, function* () {
             try {

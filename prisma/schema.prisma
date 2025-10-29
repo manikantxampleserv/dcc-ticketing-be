@@ -8,40 +8,42 @@ datasource db {
 }
 
 model users {
-  id                                       Int                  @id @default(autoincrement())
-  username                                 String               @unique @db.NVarChar(100)
-  email                                    String               @unique @db.NVarChar(255)
-  password_hash                            String               @db.NVarChar(255)
-  first_name                               String               @db.NVarChar(100)
-  last_name                                String               @db.NVarChar(100)
-  phone                                    String?              @db.NVarChar(50)
-  avatar                                   String?              @db.NVarChar(500)
-  is_active                                Boolean?             @default(true)
+  id                                       Int                     @id @default(autoincrement())
+  username                                 String                  @unique @db.NVarChar(100)
+  email                                    String                  @unique @db.NVarChar(255)
+  password_hash                            String                  @db.NVarChar(255)
+  first_name                               String                  @db.NVarChar(100)
+  last_name                                String                  @db.NVarChar(100)
+  phone                                    String?                 @db.NVarChar(50)
+  avatar                                   String?                 @db.NVarChar(500)
+  is_active                                Boolean?                @default(true)
   last_login_at                            DateTime?
-  created_at                               DateTime?            @default(now(), map: "DF__Users__CreatedAt__00DF2177")
-  updated_at                               DateTime?            @default(now(), map: "DF__Users__UpdatedAt__01D345B0")
+  created_at                               DateTime?               @default(now(), map: "DF__Users__CreatedAt__00DF2177")
+  updated_at                               DateTime?               @default(now(), map: "DF__Users__UpdatedAt__01D345B0")
   created_by                               Int?
   role_id                                  Int
   department_id                            Int
   agents                                   agents[]
-  ticket_cc_createdBy                      cc_of_ticket[]       @relation("TicketCCCreater")
-  user_of_ticket_cc                        cc_of_ticket[]       @relation("TicketCCUser")
-  ticket_allocations_allocated_by_to_users ticket_allocations[] @relation("TicketAllocations_AllocatedByToUsers")
-  ticket_allocations_from_user_id_to_users ticket_allocations[] @relation("TicketAllocations_FromUserIDToUsers")
-  ticket_allocations_to_user_id_to_users   ticket_allocations[] @relation("TicketAllocations_ToUserIDToUsers")
+  ticket_cc_createdBy                      cc_of_ticket[]          @relation("TicketCCCreater")
+  user_of_ticket_cc                        cc_of_ticket[]          @relation("TicketCCUser")
+  ticket_allocations_allocated_by_to_users ticket_allocations[]    @relation("TicketAllocations_AllocatedByToUsers")
+  ticket_allocations_from_user_id_to_users ticket_allocations[]    @relation("TicketAllocations_FromUserIDToUsers")
+  ticket_allocations_to_user_id_to_users   ticket_allocations[]    @relation("TicketAllocations_ToUserIDToUsers")
   ticket_attachments                       ticket_attachments[]
   ticket_comment_users                     ticket_comments[]
   ticket_merges                            ticket_merges[]
   ticket_reopens                           ticket_reopens[]
-  agents_user                              tickets[]            @relation("TicketAgent")
-  tickets                                  tickets[]            @relation("TicketAssignee")
-  user_permissions_granted_by_to_users     user_permissions[]   @relation("UserPermissions_GrantedByToUsers")
-  user_permissions_user_id_to_users        user_permissions[]   @relation("UserPermissions_UserIDToUsers")
+  agents_user                              tickets[]               @relation("TicketAgent")
+  tickets                                  tickets[]               @relation("TicketAssignee")
+  user_permissions_granted_by_to_users     user_permissions[]      @relation("UserPermissions_GrantedByToUsers")
+  user_permissions_user_id_to_users        user_permissions[]      @relation("UserPermissions_UserIDToUsers")
   user_sessions                            user_sessions[]
-  users                                    users?               @relation("UsersToUsers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  other_users                              users[]              @relation("UsersToUsers")
-  user_department                          department           @relation(fields: [department_id], references: [id], onUpdate: NoAction)
-  user_role                                role                 @relation(fields: [role_id], references: [id], onUpdate: NoAction)
+  user_notification_setting                notification_settings[]
+  user_notification                        notifications[]
+  users                                    users?                  @relation("UsersToUsers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_users                              users[]                 @relation("UsersToUsers")
+  user_department                          department              @relation(fields: [department_id], references: [id], onUpdate: NoAction)
+  user_role                                role                    @relation(fields: [role_id], references: [id], onUpdate: NoAction)
 
   @@index([email])
   @@index([is_active])
@@ -113,7 +115,6 @@ model agents {
   agent_department         department?                @relation(fields: [department], references: [id], onDelete: NoAction, onUpdate: NoAction)
   agent_role               role                       @relation(fields: [role], references: [id], onUpdate: NoAction)
   users                    users?                     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  notification_settings    notification_settings[]
   support_ticket_responses support_ticket_responses[]
   ticket_history           ticket_history[]
   tickets                  tickets[]
@@ -152,7 +153,23 @@ model notification_settings {
   warning_threshold_percent Int?      @default(80)
   created_at                DateTime? @default(now(), map: "DF__Notificat__Creat__6EF57B66")
   updated_at                DateTime? @default(now(), map: "DF__Notificat__Updat__6FE99F9F")
-  agents                    agents    @relation(fields: [agent_id], references: [id], onUpdate: NoAction)
+  user_notification_setting users     @relation(fields: [agent_id], references: [id], onUpdate: NoAction)
+}
+
+model notifications {
+  id                Int      @id @default(autoincrement())
+  user_id           Int
+  type              String // 'new_ticket', 'sla_warning', 'escalation', etc.
+  title             String
+  message           String   @db.Text
+  ticket_id         Int?
+  read              Boolean  @default(false)
+  sent_via          String? // 'email', 'in_app'
+  created_at        DateTime @default(now())
+  user_notification users    @relation(fields: [user_id], references: [id])
+
+  @@index([read])
+  @@index([created_at])
 }
 
 model companies {

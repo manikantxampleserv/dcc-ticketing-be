@@ -235,9 +235,20 @@ function getProfile(req, res) {
                 res.status(401).json({ error: "Account is deactivated" });
                 return;
             }
+            const totals = yield prisma_config_1.default.tickets.count({
+                where: { OR: [{ assigned_agent_id: userId }, { assigned_by: userId }] },
+            });
+            const ActiveTotals = yield prisma_config_1.default.tickets.count({
+                where: {
+                    OR: [{ assigned_agent_id: userId }, { assigned_by: userId }],
+                    status: {
+                        in: ["Open", "In Progress"],
+                    },
+                },
+            });
             res.json({
                 message: "Profile retrieved successfully",
-                user,
+                user: Object.assign(Object.assign({}, user), { total_tickets: totals, active_tickets: ActiveTotals }),
             });
         }
         catch (error) {
