@@ -5,6 +5,7 @@ import express, { Application } from "express";
 import routes from "./routes";
 import { responseHandler } from "./middlewares/responseHandler";
 import { BusinessHoursAwareSLAMonitoringService } from "./utils/SLAMonitoringService";
+import { corsDebugger } from "./middlewares/debuger";
 
 export const createApp = (): Application => {
   // Create Express application
@@ -18,17 +19,45 @@ export const createApp = (): Application => {
   app.use(cookieParser());
 
   // Enable CORS
+  // ✅ FIXED: Better CORS configuration
+  const allowedOrigins = [
+    "https://ticketing.dcctz.com",
+    "https://ticketing_live.dcctz.com",
+    "http://192.168.29.127:3000",
+    "http://localhost:5174",
+    "http://localhost:5173",
+    "http://localhost:5175",
+  ];
+
+  // CORS configuration
   app.use(
     cors({
-      origin: [
-        "https://ticketing.dcctz.com",
-        "https://ticketing_live.dcctz.com",
-        "http://192.168.29.127:3000",
-        "http://localhost:5174",
-        "http://localhost:5173",
-        "http://localhost:5175",
-      ],
+      origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, Postman, etc.)
+        if (!origin) return callback(null, true);
+
+        // In production, only allow HTTPS origins
+        if (
+          process.env.NODE_ENV === "production" &&
+          !origin.startsWith("https://")
+        ) {
+          return callback(
+            new Error("Only HTTPS origins allowed in production")
+          );
+        }
+
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          console.warn(`❌ CORS blocked origin: ${origin}`);
+          callback(new Error("Not allowed by CORS"));
+        }
+      },
       credentials: true,
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+      exposedHeaders: ["Content-Range", "X-Content-Range"],
+      maxAge: 86400, // 24 hours
     })
   );
 
@@ -37,6 +66,7 @@ export const createApp = (): Application => {
 
   // Start Business Hours SLA Monitoring
   BusinessHoursAwareSLAMonitoringService.startMonitoring();
+  app.use(corsDebugger);
 
   // Mount API routes
   app.use("/api", routes);
@@ -44,9 +74,9 @@ export const createApp = (): Application => {
   return app;
 };
 
-// /**
-//  * Express application configuration.
-//  * Sets up middleware, routes, and application-level configurations.
+/**
+ * Express application configuration.
+ * Sets up middleware, routes, and application-level configurations.
 //  */
 // import { Server as SocketIOServer } from "socket.io";
 // import { createServer } from "http";
