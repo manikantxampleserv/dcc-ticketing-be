@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { paginate } from "../../utils/pagination";
 
@@ -23,7 +23,7 @@ const serializeNotificationSetting = (
 });
 
 export const notificationSettingController = {
-  async createNotificationSetting(req: Request, res: Response): Promise<void> {
+  async createNotificationSetting(req: any, res: Response): Promise<void> {
     try {
       const {
         id,
@@ -89,7 +89,7 @@ export const notificationSettingController = {
     }
   },
 
-  async getNotificationSettingById(req: Request, res: Response): Promise<void> {
+  async getNotificationSettingById(req: any, res: Response): Promise<void> {
     try {
       const id = Number(req.params.id);
       const NotificationSetting = await prisma.notification_settings.findUnique(
@@ -116,7 +116,7 @@ export const notificationSettingController = {
     }
   },
 
-  // async updateNotificationSetting(req: Request, res: Response): Promise<void> {
+  // async updateNotificationSetting(req: any, res: Response): Promise<void> {
   //   try {
   //     const { created_at, updated_at, ...NotificationSettingData } = req.body;
 
@@ -140,7 +140,7 @@ export const notificationSettingController = {
   //   }
   // },
 
-  async updateNotificationSetting(req: Request, res: Response): Promise<void> {
+  async updateNotificationSetting(req: any, res: Response): Promise<void> {
     try {
       const { id, created_at, updated_at, ...NotificationSettingData } =
         req.body;
@@ -167,7 +167,7 @@ export const notificationSettingController = {
     }
   },
 
-  async deleteNotificationSetting(req: Request, res: Response): Promise<void> {
+  async deleteNotificationSetting(req: any, res: Response): Promise<void> {
     try {
       await prisma.notification_settings.delete({
         where: { id: Number(req.params.id) },
@@ -179,7 +179,7 @@ export const notificationSettingController = {
       res.error(error.message);
     }
   },
-  async upsertNotificationSetting(req: Request, res: Response): Promise<void> {
+  async upsertNotificationSetting(req: any, res: Response): Promise<void> {
     try {
       const {
         id,
@@ -232,7 +232,7 @@ export const notificationSettingController = {
     }
   },
 
-  async getAllNotificationSetting(req: Request, res: Response): Promise<void> {
+  async getAllNotificationSetting(req: any, res: Response): Promise<void> {
     try {
       // const { page = "1", limit = "10", search = "" } = req.query;
       console.log("agent_id ???????????????", req.user?.id);

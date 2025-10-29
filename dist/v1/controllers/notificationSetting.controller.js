@@ -102,7 +102,7 @@ exports.notificationSettingController = {
             }
         });
     },
-    // async updateNotificationSetting(req: Request, res: Response): Promise<void> {
+    // async updateNotificationSetting(req: any, res: Response): Promise<void> {
     //   try {
     //     const { created_at, updated_at, ...NotificationSettingData } = req.body;
     //     const NotificationSetting = await prisma.notification_settings.update({
