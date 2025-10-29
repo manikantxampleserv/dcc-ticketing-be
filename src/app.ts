@@ -19,45 +19,17 @@ export const createApp = (): Application => {
   app.use(cookieParser());
 
   // Enable CORS
-  // ✅ FIXED: Better CORS configuration
-  const allowedOrigins = [
-    "https://ticketing.dcctz.com",
-    "https://ticketing_live.dcctz.com",
-    "http://192.168.29.127:3000",
-    "http://localhost:5174",
-    "http://localhost:5173",
-    "http://localhost:5175",
-  ];
-
-  // CORS configuration
   app.use(
     cors({
-      origin: (origin, callback) => {
-        // Allow requests with no origin (mobile apps, Postman, etc.)
-        if (!origin) return callback(null, true);
-
-        // In production, only allow HTTPS origins
-        if (
-          process.env.NODE_ENV === "production" &&
-          !origin.startsWith("https://")
-        ) {
-          return callback(
-            new Error("Only HTTPS origins allowed in production")
-          );
-        }
-
-        if (allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          console.warn(`❌ CORS blocked origin: ${origin}`);
-          callback(new Error("Not allowed by CORS"));
-        }
-      },
+      origin: [
+        "https://ticketing.dcctz.com",
+        "https://ticketing_live.dcctz.com",
+        "http://192.168.29.127:3000",
+        "http://localhost:5174",
+        "http://localhost:5173",
+        "http://localhost:5175",
+      ],
       credentials: true,
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-      exposedHeaders: ["Content-Range", "X-Content-Range"],
-      maxAge: 86400, // 24 hours
     })
   );
 
