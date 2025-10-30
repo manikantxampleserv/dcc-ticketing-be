@@ -12,7 +12,7 @@ router.get("/notifications/user/:userId/unread-count", auth_1.authenticateToken,
 exports.default = router;
 // import express from "express";
 // import { PrismaClient } from "@prisma/client";
-// import notificationService from "../services/notification";
+// import notificationService from "../services/notification.js";
 // const router = express.Router();
 // const prisma = new PrismaClient();
 // // Get user notifications

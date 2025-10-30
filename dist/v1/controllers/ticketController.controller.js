@@ -19,7 +19,7 @@ const GenerateTicket_1 = require("../../utils/GenerateTicket");
 const sendEmailComment_1 = __importDefault(require("../../types/sendEmailComment"));
 const blackbaze_1 = require("../../utils/blackbaze");
 const pagination_1 = require("../../utils/pagination");
-// import notificationService from "../services/notification";
+// import notificationService from "../services/notification.js";
 const prisma = new client_1.PrismaClient();
 const serializeTicket = (ticket, includeDates = false) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;

@@ -4,7 +4,7 @@ const auth_1 = require("../../middlewares/auth");
 const customer_controller_1 = require("../controllers/customer.controller");
 const express_1 = require("express");
 const validate_1 = require("../../middlewares/validate");
-const customer_validator_1 = require("../../v1/validators/customer.validator");
+const customer_validator_1 = require("../validators/customer.validator");
 const router = (0, express_1.Router)();
 router.post("/customers", auth_1.authenticateToken, customer_validator_1.createCustomerValidation, validate_1.validate, customer_controller_1.customerController.createCustomer);
 router.get("/customers/:id", auth_1.authenticateToken, customer_controller_1.customerController.getCustomerById);

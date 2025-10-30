@@ -60,7 +60,7 @@ class NotificationService {
                 for (const user of eligibleUsers) {
                     const notification = yield this.createNotification(user.id, type, data);
                     // Send via Socket.IO
-                    this.sendSocketNotification(user.id, notification);
+                    // this.sendSocketNotification(user.id, notification);
                     // Send email
                     if ((_b = (_a = user.user_notification_setting) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.email_notifications) {
                         this.sendEmail(user, type, data);
@@ -94,21 +94,23 @@ class NotificationService {
     /**
      * Send via Socket.IO
      */
-    sendSocketNotification(userId, notification) {
-        if (!this.io)
-            return;
-        this.io.to(`user_${userId}`).emit("notification", {
-            id: notification.id,
-            type: notification.type,
-            title: notification.title,
-            message: notification.message,
-            ticket_id: notification.ticket_id,
-            created_at: notification.created_at,
-        });
-        const room_clients = this.io.sockets.adapter.rooms.get(`user_${userId}`);
-        console.log(`👥 Clients in room user_${userId}:`, room_clients ? room_clients.size : 0);
-        console.log(`📱 Socket notification sent to user ${userId}`);
-    }
+    // private sendSocketNotification(userId: number, notification: any) {
+    //   if (!this.io) return;
+    //   this.io.to(`user_${userId}`).emit("notification", {
+    //     id: notification.id,
+    //     type: notification.type,
+    //     title: notification.title,
+    //     message: notification.message,
+    //     ticket_id: notification.ticket_id,
+    //     created_at: notification.created_at,
+    //   });
+    //   const room_clients = this.io.sockets.adapter.rooms.get(`user_${userId}`);
+    //   console.log(
+    //     `👥 Clients in room user_${userId}:`,
+    //     room_clients ? room_clients.size : 0
+    //   );
+    //   console.log(`📱 Socket notification sent to user ${userId}`);
+    // }
     /**
      * Send email
      */

@@ -1,12 +1,7 @@
 {
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "target": "es6",
-    "module": "commonjs",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "baseUrl": "./dist",
+    "baseUrl": "./src",
     "paths": {
       "middlewares/*": ["middlewares/*"],
       "config/*": ["config/*"],
@@ -21,4 +16,3 @@
     }
   }
 }
- 

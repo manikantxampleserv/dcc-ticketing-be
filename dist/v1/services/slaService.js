@@ -1,7 +1,7 @@
 "use strict";
 // // services/slaService.ts
 // import { PrismaClient } from "@prisma/client";
-// import notificationService from "./notification";
+// import notificationService from "./notification.js";
 // const prisma = new PrismaClient();
 // export enum SLAType {
 //   FIRST_RESPONSE = "first_response",

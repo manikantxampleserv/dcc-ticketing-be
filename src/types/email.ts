@@ -6,7 +6,6 @@ import { PrismaClient } from "@prisma/client";
 import * as dotenv from "dotenv";
 import { generateTicketNumber } from "../utils/GenerateTicket";
 import { uploadFile } from "../utils/blackbaze";
-import notificationService from "../v1/services/notification";
 
 dotenv.config();
 

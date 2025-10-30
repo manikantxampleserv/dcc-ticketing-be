@@ -2,12 +2,12 @@
 // // server.ts
 // import { createServer } from "http";
 // import { Server as SocketIOServer } from "socket.io";
-// import { createApp } from "./app";
-// import logger from "./config/logger";
+// import { createApp } from "./app.js";
+// import logger from "./config/logger.js";
 // import dotenv from "dotenv";
-// import slaMonitor from "./types/slaMonitorService";
-// import { SimpleEmailTicketSystem } from "./types/email";
-// import notificationService from "./v1/services/notification";
+// import slaMonitor from "./types/slaMonitorService.js";
+// import { SimpleEmailTicketSystem } from "./types/email.js";
+// import notificationService from "./v1/services/notification.js";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -146,12 +146,12 @@ exports.startServer = void 0;
 // // server.ts
 // import { createServer } from "http";
 // import { Server as SocketIOServer } from "socket.io";
-// import { createApp } from "./app";
-// import logger from "./config/logger";
+// import { createApp } from "./app.js";
+// import logger from "./config/logger.js";
 // import dotenv from "dotenv";
-// import slaMonitor from "./types/slaMonitorService";
-// import { SimpleEmailTicketSystem } from "./types/email";
-// import notificationService from "./v1/services/notification";
+// import slaMonitor from "./types/slaMonitorService.js";
+// import { SimpleEmailTicketSystem } from "./types/email.js";
+// import notificationService from "./v1/services/notification.js";
 // dotenv.config({ quiet: true });
 // export const startServer = async () => {
 //   try {
@@ -239,8 +239,8 @@ const app_1 = require("./app");
 const logger_1 = __importDefault(require("./config/logger"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config({ quiet: true });
-// import slaMonitor from "../src/types/slaMonitorService";
-const email_2 = require("../src/types/email");
+const slaMonitorService_1 = __importDefault(require("./types/slaMonitorService"));
+const email_2 = require("./types/email");
 const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const app = (0, app_1.createApp)();
@@ -251,12 +251,12 @@ const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
                 // Start services
                 const emailSystem = new email_2.SimpleEmailTicketSystem();
                 emailSystem.start().then(() => console.log("📧 Email system started"));
-                // slaMonitor.start(5); // Check every 5 minutes
+                slaMonitorService_1.default.start(5); // Check every 5 minutes
                 // Graceful shutdown
                 process.on("SIGINT", () => {
                     console.log("\n🔄 Shutting down...");
                     emailSystem.stop();
-                    // slaMonitor.stop();
+                    slaMonitorService_1.default.stop();
                     process.exit(0);
                 });
                 logger_1.default.info("Starting email ticket system...");

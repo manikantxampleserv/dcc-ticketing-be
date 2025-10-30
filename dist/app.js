@@ -51,10 +51,10 @@ exports.createApp = createApp;
 // import cookieParser from "cookie-parser";
 // import cors from "cors";
 // import express, { Application } from "express";
-// import routes from "./routes";
-// import { responseHandler } from "./middlewares/responseHandler";
-// import { BusinessHoursAwareSLAMonitoringService } from "./utils/SLAMonitoringService";
-// import notificationService from "./v1/services/notification";
+// import routes from "./routes/index.js";
+// import { responseHandler } from "./middlewares/responseHandler.js";
+// import { BusinessHoursAwareSLAMonitoringService } from "./utils/SLAMonitoringService.js";
+// import notificationService from "./v1/services/notification.js";
 // // Create an Express application
 // const app = express();
 // export const createApp = (): Application => {

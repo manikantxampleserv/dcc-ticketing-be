@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon --exec ts-node -r tsconfig-paths/register src/index.ts",
-    "build": "tsc",
-    "serve": "cross-env TS_NODE_BASEURL=./dist node -r tsconfig-paths/register dist/index.js",
+    "build": "tsc && resolve-tspaths --project tsconfig.prod.json",
+    "serve": "node dist/index.js",
     "seed-create": "ts-node prisma/seed.create.ts",
     "seed-clean": "ts-node prisma/seed.clean.ts",
     "seed": "ts-node prisma/seed.clean.ts && ts-node prisma/seed.create.ts"
@@ -31,6 +31,7 @@
     "cross-env": "^7.0.3",
     "express": "^5.1.0",
     "prisma": "^6.13.0",
+    "resolve-tspaths": "^0.8.23",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3"
@@ -61,3 +62,7 @@
     "winston": "^3.17.0"
   }
 }
+
+
+
+ 

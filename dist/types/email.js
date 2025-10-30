@@ -682,8 +682,8 @@ function main() {
 // import { simpleParser } from "mailparser";
 // import { PrismaClient } from "@prisma/client";
 // import * as dotenv from "dotenv";
-// import { generateTicketNumber } from "../utils/GenerateTicket";
-// import { uploadFile } from "../utils/blackbaze";
+// import { generateTicketNumber } from "../utils/GenerateTicket.js";
+// import { uploadFile } from "../utils/blackbaze.js";
 // dotenv.config();
 // // TypeScript Interfaces
 // interface EmailConfig {
