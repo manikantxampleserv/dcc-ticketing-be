@@ -23,7 +23,9 @@ const pagination_1 = require("../../utils/pagination");
 const prisma = new client_1.PrismaClient();
 const serializeTicket = (ticket, includeDates = false) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
-    return (Object.assign(Object.assign({ id: Number(ticket.id), ticket_number: ticket.ticket_number, customer_id: ticket.customer_id, customer_name: ticket.customer_name, customer_email: ticket.customer_email, assigned_agent_id: ticket.assigned_agent_id, category_id: ticket.category_id, subject: ticket.subject, description: ticket.description, priority: ticket.priority, status: ticket.status, source: ticket.source, sla_deadline: ticket.sla_deadline, sla_status: ticket.sla_status, first_response_at: ticket.first_response_at, resolved_at: ticket.resolved_at, closed_at: ticket.closed_at, assigned_by: ticket.assigned_by, is_merged: ticket.is_merged, reopen_count: ticket.reopen_count, time_spent_minutes: ticket.time_spent_minutes, last_reopened_at: ticket.last_reopened_at, customer_satisfaction_rating: ticket.customer_satisfaction_rating, customer_feedback: ticket.customer_feedback, tags: ticket.tags, email_thread_id: ticket.email_thread_id, original_email_message_id: ticket.original_email_message_id, merged_into_ticket_id: ticket.merged_into_ticket_id, attachment_urls: (ticket === null || ticket === void 0 ? void 0 : ticket.attachment_urls) || "", ticket_attachments: ticket.ticket_attachments
+    return (Object.assign(Object.assign({ id: Number(ticket.id), ticket_number: ticket.ticket_number, customer_id: ticket.customer_id, customer_name: ticket.customer_name, customer_email: ticket.customer_email, assigned_agent_id: ticket.assigned_agent_id, category_id: ticket.category_id, subject: ticket.subject, 
+        // description: ticket.description,
+        priority: ticket.priority, status: ticket.status, source: ticket.source, sla_deadline: ticket.sla_deadline, sla_status: ticket.sla_status, first_response_at: ticket.first_response_at, resolved_at: ticket.resolved_at, closed_at: ticket.closed_at, assigned_by: ticket.assigned_by, is_merged: ticket.is_merged, reopen_count: ticket.reopen_count, time_spent_minutes: ticket.time_spent_minutes, last_reopened_at: ticket.last_reopened_at, customer_satisfaction_rating: ticket.customer_satisfaction_rating, customer_feedback: ticket.customer_feedback, tags: ticket.tags, email_thread_id: ticket.email_thread_id, original_email_message_id: ticket.original_email_message_id, merged_into_ticket_id: ticket.merged_into_ticket_id, attachment_urls: (ticket === null || ticket === void 0 ? void 0 : ticket.attachment_urls) || "", ticket_attachments: ticket.ticket_attachments
             ? ticket.ticket_attachments.map((att) => ({
                 id: att.id,
                 ticket_id: att.ticket_id,
@@ -1059,12 +1061,12 @@ exports.ticketController = {
                                 // mode: "insensitive",
                             },
                         },
-                        {
-                            description: {
-                                contains: searchTerm,
-                                // mode: "insensitive",
-                            },
-                        },
+                        // {
+                        //   description: {
+                        //     contains: searchTerm,
+                        //     // mode: "insensitive",
+                        //   },
+                        // },
                         {
                             sla_priority: {
                                 priority: {
@@ -1138,15 +1140,131 @@ exports.ticketController = {
                     page: page_num,
                     limit: limit_num,
                     orderBy: { created_at: "desc" },
-                    include: {
-                        users: true,
-                        tickets: true,
+                    select: {
+                        // All scalar fields
+                        id: true,
+                        ticket_number: true,
+                        customer_id: true,
+                        customer_name: true,
+                        customer_email: true,
+                        assigned_agent_id: true,
+                        category_id: true,
+                        subject: true,
+                        // description: false,  // Explicitly excluded
+                        priority: true,
+                        status: true,
+                        source: true,
+                        sla_deadline: true,
+                        sla_status: true,
+                        first_response_at: true,
+                        resolved_at: true,
+                        closed_at: true,
+                        assigned_by: true,
+                        is_merged: true,
+                        reopen_count: true,
+                        time_spent_minutes: true,
+                        last_reopened_at: true,
+                        customer_satisfaction_rating: true,
+                        customer_feedback: true,
+                        tags: true,
+                        email_thread_id: true,
+                        original_email_message_id: true,
+                        merged_into_ticket_id: true,
+                        attachment_urls: true,
+                        start_timer_at: true,
+                        created_at: true,
+                        updated_at: true,
+                        // Relations with nested select
+                        users: {
+                            select: {
+                                id: true,
+                                first_name: true,
+                                last_name: true,
+                                username: true,
+                                avatar: true,
+                                email: true,
+                            },
+                        },
+                        tickets: true, // parent_ticket
+                        other_tickets: true, // child_tickets
                         categories: true,
-                        other_tickets: true,
-                        customers: true,
-                        agents_user: true,
                         ticket_sla_history: true,
-                        sla_priority: true,
+                        customers: {
+                            select: {
+                                id: true,
+                                company_id: true,
+                                first_name: true,
+                                last_name: true,
+                                email: true,
+                                phone: true,
+                                companies: {
+                                    select: {
+                                        id: true,
+                                        company_name: true,
+                                    },
+                                },
+                            },
+                        },
+                        agents_user: {
+                            select: {
+                                id: true,
+                                avatar: true,
+                                first_name: true,
+                                last_name: true,
+                                username: true,
+                                email: true,
+                            },
+                        },
+                        sla_priority: {
+                            select: {
+                                id: true,
+                                priority: true,
+                                response_time_hours: true,
+                                resolution_time_hours: true,
+                            },
+                        },
+                        ticket_attachments: {
+                            select: {
+                                id: true,
+                                ticket_id: true,
+                                response_id: true,
+                                file_name: true,
+                                original_file_name: true,
+                                file_path: true,
+                                file_size: true,
+                                content_type: true,
+                                file_hash: true,
+                                uploaded_by: true,
+                                uploaded_by_type: true,
+                                is_public: true,
+                                virus_scanned: true,
+                                scan_result: true,
+                                created_at: true,
+                                users: {
+                                    select: {
+                                        id: true,
+                                        first_name: true,
+                                        last_name: true,
+                                        email: true,
+                                    },
+                                },
+                            },
+                        },
+                        ticket_comments: true,
+                        cc_of_ticket: {
+                            select: {
+                                user_of_ticket_cc: {
+                                    select: {
+                                        id: true,
+                                        first_name: true,
+                                        last_name: true,
+                                        email: true,
+                                        phone: true,
+                                        avatar: true,
+                                    },
+                                },
+                            },
+                        },
                     },
                 });
                 res.success("Tickets fetched successfully", data.map((ticket) => serializeTicket(ticket, true)), 200, pagination);
