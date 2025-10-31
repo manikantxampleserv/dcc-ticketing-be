@@ -38,7 +38,6 @@ export const createApp = (): Application => {
 
   // Start Business Hours SLA Monitoring
   BusinessHoursAwareSLAMonitoringService.startMonitoring();
-  app.use(corsDebugger);
 
   // Mount API routes
   app.use("/api", routes);

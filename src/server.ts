@@ -280,19 +280,19 @@ export const startServer = async () => {
       logger.success(`Server running at http://localhost:${port}`);
 
       try {
-        // Start services
-        const emailSystem = new SimpleEmailTicketSystem();
-        emailSystem.start().then(() => console.log("📧 Email system started"));
+        // // Start services
+        // const emailSystem = new SimpleEmailTicketSystem();
+        // emailSystem.start().then(() => console.log("📧 Email system started"));
 
         slaMonitor.start(5); // Check every 5 minutes
 
-        // Graceful shutdown
-        process.on("SIGINT", () => {
-          console.log("\n🔄 Shutting down...");
-          emailSystem.stop();
-          slaMonitor.stop();
-          process.exit(0);
-        });
+        // // Graceful shutdown
+        // process.on("SIGINT", () => {
+        //   console.log("\n🔄 Shutting down...");
+        //   emailSystem.stop();
+        //   slaMonitor.stop();
+        //   process.exit(0);
+        // });
         logger.info("Starting email ticket system...");
         await main();
         logger.success("Email ticket system started successfully");

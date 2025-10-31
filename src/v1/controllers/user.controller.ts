@@ -116,15 +116,16 @@ export async function createUser(req: Request, res: Response): Promise<void> {
     const {
       username,
       email,
-      password,
+      password_hash,
       first_name,
       last_name,
       role_id,
       department_id,
       phone,
-      created_by,
     } = req.body;
 
+    const created_by = req.user ? Number(req.user.id) : null;
+    console.log("Creating user by:", created_by, req.body, req.file);
     let avatarUrl = null;
     if (req.file) {
       const fileName = `avatars/${Date.now()}_${req.file.originalname}`;
@@ -149,7 +150,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const hashed_password = await bcrypt.hash(password, 10);
+    const hashed_password = await bcrypt.hash(password_hash, 10);
 
     const user = await prisma.users.create({
       data: {

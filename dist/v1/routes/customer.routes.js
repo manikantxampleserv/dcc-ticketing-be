@@ -11,4 +11,5 @@ router.get("/customers/:id", auth_1.authenticateToken, customer_controller_1.cus
 router.get("/customers", auth_1.authenticateToken, customer_controller_1.customerController.getAllCustomer);
 router.put("/customers/:id", auth_1.authenticateToken, customer_validator_1.updateCustomerValidation, validate_1.validate, customer_controller_1.customerController.updateCustomer);
 router.delete("/customers/:id", auth_1.authenticateToken, validate_1.validate, customer_controller_1.customerController.deleteCustomer);
+router.delete("/customers", auth_1.authenticateToken, validate_1.validate, customer_controller_1.customerController.deleteCustomer);
 exports.default = router;

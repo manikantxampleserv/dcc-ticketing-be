@@ -23,9 +23,7 @@ const pagination_1 = require("../../utils/pagination");
 const prisma = new client_1.PrismaClient();
 const serializeTicket = (ticket, includeDates = false) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
-    return (Object.assign(Object.assign({ id: Number(ticket.id), ticket_number: ticket.ticket_number, customer_id: ticket.customer_id, customer_name: ticket.customer_name, customer_email: ticket.customer_email, assigned_agent_id: ticket.assigned_agent_id, category_id: ticket.category_id, subject: ticket.subject, 
-        // description: ticket.description,
-        priority: ticket.priority, status: ticket.status, source: ticket.source, sla_deadline: ticket.sla_deadline, sla_status: ticket.sla_status, first_response_at: ticket.first_response_at, resolved_at: ticket.resolved_at, closed_at: ticket.closed_at, assigned_by: ticket.assigned_by, is_merged: ticket.is_merged, reopen_count: ticket.reopen_count, time_spent_minutes: ticket.time_spent_minutes, last_reopened_at: ticket.last_reopened_at, customer_satisfaction_rating: ticket.customer_satisfaction_rating, customer_feedback: ticket.customer_feedback, tags: ticket.tags, email_thread_id: ticket.email_thread_id, original_email_message_id: ticket.original_email_message_id, merged_into_ticket_id: ticket.merged_into_ticket_id, attachment_urls: (ticket === null || ticket === void 0 ? void 0 : ticket.attachment_urls) || "", ticket_attachments: ticket.ticket_attachments
+    return (Object.assign(Object.assign({ id: Number(ticket.id), ticket_number: ticket.ticket_number, customer_id: ticket.customer_id, customer_name: ticket.customer_name, customer_email: ticket.customer_email, assigned_agent_id: ticket.assigned_agent_id, category_id: ticket.category_id, subject: ticket.subject, description: ticket.description, priority: ticket.priority, status: ticket.status, source: ticket.source, sla_deadline: ticket.sla_deadline, sla_status: ticket.sla_status, first_response_at: ticket.first_response_at, resolved_at: ticket.resolved_at, closed_at: ticket.closed_at, assigned_by: ticket.assigned_by, is_merged: ticket.is_merged, reopen_count: ticket.reopen_count, time_spent_minutes: ticket.time_spent_minutes, last_reopened_at: ticket.last_reopened_at, customer_satisfaction_rating: ticket.customer_satisfaction_rating, customer_feedback: ticket.customer_feedback, tags: ticket.tags, email_thread_id: ticket.email_thread_id, original_email_message_id: ticket.original_email_message_id, merged_into_ticket_id: ticket.merged_into_ticket_id, attachment_urls: (ticket === null || ticket === void 0 ? void 0 : ticket.attachment_urls) || "", ticket_attachments: ticket.ticket_attachments
             ? ticket.ticket_attachments.map((att) => ({
                 id: att.id,
                 ticket_id: att.ticket_id,
@@ -625,7 +623,7 @@ exports.ticketController = {
             let commentText = "Ticket updated.";
             let message = "Ticket updated.";
             if (action === "ReOpen") {
-                commentText = `Ticket reopened. Reason: ${reason}`;
+                commentText = `Ticket reopened. ${reason ? "Reason: " + reason : ""}`;
                 message = `Ticket reopened successfully. `;
                 dataToUpdate.status = "Open";
                 dataToUpdate.reopen_count = (existing.reopen_count || 0) + 1;
@@ -645,13 +643,13 @@ exports.ticketController = {
                     return;
                 }
                 message = `Ticket allocated to agent  ${(existingAgent === null || existingAgent === void 0 ? void 0 : existingAgent.first_name) + " " + (existingAgent === null || existingAgent === void 0 ? void 0 : existingAgent.last_name)} successfully `;
-                commentText = `Ticket allocated to agent  ${(existingAgent === null || existingAgent === void 0 ? void 0 : existingAgent.first_name) + " " + (existingAgent === null || existingAgent === void 0 ? void 0 : existingAgent.last_name)}. Reason: ${reason}`;
+                commentText = `Ticket allocated to agent  <strong>${(existingAgent === null || existingAgent === void 0 ? void 0 : existingAgent.first_name) + " " + (existingAgent === null || existingAgent === void 0 ? void 0 : existingAgent.last_name)}</strong>.${reason ? "Reason: " + reason : ""}`;
                 dataToUpdate.status = dataToUpdate.status || "In Progress";
                 dataToUpdate.assigned_by = userId;
             }
             else if (action === "Merge") {
                 const parentId = Number(req.body.merged_into_ticket_id);
-                commentText = `Ticket merged into parent ticket number ${existing.ticket_number}, subject: "${existing.subject}"`;
+                commentText = `Ticket merged into parent ticket number  <strong>${existing.ticket_number} </strong>, "${existing.subject ? "Subject: " + existing.subject : ""}"`;
                 dataToUpdate.is_merged = true;
                 dataToUpdate.merged_into_ticket_id = parentId;
                 dataToUpdate.status = "Merged";
@@ -707,6 +705,7 @@ exports.ticketController = {
                     //         updatedTicket?.customers?.last_name,
                     //   }
                     // );
+                    console.log("agentDetails", agentDetails);
                     yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, comment, [
                         agentDetails === null || agentDetails === void 0 ? void 0 : agentDetails.email,
                     ]);
@@ -845,24 +844,31 @@ exports.ticketController = {
                         },
                     }));
                     // Add comments for each removal
-                    toDelete.forEach((uid) => {
+                    for (const uid of toDelete) {
+                        const user = yield prisma.users.findUnique({
+                            where: { id: uid },
+                        });
                         txOps.push(prisma.ticket_comments.create({
                             data: {
                                 ticket_id: ticketId,
                                 user_id: currentUserId,
-                                comment_text: `User ID ${uid} removed from CC of this ticket.`,
+                                comment_text: `User <strong>${(user === null || user === void 0 ? void 0 : user.first_name) + " " + (user === null || user === void 0 ? void 0 : user.last_name)}</strong> removed from CC of this ticket.`,
                                 comment_type: "System",
                                 is_internal: true,
                             },
                         }));
-                    });
+                    }
                 }
                 // Additions
                 if (toAdd.length > 0) {
                     // Prevent duplicates
                     const existingCCIds = existing.cc_of_ticket.map((cc) => cc.user_id);
                     const newAdds = toAdd.filter((uid) => !existingCCIds.includes(uid));
-                    newAdds.forEach((uid) => {
+                    // newAdds.forEach((uid) => {
+                    for (const uid of newAdds) {
+                        const user = yield prisma.users.findUnique({
+                            where: { id: uid },
+                        });
                         txOps.push(prisma.cc_of_ticket.create({
                             data: {
                                 ticket_id: ticketId,
@@ -874,12 +880,12 @@ exports.ticketController = {
                             data: {
                                 ticket_id: ticketId,
                                 user_id: currentUserId,
-                                comment_text: `User ID ${uid} added to CC of this ticket.`,
+                                comment_text: `User <strong>${(user === null || user === void 0 ? void 0 : user.first_name) + " " + (user === null || user === void 0 ? void 0 : user.last_name)}</strong> added to CC of this ticket.`,
                                 comment_type: "System",
                                 is_internal: true,
                             },
                         }));
-                    });
+                    }
                 }
                 // Run all operations in one transaction
                 yield prisma.$transaction(txOps);
@@ -1061,12 +1067,6 @@ exports.ticketController = {
                                 // mode: "insensitive",
                             },
                         },
-                        // {
-                        //   description: {
-                        //     contains: searchTerm,
-                        //     // mode: "insensitive",
-                        //   },
-                        // },
                         {
                             sla_priority: {
                                 priority: {
@@ -1223,51 +1223,53 @@ exports.ticketController = {
                                 resolution_time_hours: true,
                             },
                         },
-                        ticket_attachments: {
-                            select: {
-                                id: true,
-                                ticket_id: true,
-                                response_id: true,
-                                file_name: true,
-                                original_file_name: true,
-                                file_path: true,
-                                file_size: true,
-                                content_type: true,
-                                file_hash: true,
-                                uploaded_by: true,
-                                uploaded_by_type: true,
-                                is_public: true,
-                                virus_scanned: true,
-                                scan_result: true,
-                                created_at: true,
-                                users: {
-                                    select: {
-                                        id: true,
-                                        first_name: true,
-                                        last_name: true,
-                                        email: true,
-                                    },
-                                },
-                            },
-                        },
-                        ticket_comments: true,
-                        cc_of_ticket: {
-                            select: {
-                                user_of_ticket_cc: {
-                                    select: {
-                                        id: true,
-                                        first_name: true,
-                                        last_name: true,
-                                        email: true,
-                                        phone: true,
-                                        avatar: true,
-                                    },
-                                },
-                            },
-                        },
+                        // ticket_attachments: {
+                        //   select: {
+                        //     id: true,
+                        //     ticket_id: true,
+                        //     response_id: true,
+                        //     file_name: true,
+                        //     original_file_name: true,
+                        //     file_path: true,
+                        //     file_size: true,
+                        //     content_type: true,
+                        //     file_hash: true,
+                        //     uploaded_by: true,
+                        //     uploaded_by_type: true,
+                        //     is_public: true,
+                        //     virus_scanned: true,
+                        //     scan_result: true,
+                        //     created_at: true,
+                        //     users: {
+                        //       select: {
+                        //         id: true,
+                        //         first_name: true,
+                        //         last_name: true,
+                        //         email: true,
+                        //       },
+                        //     },
+                        //   },
+                        // },
+                        // ticket_comments: true,
+                        // cc_of_ticket: {
+                        //   select: {
+                        //     user_of_ticket_cc: {
+                        //       select: {
+                        //         id: true,
+                        //         first_name: true,
+                        //         last_name: true,
+                        //         email: true,
+                        //         phone: true,
+                        //         avatar: true,
+                        //       },
+                        //     },
+                        //   },
+                        // },
                     },
                 });
-                res.success("Tickets fetched successfully", data.map((ticket) => serializeTicket(ticket, true)), 200, pagination);
+                res.success("Tickets fetched successfully", data, 
+                // data.map((ticket: any) => serializeTicket(ticket, true)),
+                200, pagination);
             }
             catch (error) {
                 console.log("Error : ", error);
@@ -1367,7 +1369,7 @@ exports.ticketController = {
                         // Continue without failing the entire request
                     }
                 }
-                const attachment_urls = JSON.stringify([imageUrl]);
+                const attachment_urls = imageUrl ? JSON.stringify([imageUrl]) : null;
                 // Create comment
                 const comment = yield prisma.ticket_comments.create({
                     data: {
@@ -1395,7 +1397,7 @@ exports.ticketController = {
                 // ✅ Send email to customer if it's a public comment
                 if (!new_is_internal) {
                     console.log("Sending email to customer...");
-                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(serializeTicket(ticket), Object.assign(Object.assign({}, comment), { imageUrl: imageUrl ? imageUrl : null }), additionalEmails);
+                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(serializeTicket(ticket), Object.assign(Object.assign({}, comment), { imageUrl: imageUrl ? imageUrl : null, mailCustomer: new_is_internal }), additionalEmails);
                 }
                 // const countComment = await prisma.ticket_comments.count()
                 // After successfully creating the comment and before ticket update

@@ -18,7 +18,7 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   assigned_agent_id: ticket.assigned_agent_id,
   category_id: ticket.category_id,
   subject: ticket.subject,
-  // description: ticket.description,
+  description: ticket.description,
   priority: ticket.priority,
   status: ticket.status,
   source: ticket.source,
@@ -756,7 +756,7 @@ export const ticketController = {
     let commentText = "Ticket updated.";
     let message = "Ticket updated.";
     if (action === "ReOpen") {
-      commentText = `Ticket reopened. Reason: ${reason}`;
+      commentText = `Ticket reopened. ${reason ? "Reason: " + reason : ""}`;
       message = `Ticket reopened successfully. `;
       dataToUpdate.status = "Open";
       dataToUpdate.reopen_count = (existing.reopen_count || 0) + 1;
@@ -777,14 +777,16 @@ export const ticketController = {
       message = `Ticket allocated to agent  ${
         existingAgent?.first_name + " " + existingAgent?.last_name
       } successfully `;
-      commentText = `Ticket allocated to agent  ${
+      commentText = `Ticket allocated to agent  <strong>${
         existingAgent?.first_name + " " + existingAgent?.last_name
-      }. Reason: ${reason}`;
+      }</strong>.${reason ? "Reason: " + reason : ""}`;
       dataToUpdate.status = dataToUpdate.status || "In Progress";
       dataToUpdate.assigned_by = userId;
     } else if (action === "Merge") {
       const parentId = Number(req.body.merged_into_ticket_id);
-      commentText = `Ticket merged into parent ticket number ${existing.ticket_number}, subject: "${existing.subject}"`;
+      commentText = `Ticket merged into parent ticket number  <strong>${
+        existing.ticket_number
+      } </strong>, "${existing.subject ? "Subject: " + existing.subject : ""}"`;
       dataToUpdate.is_merged = true;
       dataToUpdate.merged_into_ticket_id = parentId;
       dataToUpdate.status = "Merged";
@@ -841,6 +843,7 @@ export const ticketController = {
         //         updatedTicket?.customers?.last_name,
         //   }
         // );
+        console.log("agentDetails", agentDetails);
         await EmailService.sendCommentEmailToCustomer(updatedTicket, comment, [
           agentDetails?.email,
         ]);
@@ -984,19 +987,25 @@ export const ticketController = {
           })
         );
         // Add comments for each removal
-        toDelete.forEach((uid) => {
+        for (const uid of toDelete) {
+          const user = await prisma.users.findUnique({
+            where: { id: uid },
+          });
+
           txOps.push(
             prisma.ticket_comments.create({
               data: {
                 ticket_id: ticketId,
                 user_id: currentUserId,
-                comment_text: `User ID ${uid} removed from CC of this ticket.`,
+                comment_text: `User <strong>${
+                  user?.first_name + " " + user?.last_name
+                }</strong> removed from CC of this ticket.`,
                 comment_type: "System",
                 is_internal: true,
               },
             })
           );
-        });
+        }
       }
 
       // Additions
@@ -1004,7 +1013,13 @@ export const ticketController = {
         // Prevent duplicates
         const existingCCIds = existing.cc_of_ticket.map((cc) => cc.user_id);
         const newAdds = toAdd.filter((uid) => !existingCCIds.includes(uid));
-        newAdds.forEach((uid) => {
+
+        // newAdds.forEach((uid) => {
+        for (const uid of newAdds) {
+          const user = await prisma.users.findUnique({
+            where: { id: uid },
+          });
+
           txOps.push(
             prisma.cc_of_ticket.create({
               data: {
@@ -1019,13 +1034,15 @@ export const ticketController = {
               data: {
                 ticket_id: ticketId,
                 user_id: currentUserId,
-                comment_text: `User ID ${uid} added to CC of this ticket.`,
+                comment_text: `User <strong>${
+                  user?.first_name + " " + user?.last_name
+                }</strong> added to CC of this ticket.`,
                 comment_type: "System",
                 is_internal: true,
               },
             })
           );
-        });
+        }
       }
 
       // Run all operations in one transaction
@@ -1233,12 +1250,6 @@ export const ticketController = {
               // mode: "insensitive",
             },
           },
-          // {
-          //   description: {
-          //     contains: searchTerm,
-          //     // mode: "insensitive",
-          //   },
-          // },
           {
             sla_priority: {
               priority: {
@@ -1406,56 +1417,57 @@ export const ticketController = {
             },
           },
 
-          ticket_attachments: {
-            select: {
-              id: true,
-              ticket_id: true,
-              response_id: true,
-              file_name: true,
-              original_file_name: true,
-              file_path: true,
-              file_size: true,
-              content_type: true,
-              file_hash: true,
-              uploaded_by: true,
-              uploaded_by_type: true,
-              is_public: true,
-              virus_scanned: true,
-              scan_result: true,
-              created_at: true,
-              users: {
-                select: {
-                  id: true,
-                  first_name: true,
-                  last_name: true,
-                  email: true,
-                },
-              },
-            },
-          },
+          // ticket_attachments: {
+          //   select: {
+          //     id: true,
+          //     ticket_id: true,
+          //     response_id: true,
+          //     file_name: true,
+          //     original_file_name: true,
+          //     file_path: true,
+          //     file_size: true,
+          //     content_type: true,
+          //     file_hash: true,
+          //     uploaded_by: true,
+          //     uploaded_by_type: true,
+          //     is_public: true,
+          //     virus_scanned: true,
+          //     scan_result: true,
+          //     created_at: true,
+          //     users: {
+          //       select: {
+          //         id: true,
+          //         first_name: true,
+          //         last_name: true,
+          //         email: true,
+          //       },
+          //     },
+          //   },
+          // },
 
-          ticket_comments: true,
+          // ticket_comments: true,
 
-          cc_of_ticket: {
-            select: {
-              user_of_ticket_cc: {
-                select: {
-                  id: true,
-                  first_name: true,
-                  last_name: true,
-                  email: true,
-                  phone: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
+          // cc_of_ticket: {
+          //   select: {
+          //     user_of_ticket_cc: {
+          //       select: {
+          //         id: true,
+          //         first_name: true,
+          //         last_name: true,
+          //         email: true,
+          //         phone: true,
+          //         avatar: true,
+          //       },
+          //     },
+          //   },
+          // },
         },
       });
 
       res.success(
         "Tickets fetched successfully",
-        data.map((ticket: any) => serializeTicket(ticket, true)),
+        data,
+        // data.map((ticket: any) => serializeTicket(ticket, true)),
         200,
         pagination
       );
@@ -1573,7 +1585,7 @@ export const ticketController = {
           // Continue without failing the entire request
         }
       }
-      const attachment_urls = JSON.stringify([imageUrl]);
+      const attachment_urls = imageUrl ? JSON.stringify([imageUrl]) : null;
       // Create comment
       const comment = await prisma.ticket_comments.create({
         data: {
@@ -1605,7 +1617,11 @@ export const ticketController = {
         console.log("Sending email to customer...");
         await EmailService.sendCommentEmailToCustomer(
           serializeTicket(ticket),
-          { ...comment, imageUrl: imageUrl ? imageUrl : null },
+          {
+            ...comment,
+            imageUrl: imageUrl ? imageUrl : null,
+            mailCustomer: new_is_internal,
+          },
           additionalEmails
         );
       }

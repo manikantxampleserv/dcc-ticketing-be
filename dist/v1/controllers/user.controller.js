@@ -129,7 +129,9 @@ function getUser(req, res) {
 function createUser(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const { username, email, password, first_name, last_name, role_id, department_id, phone, created_by, } = req.body;
+            const { username, email, password_hash, first_name, last_name, role_id, department_id, phone, } = req.body;
+            const created_by = req.user ? Number(req.user.id) : null;
+            console.log("Creating user by:", created_by, req.body, req.file);
             let avatarUrl = null;
             if (req.file) {
                 const fileName = `avatars/${Date.now()}_${req.file.originalname}`;
@@ -147,7 +149,7 @@ function createUser(req, res) {
                 res.status(409).json({ error: "user with this username already exists" });
                 return;
             }
-            const hashed_password = yield bcryptjs_1.default.hash(password, 10);
+            const hashed_password = yield bcryptjs_1.default.hash(password_hash, 10);
             const user = yield prisma_config_1.default.users.create({
                 data: {
                     username: email === null || email === void 0 ? void 0 : email.split("@")[0],

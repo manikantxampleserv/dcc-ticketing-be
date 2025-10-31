@@ -11,7 +11,6 @@ const express_1 = __importDefault(require("express"));
 const routes_1 = __importDefault(require("./routes"));
 const responseHandler_1 = require("./middlewares/responseHandler");
 const SLAMonitoringService_1 = require("./utils/SLAMonitoringService");
-const debuger_1 = require("./middlewares/debuger");
 const createApp = () => {
     // Create Express application
     const app = (0, express_1.default)();
@@ -36,7 +35,6 @@ const createApp = () => {
     app.use(responseHandler_1.responseHandler);
     // Start Business Hours SLA Monitoring
     SLAMonitoringService_1.BusinessHoursAwareSLAMonitoringService.startMonitoring();
-    app.use(debuger_1.corsDebugger);
     // Mount API routes
     app.use("/api", routes_1.default);
     return app;

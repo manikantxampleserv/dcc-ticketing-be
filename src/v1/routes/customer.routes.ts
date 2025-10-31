@@ -38,5 +38,11 @@ router.delete(
   validate,
   customerController.deleteCustomer
 );
+router.delete(
+  "/customers",
+  authenticateToken,
+  validate,
+  customerController.deleteCustomer
+);
 
 export default router;

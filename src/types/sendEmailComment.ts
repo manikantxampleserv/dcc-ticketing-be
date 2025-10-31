@@ -47,8 +47,8 @@ class EmailService {
         this.transporter = nodemailer.createTransport({
           service: "gmail",
           auth: {
-            user: emailConfiguration.username || process.env.SMTP_USERNAME,
-            pass: emailConfiguration.password || process.env.SMTP_PASSWORD,
+            user: process.env.SMTP_USERNAME || emailConfiguration.username,
+            pass: process.env.SMTP_PASSWORD || emailConfiguration.password,
           },
           pool: true,
           maxConnections: 5,
@@ -163,14 +163,18 @@ class EmailService {
         ? `Re: ${ticket.subject}`
         : `Re: ${ticket.subject}`;
 
-      const customerEmail = ticket.agents_user?.email;
+      const customerEmail = ticket.customers?.email;
+      const assignedEmail = ticket.agents_user?.email;
       const agentName = comment.users
         ? `${comment.users.first_name} ${comment.users.last_name}`
         : "Support Team";
-      let Emails = customerEmail;
+      let Emails = comment?.mailCustomer
+        ? assignedEmail
+        : [customerEmail, assignedEmail];
       if (additionalEmails.length > 0) {
-        Emails = [customerEmail, ...additionalEmails];
+        Emails = [...Emails, ...additionalEmails];
       }
+      console.log("Emails to send comment to:", Emails);
       //Generate unique message ID for THIS outgoing email
       const newMessageId = `<ticket-${ticket.id}-comment-${
         comment.id
@@ -281,7 +285,7 @@ class EmailService {
       // `;
       console.log(
         "CCC : ",
-        ticket.cc_of_ticket.map((cc: any) => cc.email).join(",")
+        ticket?.cc_of_ticket?.map((cc: any) => cc.email).join(",")
       );
       // ✅ FIXED: Create mail options object with all properties
       const mailOptions: any = {
@@ -289,8 +293,8 @@ class EmailService {
         to: Emails,
         // to: customerEmail,
         cc:
-          ticket?.cc_of_ticket && ticket.cc_of_ticket.length > 0
-            ? ticket.cc_of_ticket.map((cc: any) => cc.email).join(",")
+          ticket?.cc_of_ticket && ticket?.cc_of_ticket?.length > 0
+            ? ticket?.cc_of_ticket.map((cc: any) => cc.email).join(",")
             : undefined,
         subject,
         html: htmlContent,
@@ -407,7 +411,7 @@ class EmailService {
                  }</span>
                </td>
                <td style="text-align: right; vertical-align: top;">
-                 <span style="background-color: #28a745; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
+                 <span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
                    ${ticket.status.toUpperCase()}
                  </span>
                </td>
@@ -425,6 +429,15 @@ class EmailService {
                ${comment.comment_text.replace(/\n/g, "<br>")}
              </div>
            </div>
+         ${
+           ticket.description
+             ? `<div style="background-color: #e6f0f58d; padding: 10px;margin-top:5px; border: 1px solid #152b1ad8; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+             <div style="font-size: 15px; line-height: 1.6; color: #333;">
+               ${ticket.description.replace(/\n/g, "<br>")}
+             </div>
+           </div>`
+             : ""
+         }
          </div>`;
 
       if (previousComments.length > 0) {
