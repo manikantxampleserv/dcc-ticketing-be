@@ -321,7 +321,7 @@ export const ticketController = {
           req.file.mimetype
         );
       }
-      const attachment_urls = JSON.stringify([avatarUrl]);
+      const attachment_urls = avatarUrl ? JSON.stringify([avatarUrl]) : "";
 
       const tickets = await prisma.tickets.create({
         data: {
@@ -1304,10 +1304,19 @@ export const ticketController = {
       }
 
       // Add status filter
-      if (statusFilter && statusFilter !== "all") {
+      if (
+        statusFilter &&
+        statusFilter !== "all" &&
+        statusFilter !== "SLA Breached"
+      ) {
         filters.status = {
           equals: statusFilter,
           // mode: "insensitive",
+        };
+      }
+      if (statusFilter === "SLA Breached") {
+        filters.sla_status = {
+          equals: "Breached",
         };
       }
       if (priorityFilter) {
