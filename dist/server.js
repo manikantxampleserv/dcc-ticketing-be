@@ -240,6 +240,7 @@ const logger_1 = __importDefault(require("./config/logger"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config({ quiet: true });
 const slaMonitorService_1 = __importDefault(require("./types/slaMonitorService"));
+// import { SimpleEmailTicketSystem } from "./types/email.js";
 const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const app = (0, app_1.createApp)();
@@ -250,7 +251,7 @@ const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
                 // // Start services
                 // const emailSystem = new SimpleEmailTicketSystem();
                 // emailSystem.start().then(() => console.log("📧 Email system started"));
-                slaMonitorService_1.default.start(5); // Check every 5 minutes
+                slaMonitorService_1.default.start(5);
                 // // Graceful shutdown
                 // process.on("SIGINT", () => {
                 //   console.log("\n🔄 Shutting down...");
