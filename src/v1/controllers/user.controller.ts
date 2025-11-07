@@ -111,7 +111,7 @@ export async function getUser(req: Request, res: Response): Promise<void> {
   }
 }
 
-export async function createUser(req: Request, res: Response): Promise<void> {
+export async function createUser(req: any, res: Response): Promise<void> {
   try {
     const {
       username,
