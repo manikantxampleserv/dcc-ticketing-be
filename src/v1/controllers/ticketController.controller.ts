@@ -1011,7 +1011,9 @@ export const ticketController = {
       // Additions
       if (toAdd.length > 0) {
         // Prevent duplicates
-        const existingCCIds = existing.cc_of_ticket.map((cc) => cc.user_id);
+        const existingCCIds = existing.cc_of_ticket.map(
+          (cc: any) => cc.user_id
+        );
         const newAdds = toAdd.filter((uid) => !existingCCIds.includes(uid));
 
         // newAdds.forEach((uid) => {

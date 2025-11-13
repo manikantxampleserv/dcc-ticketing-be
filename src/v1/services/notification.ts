@@ -34,7 +34,7 @@ class NotificationService {
       });
 
       // Filter users who want this notification
-      const eligibleUsers = users.filter((user) => {
+      const eligibleUsers = users.filter((user: any) => {
         const settings = user.user_notification_setting?.[0];
 
         if (type === "new_ticket" && !settings.new_ticket_alerts) return false;

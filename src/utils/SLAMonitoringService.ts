@@ -46,7 +46,7 @@ export class BusinessHoursAwareSLAMonitoringService {
         include_weekends: true,
       },
     });
-    return configs.some((cfg) =>
+    return configs.some((cfg: any) =>
       BusinessHoursSLACalculator.isWithinBusinessHours(now, {
         business_start_time: cfg.business_start_time!,
         business_end_time: cfg.business_end_time!,

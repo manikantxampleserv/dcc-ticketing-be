@@ -103,7 +103,7 @@ class SLAMonitor {
       const supervisors = await prisma.users.findMany({
         // where: { role: { in: ["SUPERVISOR", "ADMIN"] } },
       });
-      userIds.push(...supervisors.map((s) => s.id));
+      userIds.push(...supervisors.map((s: any) => s.id));
     }
 
     if (userIds.length > 0) {
