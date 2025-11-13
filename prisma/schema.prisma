@@ -153,7 +153,7 @@ model notification_settings {
   warning_threshold_percent Int?      @default(80)
   created_at                DateTime? @default(now(), map: "DF__Notificat__Creat__6EF57B66")
   updated_at                DateTime? @default(now(), map: "DF__Notificat__Updat__6FE99F9F")
-  user_notification_setting users     @relation(fields: [agent_id], references: [id], onUpdate: NoAction)
+  user_notification_setting users     @relation(fields: [agent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model notifications {
@@ -166,7 +166,7 @@ model notifications {
   read              Boolean  @default(false)
   sent_via          String? // 'email', 'in_app'
   created_at        DateTime @default(now())
-  user_notification users    @relation(fields: [user_id], references: [id])
+  user_notification users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([read])
   @@index([created_at])

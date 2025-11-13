@@ -9,6 +9,6 @@ routes.post("/users", auth_1.authenticateToken, multer_1.upload.single("avatar")
 routes.get("/users", auth_1.authenticateToken, (req, res) => (0, user_controller_1.getUsersList)(req, res));
 routes.get("/users/:id", auth_1.authenticateToken, (req, res) => (0, user_controller_1.getUser)(req, res));
 routes.put("/users/:id", auth_1.authenticateToken, multer_1.upload.single("avatar"), user_controller_1.updateUser);
-routes.delete("/users", auth_1.authenticateToken, (req, res) => (0, user_controller_1.deleteUser)(req, res));
+routes.delete("/users", auth_1.authenticateToken, user_controller_1.deleteUser);
 routes.patch("/users/status/:id", auth_1.authenticateToken, (req, res) => (0, user_controller_1.updateUserStatus)(req, res));
 exports.default = routes;

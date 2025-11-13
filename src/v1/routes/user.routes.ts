@@ -24,7 +24,7 @@ routes.put(
   updateUser
 );
 
-routes.delete("/users", authenticateToken, (req, res) => deleteUser(req, res));
+routes.delete("/users", authenticateToken, deleteUser);
 routes.patch("/users/status/:id", authenticateToken, (req, res) =>
   updateUserStatus(req, res)
 );

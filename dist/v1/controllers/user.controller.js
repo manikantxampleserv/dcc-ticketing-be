@@ -265,6 +265,7 @@ function deleteUser(req, res) {
         try {
             const { ids } = req.body;
             const paramId = req.params.id ? parseInt(req.params.id, 10) : null;
+            console.log("ids ???????????????11111", ids, Array.isArray(ids) && ids.length > 0, paramId);
             if (paramId && !isNaN(paramId)) {
                 const user = yield prisma_config_1.default.users.findUnique({ where: { id: paramId } });
                 if (!user) {
@@ -278,6 +279,7 @@ function deleteUser(req, res) {
                 });
                 return;
             }
+            console.log("ids ???????????????", ids, Array.isArray(ids) && ids.length > 0);
             if (Array.isArray(ids) && ids.length > 0) {
                 const deleted_users = yield prisma_config_1.default.users.deleteMany({
                     where: { id: { in: ids } },
