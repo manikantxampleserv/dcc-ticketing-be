@@ -406,6 +406,7 @@ class SimpleEmailTicketSystem {
                     "Unknown Sender";
                 const subject = email.subject || "No Subject";
                 const body = email.html || `<pre>${email.text}</pre>`;
+                console.log(`✉️ Handling email from !!!!!!!!: ${senderEmail}, Email: ${JSON.stringify(email === null || email === void 0 ? void 0 : email.html)}`);
                 const messageId = email.messageId;
                 const references = email.references || [];
                 const inReplyTo = email.inReplyTo;
@@ -662,8 +663,7 @@ class SimpleEmailTicketSystem {
         });
     }
     cleanBody(body) {
-        return (body.replace(/\r\n/g, "\n").trim().substring(0, 10000) ||
-            "No content available");
+        return body.replace(/\r\n/g, "\n").trim() || "No content available";
     }
     stop() {
         console.log("🔄 Shutting down email service...");

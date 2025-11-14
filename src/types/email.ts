@@ -452,6 +452,11 @@ class SimpleEmailTicketSystem {
         "Unknown Sender";
       const subject = email.subject || "No Subject";
       const body = email.html || `<pre>${email.text}</pre>`;
+      console.log(
+        `✉️ Handling email from !!!!!!!!: ${senderEmail}, Email: ${JSON.stringify(
+          email?.html
+        )}`
+      );
 
       const messageId = email.messageId;
       const references = email.references || [];
@@ -815,10 +820,7 @@ class SimpleEmailTicketSystem {
   }
 
   private cleanBody(body: string): string {
-    return (
-      body.replace(/\r\n/g, "\n").trim().substring(0, 10000) ||
-      "No content available"
-    );
+    return body.replace(/\r\n/g, "\n").trim() || "No content available";
   }
 
   stop(): void {
