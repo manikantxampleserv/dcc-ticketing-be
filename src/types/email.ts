@@ -452,20 +452,23 @@ class SimpleEmailTicketSystem {
         "Unknown Sender";
       const subject = email.subject || "No Subject";
       const body = email.html || `<pre>${email.text}</pre>`;
-      console.log(
-        `✉️ Handling email from !!!!!!!!: ${senderEmail}, Email: ${JSON.stringify(
-          email?.html
-        )}`
-      );
 
       const messageId = email.messageId;
       const references = email.references || [];
       const inReplyTo = email.inReplyTo;
+      // console.log(
+      //   `📧 Full email parsed:`,
+      //   email.messageId,
+      //   email.references,
+      //   email.inReplyTo
+      // );
+      const threadId: string | undefined = Array.isArray(references)
+        ? references[0] // string | undefined
+        : references || inReplyTo || messageId;
 
-      const threadId = references.length > 0 ? references[0] : inReplyTo;
-      console.log(
-        `🧵 Processing email from: ${senderEmail}, subject: ${subject}`
-      );
+      // console.log(
+      //   `🧵 Processing email from: ${senderEmail}, subject: ${subject}`
+      // );
 
       if (!senderEmail) {
         console.error("❌ No sender email found");
@@ -476,7 +479,7 @@ class SimpleEmailTicketSystem {
       console.log(`📎 Found ${attachments.length} attachment(s)`);
 
       let existingTicket = null;
-
+      // console.log(`ℹ️ This is existing  thread ID: ${threadId}`);
       if (threadId) {
         existingTicket = await this.findTicketByThreadId(threadId);
 
