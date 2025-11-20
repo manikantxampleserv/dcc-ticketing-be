@@ -138,17 +138,18 @@ function createUser(req, res) {
                 avatarUrl = yield (0, blackbaze_1.uploadFile)(req.file.buffer, fileName, req.file.mimetype);
             }
             const existing_email = yield prisma_config_1.default.users.findUnique({ where: { email } });
+            console.log("Existing email check:", existing_email);
             if (existing_email) {
                 res.status(409).json({ error: "user with this email already exists" });
                 return;
             }
-            const existing_username = yield prisma_config_1.default.users.findUnique({
-                where: { username: email === null || email === void 0 ? void 0 : email.split("@")[0] },
-            });
-            if (existing_username) {
-                res.status(409).json({ error: "user with this username already exists" });
-                return;
-            }
+            // const existing_username = await prisma.users.findUnique({
+            //   where: { username: email?.split("@")[0] },
+            // });
+            // if (existing_username) {
+            //   res.status(409).json({ error: "user with this username already exists" });
+            //   return;
+            // }
             const hashed_password = yield bcryptjs_1.default.hash(password_hash, 10);
             const user = yield prisma_config_1.default.users.create({
                 data: {

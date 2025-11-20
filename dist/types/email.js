@@ -56,6 +56,7 @@ const dotenv = __importStar(require("dotenv"));
 const GenerateTicket_1 = require("../utils/GenerateTicket");
 const blackbaze_1 = require("../utils/blackbaze");
 const slaMonitorService_1 = __importDefault(require("./slaMonitorService"));
+const ticketController_controller_1 = require("../v1/controllers/ticketController.controller");
 dotenv.config();
 const prisma = new client_1.PrismaClient();
 class SimpleEmailTicketSystem {
@@ -255,7 +256,9 @@ class SimpleEmailTicketSystem {
         console.log(`🔄 Starting polling every ${intervalMs / 1000} seconds...`);
         this.pollingInterval = setInterval(() => {
             try {
-                console.log(`🔍 [${new Date().toISOString()}] Polling for new emails...`);
+                // console.log(
+                //   `🔍 [${new Date().toISOString()}] Polling for new emails...`
+                // );
                 if (!this.isFetching) {
                     this.fetchNewEmails();
                 }
@@ -301,13 +304,13 @@ class SimpleEmailTicketSystem {
                             return reject(err);
                         }
                         const currentUidNext = box.uidnext - 1;
-                        console.log(`📊 Mailbox status:`, {
-                            total: box.messages.total,
-                            unseen: box.messages.unseen,
-                            lastUid: this.lastUid,
-                            currentUidNext,
-                            newEmails: currentUidNext - this.lastUid,
-                        });
+                        // console.log(`📊 Mailbox status:`, {
+                        //   total: box.messages.total,
+                        //   unseen: box.messages.unseen,
+                        //   lastUid: this.lastUid,
+                        //   currentUidNext,
+                        //   newEmails: currentUidNext - this.lastUid,
+                        // });
                         if (currentUidNext > this.lastUid) {
                             const uidRange = `${this.lastUid + 1}:${currentUidNext}`;
                             console.log(`⬇️ Fetching emails with UID range: ${uidRange}`);
@@ -343,14 +346,14 @@ class SimpleEmailTicketSystem {
                             fetcher.once("end", () => {
                                 // ✅ Only resolve if no messages were processed
                                 if (totalMessages === 0) {
-                                    console.log("📭 No new emails to fetch");
+                                    // console.log("📭 No new emails to fetch");
                                     this.isFetching = false;
                                     resolve();
                                 }
                             });
                         }
                         else {
-                            console.log("📭 No new emails to fetch");
+                            // console.log("📭 No new emails to fetch");
                             this.isFetching = false;
                             resolve();
                         }
@@ -561,6 +564,12 @@ class SimpleEmailTicketSystem {
                     attachment_urls,
                 },
             });
+            try {
+                yield (0, ticketController_controller_1.generateSLAHistory)(tickets.id, slaConfig ? slaConfig.id : 0, tickets.created_at || new Date());
+            }
+            catch (slaError) {
+                console.error("Error generating SLA history:", slaError);
+            }
             if (attachments && attachments.length > 0) {
                 yield this.saveTicketAttachments(tickets.id, attachments);
             }

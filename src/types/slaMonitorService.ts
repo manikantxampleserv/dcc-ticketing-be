@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 class SLAMonitor {
   private intervalId: NodeJS.Timeout | null = null;
 
-  start(intervalMinutes: number = 5) {
+  start(intervalMinutes: number = 3) {
     console.log(`🔍 SLA Monitor starting (every ${intervalMinutes}min)`);
 
     this.check(); // Run immediately
@@ -98,7 +98,8 @@ class SLAMonitor {
     // Notify supervisors for high priority
     if (
       ticket.sla_priority?.priority === "High" ||
-      ticket.sla_priority?.priority === "Urgent"
+      ticket.sla_priority?.priority === "Urgent" ||
+      ticket.sla_priority?.priority === "Critical"
     ) {
       const supervisors = await prisma.users.findMany({
         // where: { role: { in: ["SUPERVISOR", "ADMIN"] } },

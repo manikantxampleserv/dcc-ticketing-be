@@ -3,6 +3,7 @@
 import cron from "node-cron";
 import { PrismaClient } from "@prisma/client";
 import { BusinessHoursSLACalculator } from "./BussinessHoursSLACalculation";
+import { title } from "process";
 
 const prisma = new PrismaClient();
 
@@ -143,7 +144,6 @@ export class BusinessHoursAwareSLAMonitoringService {
     for (const sla of ticket.ticket_sla_history) {
       const delta = sla.target_time.getTime() - now.getTime();
       const key = `${ticket.id}-${sla.sla_type}-${sla.status}`;
-
       // Breach
       if (delta <= 0 && sla.status === "Pending") {
         // Update history
@@ -160,10 +160,9 @@ export class BusinessHoursAwareSLAMonitoringService {
           where: { id: ticket.id },
           data: { sla_status: "Breached" },
         });
-
+        console.log("Sent tonification for key:1", this.sentNotifications, key);
         if (!this.sentNotifications.has(key)) {
           this.sentNotifications.add(key);
-
           // Add system comment
           await prisma.ticket_comments.create({
             data: {
@@ -174,7 +173,13 @@ export class BusinessHoursAwareSLAMonitoringService {
               is_internal: true,
             },
           });
-
+          this.sendNotification({
+            ticket_id: ticket.id,
+            userId: ticket.assigned_agent_id,
+            title: `SLA Breached for ticket ${ticket.ticket_number}`,
+            message: `The ${sla.sla_type} SLA has been breached.`,
+            type: "sla_warning",
+          });
           // Email section (integrate with your email service)
           // await EmailService.sendEmail({
           //   to: ticket.agents_user.email,
@@ -196,6 +201,11 @@ export class BusinessHoursAwareSLAMonitoringService {
           : pr.sla_priority.priority == "High"
           ? 60 * 60 * 1000
           : 120 * 60 * 1000;
+        console.log(
+          "Sent @@@@@@@@@@@@ nification for key:",
+          this.sentNotifications,
+          key
+        );
 
         if (delta <= threshold && !this.sentNotifications.has(key)) {
           this.sentNotifications.add(key);
@@ -211,6 +221,16 @@ export class BusinessHoursAwareSLAMonitoringService {
               comment_type: "System",
               is_internal: true,
             },
+          });
+
+          this.sendNotification({
+            ticket_id: ticket.id,
+            userId: ticket.assigned_agent_id,
+            title: `SLA Warning - ${ticket.ticket_number}`,
+            message: `The ${sla.sla_type} SLA is due in ${Math.ceil(
+              delta / 60000
+            )} minutes.`,
+            type: "sla_warning",
           });
 
           // Email section (integrate with your email service)
@@ -328,6 +348,25 @@ export class BusinessHoursAwareSLAMonitoringService {
     }
   }
 
+  // 9. Email notification helper with business hours context
+  static async sendNotification(emailData: any) {
+    try {
+      const response = await prisma.notifications.create({
+        data: {
+          user_id: emailData.userId,
+          type: emailData.type,
+          title: emailData.title,
+          message: emailData.message,
+          ticket_id: emailData.ticket_id,
+          read: false,
+          sent_via: "in_app",
+        },
+      });
+    } catch (error) {
+      console.error("❌ Error sending email notification:", error);
+    }
+  }
+
   // 10. Get SLA dashboard data with business hours context - FIXED
   static async getSLADashboardData() {
     try {
@@ -397,58 +436,58 @@ export class BusinessHoursAwareSLAMonitoringService {
   }
 
   // **FIXED: Method to mark SLA as Met when resolved**
-  static async markSLAasMet(
-    ticketId: number,
-    slaType: "Response" | "Resolution"
-  ) {
-    try {
-      await prisma.sla_history.updateMany({
-        where: {
-          ticket_id: ticketId,
-          sla_type: slaType,
-          status: { in: ["Pending", "Breached"] },
-        },
-        data: {
-          status: "Met",
-          actual_time: new Date(),
-        },
-      });
+  // static async markSLAasMet(
+  //   ticketId: number,
+  //   slaType: "Response" | "Resolution"
+  // ) {
+  //   try {
+  //     await prisma.sla_history.updateMany({
+  //       where: {
+  //         ticket_id: ticketId,
+  //         sla_type: slaType,
+  //         status: { in: ["Pending", "Breached"] },
+  //       },
+  //       data: {
+  //         status: "Met",
+  //         actual_time: new Date(),
+  //       },
+  //     });
 
-      // Check if all SLAs are now met or breached (no pending ones)
-      const pendingSLAs = await prisma.sla_history.count({
-        where: {
-          ticket_id: ticketId,
-          status: "Pending",
-        },
-      });
+  //     // Check if all SLAs are now met or breached (no pending ones)
+  //     const pendingSLAs = await prisma.sla_history.count({
+  //       where: {
+  //         ticket_id: ticketId,
+  //         status: "Pending",
+  //       },
+  //     });
 
-      if (pendingSLAs === 0) {
-        // Check if any SLAs are still breached
-        const breachedSLAs = await prisma.sla_history.count({
-          where: {
-            ticket_id: ticketId,
-            status: "Breached",
-          },
-        });
+  //     if (pendingSLAs === 0) {
+  //       // Check if any SLAs are still breached
+  //       const breachedSLAs = await prisma.sla_history.count({
+  //         where: {
+  //           ticket_id: ticketId,
+  //           status: "Breached",
+  //         },
+  //       });
 
-        // Only mark as "Met" if no SLAs are breached
-        const finalStatus = breachedSLAs > 0 ? "Breached" : "Met";
+  //       // Only mark as "Met" if no SLAs are breached
+  //       const finalStatus = breachedSLAs > 0 ? "Breached" : "Met";
 
-        await prisma.tickets.update({
-          where: { id: ticketId },
-          data: { sla_status: finalStatus },
-        });
+  //       await prisma.tickets.update({
+  //         where: { id: ticketId },
+  //         data: { sla_status: finalStatus },
+  //       });
 
-        console.log(
-          `✅ Updated ticket ${ticketId} SLA status to: ${finalStatus}`
-        );
-      }
+  //       console.log(
+  //         `✅ Updated ticket ${ticketId} SLA status to: ${finalStatus}`
+  //       );
+  //     }
 
-      console.log(`✅ Marked ${slaType} SLA as Met for ticket ${ticketId}`);
-    } catch (error) {
-      console.error(`❌ Error marking SLA as met:`, error);
-    }
-  }
+  //     console.log(`✅ Marked ${slaType} SLA as Met for ticket ${ticketId}`);
+  //   } catch (error) {
+  //     console.error(`❌ Error marking SLA as met:`, error);
+  //   }
+  // }
 
   // 11. Pause SLA for specific ticket
   static async pauseTicketSLA(ticketId: number, reason?: string) {

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ticketController = void 0;
+exports.ticketController = exports.generateSLAHistory = void 0;
 const client_1 = require("@prisma/client");
 const BussinessHoursSLACalculation_1 = require("../../utils/BussinessHoursSLACalculation");
 const GenerateTicket_1 = require("../../utils/GenerateTicket");
@@ -124,12 +124,12 @@ const createSLAHistoryEntries = (ticketId, slaConfig, createdAt) => __awaiter(vo
         business_end_time: slaConfig.business_end_time || "17:00:00",
         include_weekends: slaConfig.include_weekends || true,
     };
-    console.log(`📊 Creating SLA entries for ticket ${ticketId} with config:`, {
-        priority: slaConfig.priority,
-        businessHoursOnly: businessConfig.business_hours_only,
-        includeWeekends: businessConfig.include_weekends,
-        businessHours: `${businessConfig.business_start_time}-${businessConfig.business_end_time}`,
-    });
+    // console.log(`📊 Creating SLA entries for ticket ${ticketId} with config:`, {
+    //   priority: slaConfig.priority,
+    //   businessHoursOnly: businessConfig.business_hours_only,
+    //   includeWeekends: businessConfig.include_weekends,
+    //   businessHours: `${businessConfig.business_start_time}-${businessConfig.business_end_time}`,
+    // });
     // FIXED: Use BusinessHoursSLACalculator instead of simple time addition
     const responseDeadline = BussinessHoursSLACalculation_1.BusinessHoursSLACalculator.calculateSLADeadline(createdAt, slaConfig.response_time_hours, businessConfig);
     const resolutionDeadline = BussinessHoursSLACalculation_1.BusinessHoursSLACalculator.calculateSLADeadline(createdAt, slaConfig.resolution_time_hours, businessConfig);
@@ -167,13 +167,16 @@ const createSLAHistoryEntries = (ticketId, slaConfig, createdAt) => __awaiter(vo
             sla_status: "Within",
         },
     });
-    console.log(`✅ Generated business-hours-aware SLA history for ticket ${ticketId}:`, {
-        response: responseDeadline,
-        resolution: resolutionDeadline,
-        escalation: escalationDeadline,
-        businessHoursOnly: businessConfig.business_hours_only,
-        includeWeekends: businessConfig.include_weekends,
-    });
+    // console.log(
+    //   `✅ Generated business-hours-aware SLA history for ticket ${ticketId}:`,
+    //   {
+    //     response: responseDeadline,
+    //     resolution: resolutionDeadline,
+    //     escalation: escalationDeadline,
+    //     businessHoursOnly: businessConfig.business_hours_only,
+    //     includeWeekends: businessConfig.include_weekends,
+    //   }
+    // );
 });
 const generateSLAHistory = (ticketId, priority, 
 // customerTier: string,
@@ -212,6 +215,7 @@ createdAt) => __awaiter(void 0, void 0, void 0, function* () {
         throw error;
     }
 });
+exports.generateSLAHistory = generateSLAHistory;
 exports.ticketController = {
     createTicket(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -300,7 +304,7 @@ exports.ticketController = {
                 //   }
                 // );
                 try {
-                    yield generateSLAHistory(ticket.id, priority, ticket.created_at || new Date());
+                    yield (0, exports.generateSLAHistory)(ticket.id, priority, ticket.created_at || new Date());
                 }
                 catch (slaError) {
                     console.error("Error generating SLA history:", slaError);
@@ -1411,8 +1415,8 @@ exports.ticketController = {
                 const isAssignedAgent = (ticket === null || ticket === void 0 ? void 0 : ticket.assigned_agent_id) && ((_b = req === null || req === void 0 ? void 0 : req.user) === null || _b === void 0 ? void 0 : _b.id) === ticket.assigned_agent_id;
                 const isFirstAgentResponse = !ticket.first_response_at &&
                     isAssignedAgent &&
-                    comment.comment_type === "public" &&
-                    !new_is_internal;
+                    comment.comment_type === "public";
+                // &&        !new_is_internal;
                 if (isFirstAgentResponse && ((_c = ticket.ticket_sla_history) === null || _c === void 0 ? void 0 : _c.length)) {
                     const responseSLA = ticket.ticket_sla_history.find((sla) => sla.sla_type === "Response" && sla.status === "Pending");
                     if (responseSLA) {
@@ -1433,12 +1437,12 @@ exports.ticketController = {
                                 actual_time: commentDate,
                             },
                         });
-                        // Also update the ticket's first_response_at timestamp
-                        yield prisma.tickets.update({
-                            where: { id: ticket.id },
-                            data: { first_response_at: commentDate },
-                        });
                     }
+                    // Also update the ticket's first_response_at timestamp
+                    yield prisma.tickets.update({
+                        where: { id: ticket.id },
+                        data: { first_response_at: new Date(comment.created_at) },
+                    });
                 }
                 res.success("Comment created successfully", comment, 201);
             }

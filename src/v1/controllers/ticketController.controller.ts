@@ -161,12 +161,12 @@ const createSLAHistoryEntries = async (
     include_weekends: slaConfig.include_weekends || true,
   };
 
-  console.log(`📊 Creating SLA entries for ticket ${ticketId} with config:`, {
-    priority: slaConfig.priority,
-    businessHoursOnly: businessConfig.business_hours_only,
-    includeWeekends: businessConfig.include_weekends,
-    businessHours: `${businessConfig.business_start_time}-${businessConfig.business_end_time}`,
-  });
+  // console.log(`📊 Creating SLA entries for ticket ${ticketId} with config:`, {
+  //   priority: slaConfig.priority,
+  //   businessHoursOnly: businessConfig.business_hours_only,
+  //   includeWeekends: businessConfig.include_weekends,
+  //   businessHours: `${businessConfig.business_start_time}-${businessConfig.business_end_time}`,
+  // });
 
   // FIXED: Use BusinessHoursSLACalculator instead of simple time addition
   const responseDeadline = BusinessHoursSLACalculator.calculateSLADeadline(
@@ -222,19 +222,19 @@ const createSLAHistoryEntries = async (
     },
   });
 
-  console.log(
-    `✅ Generated business-hours-aware SLA history for ticket ${ticketId}:`,
-    {
-      response: responseDeadline,
-      resolution: resolutionDeadline,
-      escalation: escalationDeadline,
-      businessHoursOnly: businessConfig.business_hours_only,
-      includeWeekends: businessConfig.include_weekends,
-    }
-  );
+  // console.log(
+  //   `✅ Generated business-hours-aware SLA history for ticket ${ticketId}:`,
+  //   {
+  //     response: responseDeadline,
+  //     resolution: resolutionDeadline,
+  //     escalation: escalationDeadline,
+  //     businessHoursOnly: businessConfig.business_hours_only,
+  //     includeWeekends: businessConfig.include_weekends,
+  //   }
+  // );
 };
 
-const generateSLAHistory = async (
+export const generateSLAHistory = async (
   ticketId: number,
   priority: number,
   // customerTier: string,
@@ -1643,8 +1643,8 @@ export const ticketController = {
       const isFirstAgentResponse =
         !ticket.first_response_at &&
         isAssignedAgent &&
-        comment.comment_type === "public" &&
-        !new_is_internal;
+        comment.comment_type === "public";
+      // &&        !new_is_internal;
 
       if (isFirstAgentResponse && ticket.ticket_sla_history?.length) {
         const responseSLA = ticket.ticket_sla_history.find(
@@ -1669,13 +1669,12 @@ export const ticketController = {
               actual_time: commentDate,
             },
           });
-
-          // Also update the ticket's first_response_at timestamp
-          await prisma.tickets.update({
-            where: { id: ticket.id },
-            data: { first_response_at: commentDate },
-          });
         }
+        // Also update the ticket's first_response_at timestamp
+        await prisma.tickets.update({
+          where: { id: ticket.id },
+          data: { first_response_at: new Date(comment.created_at) },
+        });
       }
       res.success("Comment created successfully", comment, 201);
     } catch (error: any) {

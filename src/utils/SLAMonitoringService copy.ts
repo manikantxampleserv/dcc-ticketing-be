@@ -289,9 +289,9 @@ export class BusinessHoursAwareSLAMonitoringService {
             currentStatus: "Breached",
           },
         ]);
-        console.log(
-          `🚨 SLA BREACH: Ticket ${ticket.ticket_number} - ${sla.sla_type} SLA breached`
-        );
+        // console.log(
+        //   `🚨 SLA BREACH: Ticket ${ticket.ticket_number} - ${sla.sla_type} SLA breached`
+        // );
       }
       // Check for due soon alerts
       else if (timeToDeadline > 0) {

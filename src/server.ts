@@ -284,7 +284,7 @@ export const startServer = async () => {
         // const emailSystem = new SimpleEmailTicketSystem();
         // emailSystem.start().then(() => console.log("📧 Email system started"));
 
-        slaMonitor.start(5);
+        // slaMonitor.start(5);
 
         // // Graceful shutdown
         // process.on("SIGINT", () => {

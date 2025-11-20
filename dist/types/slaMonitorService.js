@@ -20,7 +20,7 @@ class SLAMonitor {
     constructor() {
         this.intervalId = null;
     }
-    start(intervalMinutes = 5) {
+    start(intervalMinutes = 3) {
         console.log(`🔍 SLA Monitor starting (every ${intervalMinutes}min)`);
         this.check(); // Run immediately
         this.intervalId = setInterval(() => this.check(), intervalMinutes * 60 * 1000);
@@ -85,7 +85,7 @@ class SLAMonitor {
     }
     sendWarning(ticket, percentUsed, remaining) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             const userIds = [];
             // Notify assigned agent
             if (ticket.assigned_agent_id) {
@@ -93,7 +93,8 @@ class SLAMonitor {
             }
             // Notify supervisors for high priority
             if (((_a = ticket.sla_priority) === null || _a === void 0 ? void 0 : _a.priority) === "High" ||
-                ((_b = ticket.sla_priority) === null || _b === void 0 ? void 0 : _b.priority) === "Urgent") {
+                ((_b = ticket.sla_priority) === null || _b === void 0 ? void 0 : _b.priority) === "Urgent" ||
+                ((_c = ticket.sla_priority) === null || _c === void 0 ? void 0 : _c.priority) === "Critical") {
                 const supervisors = yield prisma.users.findMany({
                 // where: { role: { in: ["SUPERVISOR", "ADMIN"] } },
                 });
@@ -104,7 +105,7 @@ class SLAMonitor {
                     ticketId: ticket.id,
                     ticketNumber: ticket.ticket_number,
                     subject: ticket.subject,
-                    priority: ((_c = ticket.sla_priority) === null || _c === void 0 ? void 0 : _c.priority) || "Medium",
+                    priority: ((_d = ticket.sla_priority) === null || _d === void 0 ? void 0 : _d.priority) || "Medium",
                     percentUsed: Math.round(percentUsed),
                     timeRemaining: this.formatTime(remaining),
                     customerName: ticket.customer_name || ticket.customer_email,

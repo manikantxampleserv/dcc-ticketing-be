@@ -7,6 +7,7 @@ import * as dotenv from "dotenv";
 import { generateTicketNumber } from "../utils/GenerateTicket";
 import { uploadFile } from "../utils/blackbaze";
 import slaMonitor from "../types/slaMonitorService";
+import { generateSLAHistory } from "v1/controllers/ticketController.controller";
 
 dotenv.config();
 
@@ -287,9 +288,9 @@ class SimpleEmailTicketSystem {
 
     this.pollingInterval = setInterval(() => {
       try {
-        console.log(
-          `🔍 [${new Date().toISOString()}] Polling for new emails...`
-        );
+        // console.log(
+        //   `🔍 [${new Date().toISOString()}] Polling for new emails...`
+        // );
         if (!this.isFetching) {
           this.fetchNewEmails();
         } else {
@@ -339,13 +340,13 @@ class SimpleEmailTicketSystem {
 
           const currentUidNext = box.uidnext - 1;
 
-          console.log(`📊 Mailbox status:`, {
-            total: box.messages.total,
-            unseen: box.messages.unseen,
-            lastUid: this.lastUid,
-            currentUidNext,
-            newEmails: currentUidNext - this.lastUid,
-          });
+          // console.log(`📊 Mailbox status:`, {
+          //   total: box.messages.total,
+          //   unseen: box.messages.unseen,
+          //   lastUid: this.lastUid,
+          //   currentUidNext,
+          //   newEmails: currentUidNext - this.lastUid,
+          // });
 
           if (currentUidNext > this.lastUid) {
             const uidRange = `${this.lastUid + 1}:${currentUidNext}`;
@@ -390,13 +391,13 @@ class SimpleEmailTicketSystem {
             fetcher.once("end", () => {
               // ✅ Only resolve if no messages were processed
               if (totalMessages === 0) {
-                console.log("📭 No new emails to fetch");
+                // console.log("📭 No new emails to fetch");
                 this.isFetching = false;
                 resolve();
               }
             });
           } else {
-            console.log("📭 No new emails to fetch");
+            // console.log("📭 No new emails to fetch");
             this.isFetching = false;
             resolve();
           }
@@ -701,7 +702,15 @@ class SimpleEmailTicketSystem {
         attachment_urls,
       },
     });
-
+    try {
+      await generateSLAHistory(
+        tickets.id,
+        slaConfig ? slaConfig.id : 0,
+        tickets.created_at || new Date()
+      );
+    } catch (slaError) {
+      console.error("Error generating SLA history:", slaError);
+    }
     if (attachments && attachments.length > 0) {
       await this.saveTicketAttachments(tickets.id, attachments);
     }

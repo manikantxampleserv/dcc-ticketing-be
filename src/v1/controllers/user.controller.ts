@@ -137,18 +137,19 @@ export async function createUser(req: any, res: Response): Promise<void> {
     }
 
     const existing_email = await prisma.users.findUnique({ where: { email } });
+    console.log("Existing email check:", existing_email);
     if (existing_email) {
       res.status(409).json({ error: "user with this email already exists" });
       return;
     }
 
-    const existing_username = await prisma.users.findUnique({
-      where: { username: email?.split("@")[0] },
-    });
-    if (existing_username) {
-      res.status(409).json({ error: "user with this username already exists" });
-      return;
-    }
+    // const existing_username = await prisma.users.findUnique({
+    //   where: { username: email?.split("@")[0] },
+    // });
+    // if (existing_username) {
+    //   res.status(409).json({ error: "user with this username already exists" });
+    //   return;
+    // }
 
     const hashed_password = await bcrypt.hash(password_hash, 10);
 
