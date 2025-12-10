@@ -4,7 +4,8 @@ import nodemailer from "nodemailer";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const BASE_URL =
-  (process.env.PUBLIC_BASE_URL as string) || "http://localhost:4000/api/v1";
+  (process.env.PUBLIC_BASE_URL as string) ||
+  "https://ticketing_app_api.dcctz.com/api/v1";
 
 interface FeedbackEmailProps {
   ticketId: number | string;

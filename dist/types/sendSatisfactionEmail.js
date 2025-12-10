@@ -17,7 +17,8 @@ exports.sendSatisfactionEmail = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const JWT_SECRET = process.env.JWT_SECRET;
-const BASE_URL = process.env.PUBLIC_BASE_URL || "http://localhost:4000/api/v1";
+const BASE_URL = process.env.PUBLIC_BASE_URL ||
+    "https://ticketing_app_api.dcctz.com/api/v1";
 function signFeedbackToken({ ticketId, email, }) {
     return jsonwebtoken_1.default.sign({ ticketId, email, purpose: "ticket_feedback" }, JWT_SECRET, {
         expiresIn: "1d",
