@@ -26,6 +26,8 @@ model users {
   agents                                   agents[]
   ticket_cc_createdBy                      cc_of_ticket[]          @relation("TicketCCCreater")
   user_of_ticket_cc                        cc_of_ticket[]          @relation("TicketCCUser")
+  user_notification_setting                notification_settings[]
+  user_notification                        notifications[]
   ticket_allocations_allocated_by_to_users ticket_allocations[]    @relation("TicketAllocations_AllocatedByToUsers")
   ticket_allocations_from_user_id_to_users ticket_allocations[]    @relation("TicketAllocations_FromUserIDToUsers")
   ticket_allocations_to_user_id_to_users   ticket_allocations[]    @relation("TicketAllocations_ToUserIDToUsers")
@@ -38,8 +40,6 @@ model users {
   user_permissions_granted_by_to_users     user_permissions[]      @relation("UserPermissions_GrantedByToUsers")
   user_permissions_user_id_to_users        user_permissions[]      @relation("UserPermissions_UserIDToUsers")
   user_sessions                            user_sessions[]
-  user_notification_setting                notification_settings[]
-  user_notification                        notifications[]
   users                                    users?                  @relation("UsersToUsers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_users                              users[]                 @relation("UsersToUsers")
   user_department                          department              @relation(fields: [department_id], references: [id], onUpdate: NoAction)
@@ -159,12 +159,12 @@ model notification_settings {
 model notifications {
   id                Int      @id @default(autoincrement())
   user_id           Int
-  type              String // 'new_ticket', 'sla_warning', 'escalation', etc.
+  type              String
   title             String
   message           String   @db.Text
   ticket_id         Int?
   read              Boolean  @default(false)
-  sent_via          String? // 'email', 'in_app'
+  sent_via          String?
   created_at        DateTime @default(now())
   user_notification users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
@@ -222,11 +222,10 @@ model tickets {
   id                                        Int                        @id @default(autoincrement())
   ticket_number                             String                     @unique @db.NVarChar(50)
   customer_id                               Int?
-  customer_name                             String?
-  customer_email                            String?
   assigned_agent_id                         Int?
   category_id                               Int?
   subject                                   String                     @db.NVarChar(500)
+  email_body_text                           String?                    @db.NText
   description                               String                     @db.NText
   priority                                  Int
   status                                    String                     @default("Open") @db.NVarChar(50)
@@ -252,6 +251,8 @@ model tickets {
   original_email_message_id                 String?                    @db.NVarChar(255)
   attachment_urls                           String?
   start_timer_at                            DateTime?
+  customer_email                            String?
+  customer_name                             String?
   cc_of_ticket                              cc_of_ticket[]
   ticket_sla_history                        sla_history[]
   support_ticket_responses                  support_ticket_responses[]
@@ -266,7 +267,7 @@ model tickets {
   agents_user                               users?                     @relation("TicketAgent", fields: [assigned_agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users                                     users?                     @relation("TicketAssignee", fields: [assigned_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   categories                                categories?                @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  customers                                 customers?                 @relation(fields: [customer_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  customers                                 customers?                 @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tickets                                   tickets?                   @relation("TicketsToTickets", fields: [merged_into_ticket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_tickets                             tickets[]                  @relation("TicketsToTickets")
   sla_priority                              sla_configurations         @relation(fields: [priority], references: [id], onUpdate: NoAction)
@@ -289,6 +290,7 @@ model ticket_comments {
   ticket_id                Int
   user_id                  Int?
   customer_id              Int?
+  email_body_text          String?    @db.NText
   comment_text             String     @db.NText
   comment_type             String     @default("internal") @db.NVarChar(50)
   is_internal              Boolean    @default(false)

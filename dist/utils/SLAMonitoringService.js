@@ -206,7 +206,11 @@ class BusinessHoursAwareSLAMonitoringService {
                             : pr.sla_priority.priority == "High"
                                 ? 60 * 60 * 1000
                                 : 120 * 60 * 1000;
-                    console.log("Sent @@@@@@@@@@@@ nification for key:", this.sentNotifications, key);
+                    // console.log(
+                    //   "Sent @@@@@@@@@@@@ nification for key:",
+                    //   this.sentNotifications,
+                    //   key
+                    // );
                     if (delta <= threshold && !this.sentNotifications.has(key)) {
                         this.sentNotifications.add(key);
                         // Add system comment

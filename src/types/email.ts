@@ -1,3 +1,4 @@
+import { body } from "express-validator";
 import fs from "fs";
 import path from "path";
 import Imap from "imap";
@@ -8,6 +9,7 @@ import { generateTicketNumber } from "../utils/GenerateTicket";
 import { uploadFile } from "../utils/blackbaze";
 import slaMonitor from "../types/slaMonitorService";
 import { generateSLAHistory } from "v1/controllers/ticketController.controller";
+import { sendSatisfactionEmail } from "./sendSatisfactionEmail";
 
 dotenv.config();
 
@@ -453,6 +455,7 @@ class SimpleEmailTicketSystem {
         "Unknown Sender";
       const subject = email.subject || "No Subject";
       const body = email.html || `<pre>${email.text}</pre>`;
+      const bodyText = email.text || "";
 
       const messageId = email.messageId;
       const references = email.references || [];
@@ -492,6 +495,7 @@ class SimpleEmailTicketSystem {
             existingTicket,
             senderEmail,
             body,
+            bodyText,
             messageId,
             email,
             attachments
@@ -510,6 +514,7 @@ class SimpleEmailTicketSystem {
         customer,
         subject,
         body,
+        bodyText,
         senderEmail,
         messageId,
         threadId ?? "",
@@ -529,11 +534,26 @@ class SimpleEmailTicketSystem {
       console.error("❌ Error handling email:", error);
     }
   }
+  private async askAITicketSystem(question: string): Promise<any> {
+    try {
+      const response = await fetch("https://ai.dcctz.com/ticket-system/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+
+      return await response.json();
+    } catch (error) {
+      console.error("❌ Error calling AI Ticket API:", error);
+      return null;
+    }
+  }
 
   private async createCommentFromEmail(
     ticket: any,
     senderEmail: string,
     body: string,
+    bodyText: string,
     messageId?: string,
     fullEmail?: ParsedEmail,
     attachments?: any[]
@@ -556,6 +576,7 @@ class SimpleEmailTicketSystem {
           customer_id: isCustomer ? ticket.customers?.id : null,
           user_id: isCustomer ? null : undefined,
           comment_text: cleanedBody,
+          email_body_text: bodyText,
           comment_type: "email_reply",
           is_internal: false,
           email_message_id: messageId,
@@ -666,6 +687,7 @@ class SimpleEmailTicketSystem {
     customer: any,
     subject: string,
     body: string,
+    bodyText: string,
     senderEmail: string,
     emailMessageId?: string,
     threadId?: string,
@@ -694,6 +716,7 @@ class SimpleEmailTicketSystem {
         customer_email: senderEmail,
         subject: this.cleanSubject(subject),
         description: cleanedBody,
+        email_body_text: bodyText,
         priority: slaConfig ? slaConfig.id : 0,
         status: "Open",
         source: "Email",
@@ -702,6 +725,19 @@ class SimpleEmailTicketSystem {
         attachment_urls,
       },
     });
+    const aiResponse = await this.askAITicketSystem(
+      tickets?.email_body_text || tickets.description
+    );
+    console.log("🤖 AI Response:", JSON.stringify(aiResponse));
+    if (aiResponse?.success) {
+      await sendSatisfactionEmail({
+        body: aiResponse.answer,
+        ticketId: tickets.id,
+        requesterEmail: senderEmail,
+        ticketNumber: generateTicketNumber(tickets.id),
+        requesterName: senderNames || "",
+      });
+    }
     try {
       await generateSLAHistory(
         tickets.id,

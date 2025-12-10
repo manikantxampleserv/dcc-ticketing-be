@@ -19,6 +19,7 @@ const emailConfiguration_routes_1 = __importDefault(require("../v1/routes/emailC
 const systemSetting_routes_1 = __importDefault(require("../v1/routes/systemSetting.routes"));
 const notification_routes_1 = __importDefault(require("../v1/routes/notification.routes"));
 const notificationSetting_routes_1 = __importDefault(require("../v1/routes/notificationSetting.routes"));
+const public_routes_1 = __importDefault(require("../v1/routes/public.routes"));
 const routes = (0, express_1.Router)();
 routes.get("/v1/health", (_, res) => {
     res.json({
@@ -48,4 +49,5 @@ routes.use("/v1", emailConfiguration_routes_1.default);
 routes.use("/v1", systemSetting_routes_1.default);
 routes.use("/v1", notificationSetting_routes_1.default);
 routes.use("/v1", notification_routes_1.default);
+routes.use("/v1", public_routes_1.default);
 exports.default = routes;

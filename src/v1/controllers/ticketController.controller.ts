@@ -5,6 +5,7 @@ import { generateTicketNumber } from "../../utils/GenerateTicket";
 import EmailService from "../../types/sendEmailComment";
 import { uploadFile } from "../../utils/blackbaze";
 import { paginate } from "../../utils/pagination";
+import { sendSatisfactionEmail } from "types/sendSatisfactionEmail";
 // import notificationService from "../services/notification";
 
 const prisma = new PrismaClient();
@@ -39,6 +40,7 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   original_email_message_id: ticket.original_email_message_id,
   merged_into_ticket_id: ticket.merged_into_ticket_id,
   attachment_urls: ticket?.attachment_urls || "",
+  email_body_text: ticket?.email_body_text || "",
   ticket_attachments: ticket.ticket_attachments
     ? ticket.ticket_attachments.map((att: any) => ({
         id: att.id,
@@ -595,6 +597,21 @@ export const ticketController = {
             },
           }),
         ]);
+        await sendSatisfactionEmail({
+          body: "Resolved",
+          ticketId: updatedTicket.id,
+          requesterEmail:
+            updatedTicket?.customer_email ||
+            updatedTicket?.customers?.email ||
+            "",
+          ticketNumber: updatedTicket.ticket_number,
+          requesterName:
+            updatedTicket?.customer_name ||
+            updatedTicket?.customers?.first_name +
+              " " +
+              updatedTicket?.customers?.last_name ||
+            "",
+        });
         // Mark resolution SLA as completed (monitoring service will determine if breached)
         await ticketController.handleSLACompletion(id, req.body.status);
 
@@ -1111,6 +1128,7 @@ export const ticketController = {
               email_message_id: true,
               created_at: true,
               updated_at: true,
+              email_body_text: true,
               ticket_comment_users: {
                 select: {
                   id: true,
@@ -1216,6 +1234,7 @@ export const ticketController = {
         search = "",
         status = "",
         priority = "",
+        assigned_agent_id = "",
       } = req.query;
       const page_num = parseInt(page as string, 10);
       const limit_num = parseInt(limit as string, 10);
@@ -1319,6 +1338,11 @@ export const ticketController = {
       if (statusFilter === "SLA Breached") {
         filters.sla_status = {
           equals: "Breached",
+        };
+      }
+      if (assigned_agent_id) {
+        filters.assigned_agent_id = {
+          equals: Number(assigned_agent_id),
         };
       }
       if (priorityFilter) {

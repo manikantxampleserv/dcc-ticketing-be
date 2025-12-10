@@ -14,6 +14,7 @@ import emailConfiguration from "../v1/routes/emailConfiguration.routes";
 import systemSettingRoutes from "../v1/routes/systemSetting.routes";
 import notificationRoutes from "../v1/routes/notification.routes";
 import notificationSettingRoutes from "../v1/routes/notificationSetting.routes";
+import publicRoutes from "../v1/routes/public.routes";
 
 const routes = Router();
 
@@ -46,5 +47,6 @@ routes.use("/v1", emailConfiguration);
 routes.use("/v1", systemSettingRoutes);
 routes.use("/v1", notificationSettingRoutes);
 routes.use("/v1", notificationRoutes);
+routes.use("/v1", publicRoutes);
 
 export default routes;

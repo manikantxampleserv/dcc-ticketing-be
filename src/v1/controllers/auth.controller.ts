@@ -132,12 +132,10 @@ export async function login(req: Request, res: Response): Promise<void> {
     } else {
       logger.success(`User found: Yes`);
     }
-
     if (!user) {
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
-
     if (user.is_active === false) {
       res.status(401).json({ error: "Account is deactivated" });
       return;

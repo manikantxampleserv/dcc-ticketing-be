@@ -57,6 +57,7 @@ const GenerateTicket_1 = require("../utils/GenerateTicket");
 const blackbaze_1 = require("../utils/blackbaze");
 const slaMonitorService_1 = __importDefault(require("./slaMonitorService"));
 const ticketController_controller_1 = require("../v1/controllers/ticketController.controller");
+const sendSatisfactionEmail_1 = require("./sendSatisfactionEmail");
 dotenv.config();
 const prisma = new client_1.PrismaClient();
 class SimpleEmailTicketSystem {
@@ -409,6 +410,7 @@ class SimpleEmailTicketSystem {
                     "Unknown Sender";
                 const subject = email.subject || "No Subject";
                 const body = email.html || `<pre>${email.text}</pre>`;
+                const bodyText = email.text || "";
                 const messageId = email.messageId;
                 const references = email.references || [];
                 const inReplyTo = email.inReplyTo;
@@ -436,7 +438,7 @@ class SimpleEmailTicketSystem {
                     existingTicket = yield this.findTicketByThreadId(threadId);
                     if (existingTicket) {
                         console.log(`✅ Adding reply to existing ticket #${existingTicket.ticket_number}`);
-                        yield this.createCommentFromEmail(existingTicket, senderEmail, body, messageId, email, attachments);
+                        yield this.createCommentFromEmail(existingTicket, senderEmail, body, bodyText, messageId, email, attachments);
                         return;
                     }
                     else {
@@ -444,7 +446,7 @@ class SimpleEmailTicketSystem {
                     }
                 }
                 const customer = yield this.findCustomer(senderEmail);
-                const ticket = yield this.createTicket(customer, subject, body, senderEmail, messageId, threadId !== null && threadId !== void 0 ? threadId : "", email, senderName, attachments);
+                const ticket = yield this.createTicket(customer, subject, body, bodyText, senderEmail, messageId, threadId !== null && threadId !== void 0 ? threadId : "", email, senderName, attachments);
                 console.log(`🎫 Ticket created: #${ticket.ticket_number} for ${customer
                     ? `${customer.first_name} ${customer.last_name}`
                     : senderEmail}`);
@@ -454,7 +456,23 @@ class SimpleEmailTicketSystem {
             }
         });
     }
-    createCommentFromEmail(ticket, senderEmail, body, messageId, fullEmail, attachments) {
+    askAITicketSystem(question) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const response = yield fetch("https://ai.dcctz.com/ticket-system/ask", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question }),
+                });
+                return yield response.json();
+            }
+            catch (error) {
+                console.error("❌ Error calling AI Ticket API:", error);
+                return null;
+            }
+        });
+    }
+    createCommentFromEmail(ticket, senderEmail, body, bodyText, messageId, fullEmail, attachments) {
         return __awaiter(this, void 0, void 0, function* () {
             var _a, _b;
             try {
@@ -468,6 +486,7 @@ class SimpleEmailTicketSystem {
                         customer_id: isCustomer ? (_b = ticket.customers) === null || _b === void 0 ? void 0 : _b.id : null,
                         user_id: isCustomer ? null : undefined,
                         comment_text: cleanedBody,
+                        email_body_text: bodyText,
                         comment_type: "email_reply",
                         is_internal: false,
                         email_message_id: messageId,
@@ -538,7 +557,7 @@ class SimpleEmailTicketSystem {
             return attachments;
         });
     }
-    createTicket(customer, subject, body, senderEmail, emailMessageId, threadId, fullEmail, senderNames, attachments) {
+    createTicket(customer, subject, body, bodyText, senderEmail, emailMessageId, threadId, fullEmail, senderNames, attachments) {
         return __awaiter(this, void 0, void 0, function* () {
             const ticketNumber = `TCKT-${Date.now()}`;
             const slaConfig = yield prisma.sla_configurations.findFirst({
@@ -556,6 +575,7 @@ class SimpleEmailTicketSystem {
                     customer_email: senderEmail,
                     subject: this.cleanSubject(subject),
                     description: cleanedBody,
+                    email_body_text: bodyText,
                     priority: slaConfig ? slaConfig.id : 0,
                     status: "Open",
                     source: "Email",
@@ -564,6 +584,17 @@ class SimpleEmailTicketSystem {
                     attachment_urls,
                 },
             });
+            const aiResponse = yield this.askAITicketSystem((tickets === null || tickets === void 0 ? void 0 : tickets.email_body_text) || tickets.description);
+            console.log("🤖 AI Response:", JSON.stringify(aiResponse));
+            if (aiResponse === null || aiResponse === void 0 ? void 0 : aiResponse.success) {
+                yield (0, sendSatisfactionEmail_1.sendSatisfactionEmail)({
+                    body: aiResponse.answer,
+                    ticketId: tickets.id,
+                    requesterEmail: senderEmail,
+                    ticketNumber: (0, GenerateTicket_1.generateTicketNumber)(tickets.id),
+                    requesterName: senderNames || "",
+                });
+            }
             try {
                 yield (0, ticketController_controller_1.generateSLAHistory)(tickets.id, slaConfig ? slaConfig.id : 0, tickets.created_at || new Date());
             }
