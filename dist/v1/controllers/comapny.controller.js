@@ -112,13 +112,61 @@ exports.companyController = {
     deleteCompany(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                yield prisma.companies.delete({
-                    where: { id: Number(req.params.id) },
-                });
-                res.success("Company deleted successfully", 200);
+                const id = req.params.id;
+                const { ids } = req.body;
+                // ---- Bulk Delete ----
+                if (Array.isArray(ids) && ids.length > 0) {
+                    try {
+                        const deletedCompany = yield prisma.companies.deleteMany({
+                            where: { id: { in: ids.map(Number) } },
+                        });
+                        if (deletedCompany.count === 0) {
+                            res.error("No companies found for deletion", 404);
+                            return;
+                        }
+                        res.success(`${deletedCompany.count} companies deleted successfully`, 200);
+                        return;
+                    }
+                    catch (err) {
+                        // Prisma FK constraint
+                        if (err.code === "P2003") {
+                            res.error("Cannot delete one or more companies because they are linked with customers, tickets, or users.", 400);
+                            return;
+                        }
+                        res.error(err.message, 500);
+                        return;
+                    }
+                }
+                // ---- Single Delete ----
+                if (id && !isNaN(Number(id))) {
+                    try {
+                        const company = yield prisma.companies.findUnique({
+                            where: { id: Number(id) },
+                        });
+                        if (!company) {
+                            res.error("Company not found", 404);
+                            return;
+                        }
+                        yield prisma.companies.delete({
+                            where: { id: Number(id) },
+                        });
+                        res.success(`Company with ID ${id} deleted successfully`, 200);
+                        return;
+                    }
+                    catch (err) {
+                        if (err.code === "P2003") {
+                            res.error("Cannot delete this company because it is linked with customers, tickets, or users.", 400);
+                            return;
+                        }
+                        res.error(err.message, 500);
+                        return;
+                    }
+                }
+                res.error("Please provide a valid 'id' or 'ids[]' in the request body", 400);
+                return;
             }
             catch (error) {
-                res.error(error.message);
+                res.error(error.message, 500);
             }
         });
     },

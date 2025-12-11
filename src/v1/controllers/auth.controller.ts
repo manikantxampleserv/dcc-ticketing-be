@@ -5,6 +5,18 @@ import jwt from "jsonwebtoken";
 import { AuthRequest } from "../../middlewares/auth";
 import logger from "../../config/logger";
 
+export function sendError(
+  res: Response,
+  status: number,
+  code: string,
+  message: string,
+  extra: Record<string, unknown> = {}
+) {
+  return res.status(status).json({
+    success: false,
+    error: { code, message, ...extra },
+  });
+}
 export async function register(req: Request, res: Response): Promise<void> {
   try {
     const {
@@ -133,20 +145,24 @@ export async function login(req: Request, res: Response): Promise<void> {
       logger.success(`User found: Yes`);
     }
     if (!user) {
-      res.status(401).json({ error: "Invalid credentials" });
+      res.status(401).json({ success: false, error: "Invalid credentials" });
       return;
     }
     if (user.is_active === false) {
       res.status(401).json({ error: "Account is deactivated" });
       return;
     }
-
     const isValidPassword = await bcryptjs.compare(
       password,
       user.password_hash
     );
+    console.log("isValidate : ", isValidPassword);
     if (!isValidPassword) {
-      res.status(401).json({ message: "Invalid credentials" });
+      res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
+      });
+      // res.status(401).json({ message: "Invalid credentials" });
       return;
     }
 

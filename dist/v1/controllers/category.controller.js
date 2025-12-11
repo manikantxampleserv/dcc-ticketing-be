@@ -110,39 +110,59 @@ exports.categoryController = {
     // Delete category
     deleteCategory(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             try {
-                const { ids } = req.body;
-                const paramId = req.params.id ? parseInt(req.params.id, 10) : null;
-                if (paramId && !isNaN(paramId)) {
+                const bodyIds = (_a = req.body) === null || _a === void 0 ? void 0 : _a.ids;
+                const ids = Array.isArray(bodyIds)
+                    ? bodyIds.map(Number).filter((n) => Number.isFinite(n))
+                    : [];
+                const paramId = req.params.id ? Number(req.params.id) : null;
+                // Bulk delete
+                if (ids.length > 0) {
+                    const deleted = yield prisma.categories.deleteMany({
+                        where: { id: { in: ids } },
+                    });
+                    return void res.status(200).json({
+                        success: true,
+                        message: `${deleted.count} categor${deleted.count === 1 ? "y" : "ies"} deleted successfully`,
+                        deleted_count: deleted.count,
+                    });
+                }
+                // Single delete
+                if (paramId && Number.isFinite(paramId)) {
                     const category = yield prisma.categories.findUnique({
                         where: { id: paramId },
+                        select: { id: true },
                     });
                     if (!category) {
-                        res.status(404).json({ error: "Category not found" });
-                        return;
+                        return void res
+                            .status(404)
+                            .json({ success: false, error: "Category not found" });
                     }
                     yield prisma.categories.delete({ where: { id: paramId } });
-                    res.status(200).json({
+                    return void res.status(200).json({
+                        success: true,
                         message: "Category deleted successfully",
                         deleted_id: paramId,
                     });
-                    return;
                 }
-                if (Array.isArray(ids) && ids.length > 0) {
-                    const deleted_category = yield prisma.categories.deleteMany({
-                        where: { id: { in: ids } },
-                    });
-                    res.status(200).json({
-                        success: true,
-                        message: "Category deleted successsfully",
-                    });
-                    return;
-                }
-                res.status(400).json({ error: "Invalid id provided" });
+                return void res.status(400).json({
+                    success: false,
+                    error: "Invalid id provided. Provide path param :id or body { ids: number[] }",
+                });
             }
-            catch (error) {
-                console.log(error);
-                res.status(500).json({ error: "Internal server error" });
+            catch (err) {
+                // If you didn't switch to SetNull yet and FK fails, Prisma throws P2003
+                if ((err === null || err === void 0 ? void 0 : err.code) === "P2003") {
+                    return void res.status(400).json({
+                        success: false,
+                        error: "Cannot delete category because it is linked with one or more tickets. Either unlink tickets ",
+                    });
+                }
+                console.error(err);
+                return void res
+                    .status(500)
+                    .json({ success: false, error: "Internal server error" });
             }
         });
     },

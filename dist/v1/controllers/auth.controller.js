@@ -12,6 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.sendError = sendError;
 exports.register = register;
 exports.login = login;
 exports.getProfile = getProfile;
@@ -20,6 +21,12 @@ const prisma_config_1 = __importDefault(require("../../utils/prisma.config"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const logger_1 = __importDefault(require("../../config/logger"));
+function sendError(res, status, code, message, extra = {}) {
+    return res.status(status).json({
+        success: false,
+        error: Object.assign({ code, message }, extra),
+    });
+}
 function register(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -131,7 +138,7 @@ function login(req, res) {
                 logger_1.default.success(`User found: Yes`);
             }
             if (!user) {
-                res.status(401).json({ error: "Invalid credentials" });
+                res.status(401).json({ success: false, error: "Invalid credentials" });
                 return;
             }
             if (user.is_active === false) {
@@ -139,8 +146,13 @@ function login(req, res) {
                 return;
             }
             const isValidPassword = yield bcryptjs_1.default.compare(password, user.password_hash);
+            console.log("isValidate : ", isValidPassword);
             if (!isValidPassword) {
-                res.status(401).json({ message: "Invalid credentials" });
+                res.status(401).json({
+                    success: false,
+                    error: "Invalid credentials",
+                });
+                // res.status(401).json({ message: "Invalid credentials" });
                 return;
             }
             yield prisma_config_1.default.users.update({

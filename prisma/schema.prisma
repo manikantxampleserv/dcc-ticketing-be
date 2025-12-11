@@ -266,7 +266,7 @@ model tickets {
   agents                                    agents?                    @relation(fields: [agentsId], references: [id])
   agents_user                               users?                     @relation("TicketAgent", fields: [assigned_agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users                                     users?                     @relation("TicketAssignee", fields: [assigned_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  categories                                categories?                @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  categories                                categories?                @relation(fields: [category_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   customers                                 customers?                 @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tickets                                   tickets?                   @relation("TicketsToTickets", fields: [merged_into_ticket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_tickets                             tickets[]                  @relation("TicketsToTickets")
