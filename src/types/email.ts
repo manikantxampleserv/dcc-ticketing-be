@@ -93,9 +93,9 @@ class SimpleEmailTicketSystem {
       }
 
       return {
-        user: process.env.SMTP_USERNAME! || emailConfiguration.username!,
-        password: process.env.SMTP_PASSWORD! || emailConfiguration.password!,
-        host: process.env.MAIL_HOST! || emailConfiguration.smtp_server!,
+        user: emailConfiguration.username! || process.env.SMTP_USERNAME!,
+        password: emailConfiguration.password! || process.env.SMTP_PASSWORD!,
+        host: emailConfiguration.smtp_server! || process.env.MAIL_HOST!,
         port: emailConfiguration.smtp_port || 993,
         connTimeout: 60000,
         authTimeout: 30000,
