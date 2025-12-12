@@ -283,19 +283,26 @@ class EmailService {
       //     </p>
       //   </div>
       // `;
-      console.log(
-        "CCC : ",
-        ticket?.cc_of_ticket?.map((cc: any) => cc.email).join(",")
-      );
+      // console.log(
+      //   "CCC : ",
+      //   ticket?.cc_of_ticket?.map((cc: any) => cc.email).join(",")
+      // );
       // ✅ FIXED: Create mail options object with all properties
       const mailOptions: any = {
         from: `"Support Team" <${process.env.SMTP_USERNAME}>`,
         to: Emails,
         // to: customerEmail,
-        cc:
-          ticket?.cc_of_ticket && ticket?.cc_of_ticket?.length > 0
-            ? ticket?.cc_of_ticket.map((cc: any) => cc.email).join(",")
-            : undefined,
+        cc: [
+          "shreyansh.tripathi@ampleserv.com",
+          "anil.kumar@ampleserv.com",
+          ...(ticket?.cc_of_ticket?.length
+            ? ticket.cc_of_ticket.map((cc: any) => cc.email)
+            : []),
+        ],
+        // cc:
+        //  ( ticket?.cc_of_ticket && ticket?.cc_of_ticket?.length > 0
+        //     ? ticket?.cc_of_ticket.map((cc: any) => cc.email).join(",")
+        //     : undefined ),
         subject,
         html: htmlContent,
         messageId: originalThreadId || newMessageId, // ✅ Unique ID for this outgoing email
