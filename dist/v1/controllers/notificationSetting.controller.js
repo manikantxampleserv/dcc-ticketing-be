@@ -33,9 +33,12 @@ exports.notificationSettingController = {
                 const agent_id = req.user.id;
                 console.log("agent_id", id, req.user);
                 let NotificationSetting = null;
-                const isPresent = yield prisma.notification_settings.findFirst({
-                    where: { id: Number(id) },
-                });
+                let isPresent = null;
+                if (id) {
+                    isPresent = yield prisma.notification_settings.findFirst({
+                        where: { id: Number(id) },
+                    });
+                }
                 if (isPresent) {
                     NotificationSetting = yield prisma.notification_settings.update({
                         where: { id: Number(id) },

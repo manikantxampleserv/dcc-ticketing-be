@@ -37,7 +37,6 @@ class NotificationService {
      */
     notify(type, userIds, data) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
             try {
                 // Get users with notification settings
                 const users = yield prisma.users.findMany({
@@ -45,27 +44,35 @@ class NotificationService {
                     include: { user_notification_setting: true },
                 });
                 // Filter users who want this notification
-                const eligibleUsers = users.filter((user) => {
+                const eligibleUsers = users.filter((user) => __awaiter(this, void 0, void 0, function* () {
                     var _a;
                     const settings = (_a = user.user_notification_setting) === null || _a === void 0 ? void 0 : _a[0];
-                    if (type === "new_ticket" && !settings.new_ticket_alerts)
-                        return false;
-                    if (type === "sla_warning" && !settings.sla_warnings)
-                        return false;
-                    // if (!settings?.email_notifications) return false;
-                    return true;
-                });
-                console.log("eligibleUsers", users, eligibleUsers);
-                // Create and send notifications
-                for (const user of eligibleUsers) {
-                    const notification = yield this.createNotification(user.id, type, data);
-                    // Send via Socket.IO
-                    // this.sendSocketNotification(user.id, notification);
-                    // Send email
-                    if ((_b = (_a = user.user_notification_setting) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.email_notifications) {
-                        this.sendEmail(user, type, data);
+                    if (type === "new_ticket" && (settings === null || settings === void 0 ? void 0 : settings.new_ticket_alerts)) {
+                        yield this.createNotification(user.id, type, data);
                     }
-                }
+                    if (type === "sla_warning" && (settings === null || settings === void 0 ? void 0 : settings.sla_warnings)) {
+                        yield this.createNotification(user.id, type, data);
+                    }
+                    // if (settings?.email_notifications) {
+                    //    await EmailService.sendCommentEmailToCustomer(
+                    //   updatedTicket,
+                    //   comment,
+                    //   []
+                    // );
+                    //   // this.sendEmail(user, type, data);
+                    // }
+                    return true;
+                }));
+                console.log("eligibleUsers", users);
+                // Create and send notifications
+                // for (const user of eligibleUsers) {
+                //   // Send via Socket.IO
+                //   // this.sendSocketNotification(user.id, notification);
+                //   // Send email
+                //   if (user.user_notification_setting?.[0]?.email_notifications) {
+                //     this.sendEmail(user, type, data);
+                //   }
+                // }
             }
             catch (error) {
                 console.error("❌ Notification error:", error);
@@ -168,7 +175,9 @@ class NotificationService {
               <h2>🎫 ${type === "new_ticket" ? "New Ticket Created" : "Ticket Assigned"}</h2>
             </div>
             <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
-              <p>Hi ${user.first_name || user.name},</p>
+              <p>Hi ${user.first_name
+                    ? user.first_name + user.last_name
+                    : user.username},</p>
               <p>${type === "new_ticket"
                     ? "A new ticket has been created"
                     : "A ticket has been assigned to you"}:</p>
@@ -197,12 +206,13 @@ class NotificationService {
               <h2>⚠️ SLA Warning Alert</h2>
             </div>
             <div style="padding: 20px; border: 1px solid #ff9800; background: #fff3cd;">
-              <p>Hi ${user.first_name || user.name},</p>
+              <p>Hi ${user.first_name
+                    ? user.first_name + user.last_name
+                    : user.username},</p>
               <p><strong>Ticket #${data.ticketNumber} is approaching SLA breach!</strong></p>
               <ul>
                 <li><strong>Subject:</strong> ${data.subject}</li>
-                <li><strong>SLA Usage:</strong> ${data.percentUsed}%</li>
-                <li><strong>Time Remaining:</strong> ${data.timeRemaining}</li>
+
               </ul>
               <p style="color: #d32f2f;"><strong>⚠️ Action Required: Please respond immediately</strong></p>
               <a href="${baseUrl}/tickets/${data.ticketId}" 
@@ -215,6 +225,8 @@ class NotificationService {
         `,
             };
         }
+        // <li><strong>SLA Usage:</strong> ${data.percentUsed}%</li>
+        // <li><strong>Time Remaining:</strong> ${data.timeRemaining}</li>
         return { subject: "Notification", html: "<p>New notification</p>" };
     }
     markAsRead(notificationId) {

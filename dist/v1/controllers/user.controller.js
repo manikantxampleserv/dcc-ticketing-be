@@ -49,22 +49,52 @@ function getUsersList(req, res) {
             const page_num = parseInt(page, 10);
             const limit_num = parseInt(limit, 10);
             const searchLower = (search || "").toLowerCase();
-            const filters = search
-                ? {
-                    username: {
-                        contains: searchLower,
+            // const filters: any = search
+            //   ? {
+            //       username: {
+            //         contains: searchLower,
+            //       },
+            //       email: {
+            //         contains: searchLower,
+            //       },
+            //       first_name: {
+            //         contains: searchLower,
+            //       },
+            //       last_name: {
+            //         contains: searchLower,
+            //       },
+            //     }
+            //   : {};
+            const filters = {};
+            // Add search filters using OR condition
+            if (searchLower) {
+                filters.OR = [
+                    {
+                        username: {
+                            contains: searchLower,
+                            // mode: "insensitive",
+                        },
                     },
-                    email: {
-                        contains: searchLower,
+                    {
+                        email: {
+                            contains: searchLower,
+                            // mode: "insensitive",
+                        },
                     },
-                    first_name: {
-                        contains: searchLower,
+                    {
+                        first_name: {
+                            contains: searchLower,
+                            // mode: "insensitive",
+                        },
                     },
-                    last_name: {
-                        contains: searchLower,
+                    {
+                        last_name: {
+                            contains: searchLower,
+                            // mode: "insensitive",
+                        },
                     },
-                }
-                : {};
+                ];
+            }
             if (role_id)
                 filters.role_id = Number(role_id);
             if (department_id)

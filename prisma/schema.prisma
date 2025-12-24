@@ -253,6 +253,8 @@ model tickets {
   start_timer_at                            DateTime?
   customer_email                            String?
   customer_name                             String?
+  sort_description                          String?
+  sort_comment                              String?
   cc_of_ticket                              cc_of_ticket[]
   ticket_sla_history                        sla_history[]
   support_ticket_responses                  support_ticket_responses[]

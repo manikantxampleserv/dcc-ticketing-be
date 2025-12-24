@@ -42,6 +42,7 @@ router.put(
 router.get("/ticket/:id", authenticateToken, ticketController.getTicketById);
 
 router.get("/ticket", authenticateToken, ticketController.getAllTicket);
+router.get("/ticket-list", authenticateToken, ticketController.getListTicket);
 
 router.delete("/ticket", validate, ticketController.deleteTicket);
 

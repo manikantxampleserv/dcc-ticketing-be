@@ -6,7 +6,7 @@ import EmailService from "../../types/sendEmailComment";
 import { uploadFile } from "../../utils/blackbaze";
 import { paginate } from "../../utils/pagination";
 import { sendSatisfactionEmail } from "types/sendSatisfactionEmail";
-// import notificationService from "../services/notification";
+import notificationService from "../services/notification";
 
 const prisma = new PrismaClient();
 
@@ -797,7 +797,7 @@ export const ticketController = {
       commentText = `Ticket allocated to agent  <strong>${
         existingAgent?.first_name + " " + existingAgent?.last_name
       }</strong>.${reason ? "Reason: " + reason : ""}`;
-      dataToUpdate.status = dataToUpdate.status || "In Progress";
+      dataToUpdate.status = dataToUpdate.status || "Open";
       dataToUpdate.assigned_by = userId;
     } else if (action === "Merge") {
       const parentId = Number(req.body.merged_into_ticket_id);
@@ -845,21 +845,21 @@ export const ticketController = {
 
       // Notify customer via email
       if (action === "Allocate") {
-        // await notificationService.notify(
-        //   "new_ticket",
-        //   [Number(updatedTicket?.assigned_agent_id)],
-        //   {
-        //     ticketId: updatedTicket.id,
-        //     ticketNumber: updatedTicket.ticket_number,
-        //     subject: updatedTicket.subject,
-        //     priority: "Medium",
-        //     customerName:
-        //       updatedTicket.customer_name ||
-        //       updatedTicket?.customers?.first_name +
-        //         " " +
-        //         updatedTicket?.customers?.last_name,
-        //   }
-        // );
+        await notificationService.notify(
+          "new_ticket",
+          [Number(updatedTicket?.assigned_agent_id)],
+          {
+            ticketId: updatedTicket.id,
+            ticketNumber: updatedTicket.ticket_number,
+            subject: updatedTicket.subject,
+            priority: updatedTicket.sla_priority.priority || "Medium",
+            customerName:
+              updatedTicket.customer_name ||
+              updatedTicket?.customers?.first_name +
+                " " +
+                updatedTicket?.customers?.last_name,
+          }
+        );
         console.log("agentDetails", agentDetails);
         await EmailService.sendCommentEmailToCustomer(updatedTicket, comment, [
           agentDetails?.email,
@@ -1108,9 +1108,33 @@ export const ticketController = {
         include: {
           agents_user: true,
           users: true,
-          tickets: true,
+          tickets: {
+            select: {
+              id: true,
+              ticket_number: true,
+              sla_status: true,
+              subject: true,
+              status: true,
+              priority: true,
+              created_at: true,
+              updated_at: true,
+              sla_priority: true,
+            },
+          },
           categories: true,
-          other_tickets: true,
+          other_tickets: {
+            select: {
+              id: true,
+              ticket_number: true,
+              sla_status: true,
+              subject: true,
+              status: true,
+              priority: true,
+              created_at: true,
+              updated_at: true,
+              sla_priority: true,
+            },
+          },
           ticket_sla_history: true,
           ticket_attachments: true,
           sla_priority: true,
@@ -1361,7 +1385,6 @@ export const ticketController = {
         limit: limit_num,
         orderBy: { created_at: "desc" },
         select: {
-          // All scalar fields
           id: true,
           ticket_number: true,
           customer_id: true,
@@ -1370,7 +1393,7 @@ export const ticketController = {
           assigned_agent_id: true,
           category_id: true,
           subject: true,
-          // description: false,  // Explicitly excluded
+          email_body_text: true, // Explicitly excluded
           priority: true,
           status: true,
           source: true,
@@ -1480,6 +1503,317 @@ export const ticketController = {
           //   },
           // },
 
+          ticket_comments: {
+            where: {
+              comment_type: {
+                notIn: ["System"], // EXCLUDE these types
+              },
+            },
+            orderBy: {
+              created_at: "desc", // latest comment first
+            },
+            take: 1, // only latest comment
+            select: {
+              id: true,
+              ticket_id: true,
+              // user_id: true,
+              // customer_id: true,
+              // comment_text: true,
+              // comment_type: true,
+              created_at: true,
+              ticket_comment_users: {
+                select: {
+                  id: true,
+                  first_name: true,
+                  last_name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+
+          // cc_of_ticket: {
+          //   select: {
+          //     user_of_ticket_cc: {
+          //       select: {
+          //         id: true,
+          //         first_name: true,
+          //         last_name: true,
+          //         email: true,
+          //         phone: true,
+          //         avatar: true,
+          //       },
+          //     },
+          //   },
+          // },
+        },
+      });
+
+      res.success(
+        "Tickets fetched successfully",
+        data,
+        // data.map((ticket: any) => serializeTicket(ticket, true)),
+        200,
+        pagination
+      );
+    } catch (error: any) {
+      console.log("Error : ", error);
+      res.error(error.message);
+    }
+  },
+  async getListTicket(req: Request, res: Response): Promise<void> {
+    try {
+      const {
+        page = "1",
+        limit = "10",
+        search = "",
+        status = "",
+        priority = "",
+        assigned_agent_id = "",
+      } = req.query;
+      const page_num = parseInt(page as string, 10);
+      const limit_num = parseInt(limit as string, 10);
+      const searchTerm = (search as string).toLowerCase().trim();
+      const statusFilter = (status as string).trim();
+      const priorityFilter = (priority as string).trim();
+      // Build filters object
+      const filters: any = {};
+
+      // Add search filters using OR condition
+      if (searchTerm) {
+        filters.OR = [
+          {
+            subject: {
+              contains: searchTerm,
+              // mode: "insensitive",
+            },
+          },
+          {
+            customer_name: {
+              contains: searchTerm,
+              // mode: "insensitive",
+            },
+          },
+          {
+            customer_email: {
+              contains: searchTerm,
+              // mode: "insensitive",
+            },
+          },
+          {
+            ticket_number: {
+              contains: searchTerm,
+              // mode: "insensitive",
+            },
+          },
+          {
+            sla_priority: {
+              priority: {
+                contains: searchTerm,
+                // mode: "insensitive",
+              },
+            },
+          },
+          {
+            agents_user: {
+              OR: [
+                {
+                  first_name: {
+                    contains: searchTerm,
+                    // mode: "insensitive",
+                  },
+                },
+                {
+                  last_name: {
+                    contains: searchTerm,
+                    // mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          },
+          {
+            customers: {
+              OR: [
+                {
+                  first_name: {
+                    contains: searchTerm,
+                    // mode: "insensitive",
+                  },
+                },
+                {
+                  last_name: {
+                    contains: searchTerm,
+                    // mode: "insensitive",
+                  },
+                },
+                {
+                  email: {
+                    contains: searchTerm,
+                    // mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          },
+        ];
+      }
+
+      // Add status filter
+      if (
+        statusFilter &&
+        statusFilter !== "all" &&
+        statusFilter !== "SLA Breached"
+      ) {
+        filters.status = {
+          equals: statusFilter,
+          // mode: "insensitive",
+        };
+      }
+      if (statusFilter === "SLA Breached") {
+        filters.sla_status = {
+          equals: "Breached",
+        };
+      }
+      if (assigned_agent_id) {
+        filters.assigned_agent_id = {
+          equals: Number(assigned_agent_id),
+        };
+      }
+      if (priorityFilter) {
+        filters.sla_priority = {
+          priority: {
+            equals: priorityFilter,
+            // mode: "insensitive",
+          },
+        };
+      }
+
+      const { data, pagination } = await paginate({
+        model: prisma.tickets,
+        filters,
+        page: page_num,
+        limit: limit_num,
+        orderBy: { created_at: "desc" },
+        select: {
+          id: true,
+          ticket_number: true,
+          customer_id: true,
+          customer_name: true,
+          customer_email: true,
+          assigned_agent_id: true,
+          category_id: true,
+          subject: true,
+          // description: false, // Explicitly excluded
+          priority: true,
+          status: true,
+          source: true,
+          sla_deadline: true,
+          sla_status: true,
+          first_response_at: true,
+          resolved_at: true,
+          closed_at: true,
+          assigned_by: true,
+          is_merged: true,
+          reopen_count: true,
+          time_spent_minutes: true,
+          last_reopened_at: true,
+          customer_satisfaction_rating: true,
+          customer_feedback: true,
+          tags: true,
+          email_thread_id: true,
+          original_email_message_id: true,
+          merged_into_ticket_id: true,
+          attachment_urls: true,
+          start_timer_at: true,
+          created_at: true,
+          updated_at: true,
+
+          // Relations with nested select
+          users: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              username: true,
+              avatar: true,
+              email: true,
+            },
+          },
+
+          // tickets: true, // parent_ticket
+
+          // other_tickets: true, // child_tickets
+
+          categories: true,
+
+          // ticket_sla_history: true,
+
+          customers: {
+            select: {
+              id: true,
+              company_id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+              phone: true,
+              companies: {
+                select: {
+                  id: true,
+                  company_name: true,
+                },
+              },
+            },
+          },
+
+          agents_user: {
+            select: {
+              id: true,
+              avatar: true,
+              first_name: true,
+              last_name: true,
+              username: true,
+              email: true,
+            },
+          },
+
+          sla_priority: {
+            select: {
+              id: true,
+              priority: true,
+              response_time_hours: true,
+              resolution_time_hours: true,
+            },
+          },
+
+          // ticket_attachments: {
+          //   select: {
+          //     id: true,
+          //     ticket_id: true,
+          //     response_id: true,
+          //     file_name: true,
+          //     original_file_name: true,
+          //     file_path: true,
+          //     file_size: true,
+          //     content_type: true,
+          //     file_hash: true,
+          //     uploaded_by: true,
+          //     uploaded_by_type: true,
+          //     is_public: true,
+          //     virus_scanned: true,
+          //     scan_result: true,
+          //     created_at: true,
+          //     users: {
+          //       select: {
+          //         id: true,
+          //         first_name: true,
+          //         last_name: true,
+          //         email: true,
+          //       },
+          //     },
+          //   },
+          // },
+
           // ticket_comments: true,
 
           // cc_of_ticket: {
@@ -1517,7 +1851,7 @@ export const ticketController = {
       const {
         ticket_id,
         comment_text,
-        comment_type = "public",
+        comment_type,
         is_internal = false,
         mentioned_users,
       } = req.body;
@@ -1659,15 +1993,24 @@ export const ticketController = {
           },
           additionalEmails
         );
+      } else {
+        console.log("Internal comment created, no email sent to customer.");
+        await EmailService.sendCommentEmailToCustomer(
+          serializeTicket(ticket),
+          {
+            ...comment,
+            imageUrl: imageUrl ? imageUrl : null,
+            mailCustomer: !new_is_internal,
+          },
+          additionalEmails
+        );
       }
       // const countComment = await prisma.ticket_comments.count()
       // After successfully creating the comment and before ticket update
       const isAssignedAgent =
         ticket?.assigned_agent_id && req?.user?.id === ticket.assigned_agent_id;
       const isFirstAgentResponse =
-        !ticket.first_response_at &&
-        isAssignedAgent &&
-        comment.comment_type === "public";
+        !ticket.first_response_at && isAssignedAgent && !comment.is_internal;
       // &&        !new_is_internal;
 
       if (isFirstAgentResponse && ticket.ticket_sla_history?.length) {
@@ -1697,7 +2040,27 @@ export const ticketController = {
         // Also update the ticket's first_response_at timestamp
         await prisma.tickets.update({
           where: { id: ticket.id },
-          data: { first_response_at: new Date(comment.created_at) },
+          data: {
+            first_response_at: new Date(comment.created_at),
+            sort_comment: (() => {
+              const words = comment_text.trim().split(/\s+/);
+              return words.length > 30
+                ? words.slice(0, 30).join(" ") + "..."
+                : comment_text;
+            })(),
+          },
+        });
+      } else {
+        await prisma.tickets.update({
+          where: { id: ticket.id },
+          data: {
+            sort_comment: (() => {
+              const words = comment_text.trim().split(/\s+/);
+              return words.length > 30
+                ? words.slice(0, 30).join(" ") + "..."
+                : comment_text;
+            })(),
+          },
         });
       }
       res.success("Comment created successfully", comment, 201);

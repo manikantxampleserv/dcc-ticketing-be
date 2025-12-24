@@ -17,5 +17,6 @@ router.put("/ticket-merge/:id", auth_1.authenticateToken, ticketController_contr
 router.put("/ticket-cc-add/:id", auth_1.authenticateToken, ticketController_controller_1.ticketController.addCCTicket);
 router.get("/ticket/:id", auth_1.authenticateToken, ticketController_controller_1.ticketController.getTicketById);
 router.get("/ticket", auth_1.authenticateToken, ticketController_controller_1.ticketController.getAllTicket);
+router.get("/ticket-list", auth_1.authenticateToken, ticketController_controller_1.ticketController.getListTicket);
 router.delete("/ticket", validate_1.validate, ticketController_controller_1.ticketController.deleteTicket);
 exports.default = router;

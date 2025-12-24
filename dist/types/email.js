@@ -69,7 +69,6 @@ class SimpleEmailTicketSystem {
         this.isIdleSupported = false;
         // ✅ FIX #1: Add a flag to prevent concurrent fetches
         this.isFetching = false;
-        // ✅ FIX #2: Queue to track pending fetches
         this.pendingFetch = false;
         this.logInst = logInst;
         this.configId = configId || 0;
@@ -86,9 +85,9 @@ class SimpleEmailTicketSystem {
                     throw new Error(`No email configuration found for logInst: ${this.logInst} or configId: ${this.configId}`);
                 }
                 return {
-                    user: process.env.SMTP_USERNAME || emailConfiguration.username,
-                    password: process.env.SMTP_PASSWORD || emailConfiguration.password,
-                    host: process.env.MAIL_HOST || emailConfiguration.smtp_server,
+                    user: emailConfiguration.username || process.env.SMTP_USERNAME,
+                    password: emailConfiguration.password || process.env.SMTP_PASSWORD,
+                    host: emailConfiguration.smtp_server || process.env.MAIL_HOST,
                     port: emailConfiguration.smtp_port || 993,
                     connTimeout: 60000,
                     authTimeout: 30000,
@@ -498,7 +497,15 @@ class SimpleEmailTicketSystem {
                 }
                 yield prisma.tickets.update({
                     where: { id: ticket.id },
-                    data: { updated_at: new Date() },
+                    data: {
+                        updated_at: new Date(),
+                        sort_comment: (() => {
+                            const words = bodyText.trim().split(/\s+/);
+                            return words.length > 50
+                                ? words.slice(0, 30).join(" ") + "..."
+                                : bodyText;
+                        })(),
+                    },
                 });
             }
             catch (error) {
@@ -576,6 +583,12 @@ class SimpleEmailTicketSystem {
                     subject: this.cleanSubject(subject),
                     description: cleanedBody,
                     email_body_text: bodyText,
+                    sort_description: (() => {
+                        const words = bodyText.trim().split(/\s+/);
+                        return words.length > 30
+                            ? words.slice(0, 30).join(" ") + "..."
+                            : bodyText;
+                    })(),
                     priority: slaConfig ? slaConfig.id : 0,
                     status: "Open",
                     source: "Email",

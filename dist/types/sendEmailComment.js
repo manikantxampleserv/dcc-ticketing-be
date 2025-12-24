@@ -42,8 +42,8 @@ class EmailService {
                     this.transporter = nodemailer_1.default.createTransport({
                         service: "gmail",
                         auth: {
-                            user: process.env.SMTP_USERNAME || emailConfiguration.username,
-                            pass: process.env.SMTP_PASSWORD || emailConfiguration.password,
+                            user: emailConfiguration.username || process.env.SMTP_USERNAME,
+                            pass: emailConfiguration.password || process.env.SMTP_PASSWORD,
                         },
                         pool: true,
                         maxConnections: 5,
@@ -142,14 +142,19 @@ class EmailService {
                 const subject = (additionalEmails === null || additionalEmails === void 0 ? void 0 : additionalEmails.length)
                     ? `Re: ${ticket.subject}`
                     : `Re: ${ticket.subject}`;
-                const customerEmail = (_a = ticket.customers) === null || _a === void 0 ? void 0 : _a.email;
-                const assignedEmail = (_b = ticket.agents_user) === null || _b === void 0 ? void 0 : _b.email;
+                const customerEmail = ((_a = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _a === void 0 ? void 0 : _a.email)
+                    ? [(_b = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _b === void 0 ? void 0 : _b.email]
+                    : [];
+                // const customerEmail = ticket.customers?.email
+                //   ? [ticket.customer_email, ticket.customers.email]
+                //   : [ticket.customer_email];
+                const assignedEmail = (_c = ticket.agents_user) === null || _c === void 0 ? void 0 : _c.email;
                 const agentName = comment.users
                     ? `${comment.users.first_name} ${comment.users.last_name}`
                     : "Support Team";
                 let Emails = (comment === null || comment === void 0 ? void 0 : comment.mailCustomer)
                     ? assignedEmail
-                    : [customerEmail, assignedEmail];
+                    : [...customerEmail, assignedEmail];
                 if (additionalEmails.length > 0) {
                     Emails = [...Emails, ...additionalEmails];
                 }
@@ -241,15 +246,26 @@ class EmailService {
                 //     </p>
                 //   </div>
                 // `;
-                console.log("CCC : ", (_c = ticket === null || ticket === void 0 ? void 0 : ticket.cc_of_ticket) === null || _c === void 0 ? void 0 : _c.map((cc) => cc.email).join(","));
+                // console.log(
+                //   "CCC : ",
+                //   ticket?.cc_of_ticket?.map((cc: any) => cc.email).join(",")
+                // );
                 // ✅ FIXED: Create mail options object with all properties
                 const mailOptions = {
                     from: `"Support Team" <${process.env.SMTP_USERNAME}>`,
                     to: Emails,
                     // to: customerEmail,
-                    cc: (ticket === null || ticket === void 0 ? void 0 : ticket.cc_of_ticket) && ((_d = ticket === null || ticket === void 0 ? void 0 : ticket.cc_of_ticket) === null || _d === void 0 ? void 0 : _d.length) > 0
-                        ? ticket === null || ticket === void 0 ? void 0 : ticket.cc_of_ticket.map((cc) => cc.email).join(",")
-                        : undefined,
+                    cc: [
+                        "shreyansh.tripathi@ampleserv.com",
+                        "anil.kumar@ampleserv.com",
+                        ...(((_d = ticket === null || ticket === void 0 ? void 0 : ticket.cc_of_ticket) === null || _d === void 0 ? void 0 : _d.length)
+                            ? ticket.cc_of_ticket.map((cc) => cc.email)
+                            : []),
+                    ],
+                    // cc:
+                    //  ( ticket?.cc_of_ticket && ticket?.cc_of_ticket?.length > 0
+                    //     ? ticket?.cc_of_ticket.map((cc: any) => cc.email).join(",")
+                    //     : undefined ),
                     subject,
                     html: htmlContent,
                     messageId: originalThreadId || newMessageId, // ✅ Unique ID for this outgoing email
@@ -340,7 +356,7 @@ class EmailService {
                 // let html = `<div style="padding:0 20px;">${imageHtml || ""}`;
                 let html = "";
                 html += `
-         <div style="background-color: #f8f9fa;  padding: 15px; margin: 0; border-left: 5px solid #667eea;">
+         <div style="background-color: #f8f9fa;  padding: 5px; margin: 0; border-left: 5px solid #667eea;">
            <table style="width: 100%; border-collapse: collapse;">
              <tr>
                <td style="vertical-align: top;">
@@ -356,7 +372,7 @@ class EmailService {
            </table>
          </div
          <!-- Latest Comment -->
-         <div style="margin: 15px 10px;">
+         <div style="margin: 5px;">
            <h2 style="color: #28a745; margin-bottom: 10px;  font-size: 15px;">
              <span style="color: #28a745 !important;margin-right: 10px;">💬</span>
              Latest Comment from ${agentName}
@@ -369,7 +385,7 @@ class EmailService {
          ${ticket.description
                     ? `<div style="background-color: #e6f0f58d; padding: 10px;margin-top:5px; border: 1px solid #152b1ad8; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
              <div style="font-size: 15px; line-height: 1.6; color: #333;">
-               ${ticket.description.replace(/\n/g, "<br>")}
+               ${ticket.description}
              </div>
            </div>`
                     : ""}
@@ -385,7 +401,7 @@ class EmailService {
               </td>
             </tr>`;
                     previousComments.forEach((pc) => {
-                        var _a;
+                        var _a, _b, _c;
                         const isCustomer = !!pc.ticket_comment_customers;
                         const author = pc.ticket_comment_customers
                             ? `${pc.ticket_comment_customers.first_name} ${pc.ticket_comment_customers.last_name}`
@@ -421,8 +437,11 @@ class EmailService {
                         </span>
                       </div>
                       <div style="margin-top:8px; font-size:14px; color:#333333; line-height:1.5;">
-                        ${pc.comment_text.replace(/\n/g, "<br>")}
+                     <div style="margin-top:8px; font-size:14px; color:#333333; line-height:1.5;">
+  ${(_c = (_b = pc.comment_text) === null || _b === void 0 ? void 0 : _b.replace(/(data:image[^"]+)/g, (match) => `<img src="${match}" style="max-width:300px; display:block; margin-top:10px;">`)) !== null && _c !== void 0 ? _c : ""}
+</div>
                       </div>
+                      
                       ${pc.attachment_urls
                             ? `<div style="margin-top:8px;">
                               <a href="${pc.attachment_urls}" style="font-size:12px; color:#1e88e5; text-decoration:none;">

@@ -163,14 +163,19 @@ class EmailService {
         ? `Re: ${ticket.subject}`
         : `Re: ${ticket.subject}`;
 
-      const customerEmail = ticket.customers?.email;
+      const customerEmail = ticket?.customers?.email
+        ? [ticket?.customers?.email]
+        : [];
+      // const customerEmail = ticket.customers?.email
+      //   ? [ticket.customer_email, ticket.customers.email]
+      //   : [ticket.customer_email];
       const assignedEmail = ticket.agents_user?.email;
       const agentName = comment.users
         ? `${comment.users.first_name} ${comment.users.last_name}`
         : "Support Team";
       let Emails = comment?.mailCustomer
         ? assignedEmail
-        : [customerEmail, assignedEmail];
+        : [...customerEmail, assignedEmail];
       if (additionalEmails.length > 0) {
         Emails = [...Emails, ...additionalEmails];
       }
@@ -406,7 +411,7 @@ class EmailService {
       // let html = `<div style="padding:0 20px;">${imageHtml || ""}`;
       let html = "";
       html += `
-         <div style="background-color: #f8f9fa;  padding: 15px; margin: 0; border-left: 5px solid #667eea;">
+         <div style="background-color: #f8f9fa;  padding: 5px; margin: 0; border-left: 5px solid #667eea;">
            <table style="width: 100%; border-collapse: collapse;">
              <tr>
                <td style="vertical-align: top;">
@@ -426,7 +431,7 @@ class EmailService {
            </table>
          </div
          <!-- Latest Comment -->
-         <div style="margin: 15px 10px;">
+         <div style="margin: 5px;">
            <h2 style="color: #28a745; margin-bottom: 10px;  font-size: 15px;">
              <span style="color: #28a745 !important;margin-right: 10px;">💬</span>
              Latest Comment from ${agentName}
@@ -440,7 +445,7 @@ class EmailService {
            ticket.description
              ? `<div style="background-color: #e6f0f58d; padding: 10px;margin-top:5px; border: 1px solid #152b1ad8; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
              <div style="font-size: 15px; line-height: 1.6; color: #333;">
-               ${ticket.description.replace(/\n/g, "<br>")}
+               ${ticket.description}
              </div>
            </div>`
              : ""
@@ -500,8 +505,17 @@ class EmailService {
                         </span>
                       </div>
                       <div style="margin-top:8px; font-size:14px; color:#333333; line-height:1.5;">
-                        ${pc.comment_text.replace(/\n/g, "<br>")}
+                     <div style="margin-top:8px; font-size:14px; color:#333333; line-height:1.5;">
+  ${
+    pc.comment_text?.replace(
+      /(data:image[^"]+)/g,
+      (match: any) =>
+        `<img src="${match}" style="max-width:300px; display:block; margin-top:10px;">`
+    ) ?? ""
+  }
+</div>
                       </div>
+                      
                       ${
                         pc.attachment_urls
                           ? `<div style="margin-top:8px;">

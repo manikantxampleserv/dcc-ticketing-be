@@ -150,12 +150,24 @@ exports.dashboardController = {
                 const tomorrow = new Date(today);
                 tomorrow.setUTCDate(today.getUTCDate() + 1);
                 const resolvedToday = yield prisma.tickets.count({
+                    where: Object.assign(Object.assign({}, filter), { status: "Resolved", 
+                        // optionally limit by resolved_at within today:
+                        resolved_at: { gte: today, lt: tomorrow } }),
+                });
+                const totalResolved = yield prisma.tickets.count({
                     where: Object.assign(Object.assign({}, filter), { status: "Resolved" }),
+                });
+                const totalUnAssigned = yield prisma.tickets.count({
+                    where: Object.assign(Object.assign({}, filter), { status: {
+                            notIn: ["Resolved", "Closed"],
+                        }, assigned_agent_id: null }),
                 });
                 res.success("Ticket status fetched successfully", {
                     totalTickets,
                     openTickets,
                     resolvedToday,
+                    totalResolved,
+                    totalUnAssigned,
                     progressTickets,
                     breachedTickets,
                 });

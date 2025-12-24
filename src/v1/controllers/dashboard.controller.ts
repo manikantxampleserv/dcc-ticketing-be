@@ -158,7 +158,24 @@ export const dashboardController = {
           ...filter,
           status: "Resolved",
           // optionally limit by resolved_at within today:
+          resolved_at: { gte: today, lt: tomorrow },
+        },
+      });
+      const totalResolved = await prisma.tickets.count({
+        where: {
+          ...filter,
+          status: "Resolved",
+          // optionally limit by resolved_at within today:
           // resolved_at: { gte: today, lt: tomorrow }
+        },
+      });
+      const totalUnAssigned = await prisma.tickets.count({
+        where: {
+          ...filter,
+          status: {
+            notIn: ["Resolved", "Closed"],
+          },
+          assigned_agent_id: null,
         },
       });
 
@@ -166,6 +183,8 @@ export const dashboardController = {
         totalTickets,
         openTickets,
         resolvedToday,
+        totalResolved,
+        totalUnAssigned,
         progressTickets,
         breachedTickets,
       });

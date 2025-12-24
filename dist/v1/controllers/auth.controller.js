@@ -105,6 +105,7 @@ function register(req, res) {
 }
 function login(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a;
         try {
             const { email, password } = req.body;
             logger_1.default.info(`Login attempt for email: ${email}`);
@@ -117,18 +118,8 @@ function login(req, res) {
             }
             const user = yield prisma_config_1.default.users.findUnique({
                 where: { email },
-                select: {
-                    id: true,
-                    username: true,
-                    email: true,
-                    password_hash: true,
-                    first_name: true,
-                    last_name: true,
-                    role_id: true,
-                    department_id: true,
-                    phone: true,
-                    avatar: true,
-                    is_active: true,
+                include: {
+                    user_role: true,
                 },
             });
             if (!user) {
@@ -168,6 +159,7 @@ function login(req, res) {
                 last_name: user.last_name,
                 role_id_id: user.role_id,
                 department_id: user.department_id,
+                role_name: ((_a = user.user_role) === null || _a === void 0 ? void 0 : _a.name) || "",
             };
             const token = jsonwebtoken_1.default.sign(payload, JWT_SECRET, { expiresIn: "24h" });
             logger_1.default.success(`Login successful for user: ${user.email}`);

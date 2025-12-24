@@ -69,7 +69,6 @@ class SimpleEmailTicketSystem {
 
   // ✅ FIX #1: Add a flag to prevent concurrent fetches
   private isFetching = false;
-  // ✅ FIX #2: Queue to track pending fetches
   private pendingFetch = false;
 
   constructor(logInst: number = 1, configId?: number) {
@@ -590,7 +589,15 @@ class SimpleEmailTicketSystem {
 
       await prisma.tickets.update({
         where: { id: ticket.id },
-        data: { updated_at: new Date() },
+        data: {
+          updated_at: new Date(),
+          sort_comment: (() => {
+            const words = bodyText.trim().split(/\s+/);
+            return words.length > 50
+              ? words.slice(0, 30).join(" ") + "..."
+              : bodyText;
+          })(),
+        },
       });
     } catch (error) {
       console.error("❌ Error creating comment from email:", error);
@@ -717,6 +724,12 @@ class SimpleEmailTicketSystem {
         subject: this.cleanSubject(subject),
         description: cleanedBody,
         email_body_text: bodyText,
+        sort_description: (() => {
+          const words = bodyText.trim().split(/\s+/);
+          return words.length > 30
+            ? words.slice(0, 30).join(" ") + "..."
+            : bodyText;
+        })(),
         priority: slaConfig ? slaConfig.id : 0,
         status: "Open",
         source: "Email",

@@ -124,18 +124,8 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     const user = await prisma.users.findUnique({
       where: { email },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        password_hash: true,
-        first_name: true,
-        last_name: true,
-        role_id: true,
-        department_id: true,
-        phone: true,
-        avatar: true,
-        is_active: true,
+      include: {
+        user_role: true,
       },
     });
 
@@ -180,6 +170,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       last_name: user.last_name,
       role_id_id: user.role_id,
       department_id: user.department_id,
+      role_name: user.user_role?.name || "",
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });

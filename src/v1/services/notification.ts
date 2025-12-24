@@ -34,28 +34,38 @@ class NotificationService {
       });
 
       // Filter users who want this notification
-      const eligibleUsers = users.filter((user: any) => {
+      const eligibleUsers = users.filter(async (user: any) => {
         const settings = user.user_notification_setting?.[0];
 
-        if (type === "new_ticket" && !settings.new_ticket_alerts) return false;
-        if (type === "sla_warning" && !settings.sla_warnings) return false;
-        // if (!settings?.email_notifications) return false;
+        if (type === "new_ticket" && settings?.new_ticket_alerts) {
+          await this.createNotification(user.id, type, data);
+        }
+        if (type === "sla_warning" && settings?.sla_warnings) {
+          await this.createNotification(user.id, type, data);
+        }
+        // if (settings?.email_notifications) {
+        //    await EmailService.sendCommentEmailToCustomer(
+        //   updatedTicket,
+        //   comment,
+        //   []
+        // );
+        //   // this.sendEmail(user, type, data);
+        // }
 
         return true;
       });
-      console.log("eligibleUsers", users, eligibleUsers);
+      console.log("eligibleUsers", users);
       // Create and send notifications
-      for (const user of eligibleUsers) {
-        const notification = await this.createNotification(user.id, type, data);
+      // for (const user of eligibleUsers) {
 
-        // Send via Socket.IO
-        // this.sendSocketNotification(user.id, notification);
+      //   // Send via Socket.IO
+      //   // this.sendSocketNotification(user.id, notification);
 
-        // Send email
-        if (user.user_notification_setting?.[0]?.email_notifications) {
-          this.sendEmail(user, type, data);
-        }
-      }
+      //   // Send email
+      //   if (user.user_notification_setting?.[0]?.email_notifications) {
+      //     this.sendEmail(user, type, data);
+      //   }
+      // }
     } catch (error) {
       console.error("❌ Notification error:", error);
     }
@@ -168,7 +178,11 @@ class NotificationService {
               }</h2>
             </div>
             <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
-              <p>Hi ${user.first_name || user.name},</p>
+              <p>Hi ${
+                user.first_name
+                  ? user.first_name + user.last_name
+                  : user.username
+              },</p>
               <p>${
                 type === "new_ticket"
                   ? "A new ticket has been created"
@@ -200,14 +214,17 @@ class NotificationService {
               <h2>⚠️ SLA Warning Alert</h2>
             </div>
             <div style="padding: 20px; border: 1px solid #ff9800; background: #fff3cd;">
-              <p>Hi ${user.first_name || user.name},</p>
+              <p>Hi ${
+                user.first_name
+                  ? user.first_name + user.last_name
+                  : user.username
+              },</p>
               <p><strong>Ticket #${
                 data.ticketNumber
               } is approaching SLA breach!</strong></p>
               <ul>
                 <li><strong>Subject:</strong> ${data.subject}</li>
-                <li><strong>SLA Usage:</strong> ${data.percentUsed}%</li>
-                <li><strong>Time Remaining:</strong> ${data.timeRemaining}</li>
+
               </ul>
               <p style="color: #d32f2f;"><strong>⚠️ Action Required: Please respond immediately</strong></p>
               <a href="${baseUrl}/tickets/${data.ticketId}" 
@@ -221,6 +238,8 @@ class NotificationService {
       };
     }
 
+    // <li><strong>SLA Usage:</strong> ${data.percentUsed}%</li>
+    // <li><strong>Time Remaining:</strong> ${data.timeRemaining}</li>
     return { subject: "Notification", html: "<p>New notification</p>" };
   }
 

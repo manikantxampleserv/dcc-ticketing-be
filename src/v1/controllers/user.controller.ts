@@ -32,22 +32,53 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
     const limit_num = parseInt(limit as string, 10);
 
     const searchLower = ((search || "") as string).toLowerCase();
-    const filters: any = search
-      ? {
+    // const filters: any = search
+    //   ? {
+    //       username: {
+    //         contains: searchLower,
+    //       },
+    //       email: {
+    //         contains: searchLower,
+    //       },
+    //       first_name: {
+    //         contains: searchLower,
+    //       },
+    //       last_name: {
+    //         contains: searchLower,
+    //       },
+    //     }
+    //   : {};
+    const filters: any = {};
+
+    // Add search filters using OR condition
+    if (searchLower) {
+      filters.OR = [
+        {
           username: {
             contains: searchLower,
+            // mode: "insensitive",
           },
+        },
+        {
           email: {
             contains: searchLower,
+            // mode: "insensitive",
           },
+        },
+        {
           first_name: {
             contains: searchLower,
+            // mode: "insensitive",
           },
+        },
+        {
           last_name: {
             contains: searchLower,
+            // mode: "insensitive",
           },
-        }
-      : {};
+        },
+      ];
+    }
 
     if (role_id) filters.role_id = Number(role_id);
     if (department_id) filters.department_id = Number(department_id);
