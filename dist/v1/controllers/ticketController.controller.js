@@ -718,7 +718,6 @@ exports.ticketController = {
                                 " " +
                                 ((_c = updatedTicket === null || updatedTicket === void 0 ? void 0 : updatedTicket.customers) === null || _c === void 0 ? void 0 : _c.last_name),
                     });
-                    console.log("agentDetails", agentDetails);
                     yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, comment, [
                         agentDetails === null || agentDetails === void 0 ? void 0 : agentDetails.email,
                     ]);

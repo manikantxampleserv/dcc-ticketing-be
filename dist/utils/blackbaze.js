@@ -15,10 +15,41 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.authorizeB2 = authorizeB2;
 exports.uploadFile = uploadFile;
 exports.deleteFile = deleteFile;
+const axios_1 = __importDefault(require("axios"));
 const backblaze_b2_1 = __importDefault(require("backblaze-b2"));
 const b2 = new backblaze_b2_1.default({
     applicationKeyId: process.env.BACKBLAZE_B2_KEY_ID,
     applicationKey: process.env.BACKBLAZE_B2_APPLICATION_KEY,
+});
+const testDirectAuth = () => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    const keyId = process.env.BACKBLAZE_B2_KEY_ID;
+    const appKey = process.env.BACKBLAZE_B2_APPLICATION_KEY;
+    console.log("Testing direct auth...");
+    console.log("Key ID exists:", !!keyId);
+    console.log("App Key exists:", !!appKey);
+    console.log("Key ID length:", keyId === null || keyId === void 0 ? void 0 : keyId.length);
+    console.log("App Key length:", appKey === null || appKey === void 0 ? void 0 : appKey.length);
+    if (!keyId || !appKey) {
+        throw new Error("Missing Backblaze credentials in environment variables");
+    }
+    const credentials = Buffer.from(`${keyId}:${appKey}`).toString("base64");
+    try {
+        const res = yield axios_1.default.get("https://api.backblazeb2.com/b2api/v2/b2_authorize_account", {
+            headers: {
+                Authorization: `Basic ${credentials}`,
+            },
+            timeout: 30000,
+        });
+        console.log("Direct auth successful");
+        return res.data;
+    }
+    catch (err) {
+        console.error("Auth failed directly:", err.message);
+        console.error("Response data:", (_a = err.response) === null || _a === void 0 ? void 0 : _a.data);
+        console.error("Response status:", (_b = err.response) === null || _b === void 0 ? void 0 : _b.status);
+        throw err;
+    }
 });
 function authorizeB2() {
     return __awaiter(this, void 0, void 0, function* () {

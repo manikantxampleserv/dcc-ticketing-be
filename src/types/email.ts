@@ -10,6 +10,8 @@ import { uploadFile } from "../utils/blackbaze";
 import slaMonitor from "../types/slaMonitorService";
 import { generateSLAHistory } from "v1/controllers/ticketController.controller";
 import { sendSatisfactionEmail } from "./sendSatisfactionEmail";
+import { replaceBase64ImagesWithUrls } from "./emailImageExtractor";
+import { promises } from "dns";
 
 dotenv.config();
 
@@ -94,7 +96,8 @@ class SimpleEmailTicketSystem {
       return {
         user: emailConfiguration.username! || process.env.SMTP_USERNAME!,
         password: emailConfiguration.password! || process.env.SMTP_PASSWORD!,
-        host: emailConfiguration.smtp_server! || process.env.MAIL_HOST!,
+        host: emailConfiguration.smtp_server! || process.env.SMTP_HOST!,
+        // port: 993,
         port: emailConfiguration.smtp_port || 993,
         connTimeout: 60000,
         authTimeout: 30000,
@@ -453,8 +456,17 @@ class SimpleEmailTicketSystem {
         senderEmail?.split("@")[0] ||
         "Unknown Sender";
       const subject = email.subject || "No Subject";
-      const body = email.html || `<pre>${email.text}</pre>`;
       const bodyText = email.text || "";
+
+      let body = email.html || `<pre>${email.text}</pre>`;
+
+      if (body.includes("data:image")) {
+        const result = await replaceBase64ImagesWithUrls(
+          body,
+          generateTicketNumber(Date.now())
+        );
+        body = result.html;
+      }
 
       const messageId = email.messageId;
       const references = email.references || [];
@@ -533,12 +545,46 @@ class SimpleEmailTicketSystem {
       console.error("❌ Error handling email:", error);
     }
   }
+  private cleanPlainEmailText(text: string): string {
+    if (!text) return "";
+
+    // 1️⃣ Remove common noise
+    let cleaned = text
+      .replace(/\[cid:[^\]]+\]/gi, "")
+      .replace(
+        /\[facebook icon.*?\]|\[twitter icon.*?\]|\[youtube icon.*?\]|\[linkedin icon.*?\]/gi,
+        ""
+      )
+      .replace(/mailto:\S+/gi, "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/\r/g, "")
+      .trim();
+
+    // 2️⃣ Remove signature (cut at common markers)
+    cleaned = cleaned.split(
+      /\n\s*(Regards,|Thanks,|Best regards,|Kind regards,|Sincerely,|--|\nWashington Rapul|\nICT Manager)/i
+    )[0];
+
+    // 3️⃣ Remove greeting line (optional but recommended)
+    cleaned = cleaned.replace(/^(hi|hello|dear|greetings)[^\n]*\n+/i, "");
+
+    // 4️⃣ Normalize new lines
+    cleaned = cleaned
+      .replace(/\n{2,}/g, "\n")
+      .replace(/[ \t]+/g, " ")
+      .trim();
+
+    return cleaned;
+  }
+
   private async askAITicketSystem(question: string): Promise<any> {
     try {
+      const cleanQuestion = this.cleanPlainEmailText(question);
+
       const response = await fetch("https://ai.dcctz.com/ticket-system/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question: cleanQuestion }),
       });
 
       return await response.json();
@@ -563,7 +609,7 @@ class SimpleEmailTicketSystem {
 
       const cleanedBody = this.cleanBody(body);
 
-      console.log(`💬 Adding comment to ticket #${ticket.ticket_number}`);
+      // console.log(`💬 Adding comment to ticket #${ticket.ticket_number}`);
 
       const attachment_urls = JSON.stringify(
         attachments?.map((val: any) => val.fileUrl) || []
@@ -739,9 +785,13 @@ class SimpleEmailTicketSystem {
       },
     });
     const aiResponse = await this.askAITicketSystem(
-      tickets?.email_body_text || tickets.description
+      bodyText?.trim() || tickets.description
     );
-    console.log("🤖 AI Response:", JSON.stringify(aiResponse));
+    console.log(
+      "🤖 AI Response:",
+      this.cleanPlainEmailText(bodyText.trim()),
+      JSON.stringify(aiResponse)
+    );
     if (aiResponse?.success) {
       await sendSatisfactionEmail({
         body: aiResponse.answer,

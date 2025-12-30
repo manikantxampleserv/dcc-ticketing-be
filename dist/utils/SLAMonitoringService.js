@@ -283,19 +283,21 @@ class BusinessHoursAwareSLAMonitoringService {
                         const recipients = [];
                         if (notification.agentEmail)
                             recipients.push(notification.agentEmail);
-                        for (const email of recipients) {
-                            try {
-                                yield this.sendEmailNotification({
-                                    to: email,
-                                    subject: `🚨 URGENT SLA BREACH - Ticket ${notification.ticketNumber}`,
-                                    message: commentText,
-                                    priority: notification.priority,
-                                    urgency,
-                                    businessHoursOnly: notification.businessHoursOnly,
-                                });
-                            }
-                            catch (emailError) {
-                                console.error(`❌ Error sending email notification:`, emailError);
+                        if ((recipients === null || recipients === void 0 ? void 0 : recipients.length) > 0) {
+                            for (const email of recipients) {
+                                try {
+                                    yield this.sendEmailNotification({
+                                        to: email,
+                                        subject: `🚨 URGENT SLA BREACH - Ticket ${notification.ticketNumber}`,
+                                        message: commentText,
+                                        priority: notification.priority,
+                                        urgency,
+                                        businessHoursOnly: notification.businessHoursOnly,
+                                    });
+                                }
+                                catch (emailError) {
+                                    console.error(`❌ Error sending email notification:`, emailError);
+                                }
                             }
                         }
                         console.log(`📧 Sent ${urgency} SLA notification for ticket ${notification.ticketNumber}`);

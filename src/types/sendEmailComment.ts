@@ -46,6 +46,8 @@ class EmailService {
         // ✅ Gmail-specific configuration - FIXED: createTransport
         this.transporter = nodemailer.createTransport({
           service: "gmail",
+          host: emailConfiguration.smtp_server || process.env.MAIL_HOST,
+          port: emailConfiguration.smtp_port || 993,
           auth: {
             user: emailConfiguration.username! || process.env.SMTP_USERNAME,
             pass: emailConfiguration.password! || process.env.SMTP_PASSWORD,
@@ -65,7 +67,7 @@ class EmailService {
         });
       } else {
         // ✅ Custom SMTP configuration - FIXED: createTransport
-        const port = emailConfiguration.smtp_port || 587;
+        const port = emailConfiguration.smtp_port || 993;
         const isSecurePort = port === 465; // Port 465 is SSL from start
 
         this.transporter = nodemailer.createTransport({
@@ -436,6 +438,7 @@ class EmailService {
              <span style="color: #28a745 !important;margin-right: 10px;">💬</span>
              Latest Comment from ${agentName}
            </h2>
+           
            <div style="background-color: #c1e9fd8d; padding: 20px; border-left: 5px solid #28a745; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
              <div style="font-size: 15px; line-height: 1.6; color: #333;">
                ${comment.comment_text.replace(/\n/g, "<br>")}

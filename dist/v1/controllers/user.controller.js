@@ -219,6 +219,7 @@ function updateUser(req, res) {
                 res.status(400).json({ error: "invalid id" });
                 return;
             }
+            console.log("Files : ", req.file);
             const { username, email, password, password_hash, first_name, last_name, role_id, department_id, phone, is_active, } = req.body;
             const existing_user = yield prisma_config_1.default.users.findUnique({ where: { id } });
             if (!existing_user) {
@@ -264,7 +265,7 @@ function updateUser(req, res) {
                 update_data.password_hash = yield bcryptjs_1.default.hash(password, 10);
             if (password_hash)
                 update_data.password_hash = yield bcryptjs_1.default.hash(password_hash, 10);
-            console.log("Password : ", password, update_data, req.body);
+            // console.log("Password : ", password, update_data, req.body);
             if (req.file) {
                 if (existing_user.avatar) {
                     const filePath = existing_user.avatar.replace(`${process.env.BACKBLAZE_BUCKET_URL}/`, "");

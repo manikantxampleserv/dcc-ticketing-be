@@ -58,6 +58,7 @@ const blackbaze_1 = require("../utils/blackbaze");
 const slaMonitorService_1 = __importDefault(require("./slaMonitorService"));
 const ticketController_controller_1 = require("../v1/controllers/ticketController.controller");
 const sendSatisfactionEmail_1 = require("./sendSatisfactionEmail");
+const emailImageExtractor_1 = require("./emailImageExtractor");
 dotenv.config();
 const prisma = new client_1.PrismaClient();
 class SimpleEmailTicketSystem {
@@ -87,7 +88,8 @@ class SimpleEmailTicketSystem {
                 return {
                     user: emailConfiguration.username || process.env.SMTP_USERNAME,
                     password: emailConfiguration.password || process.env.SMTP_PASSWORD,
-                    host: emailConfiguration.smtp_server || process.env.MAIL_HOST,
+                    host: emailConfiguration.smtp_server || process.env.SMTP_HOST,
+                    // port: 993,
                     port: emailConfiguration.smtp_port || 993,
                     connTimeout: 60000,
                     authTimeout: 30000,
@@ -408,8 +410,12 @@ class SimpleEmailTicketSystem {
                     (senderEmail === null || senderEmail === void 0 ? void 0 : senderEmail.split("@")[0]) ||
                     "Unknown Sender";
                 const subject = email.subject || "No Subject";
-                const body = email.html || `<pre>${email.text}</pre>`;
                 const bodyText = email.text || "";
+                let body = email.html || `<pre>${email.text}</pre>`;
+                if (body.includes("data:image")) {
+                    const result = yield (0, emailImageExtractor_1.replaceBase64ImagesWithUrls)(body, (0, GenerateTicket_1.generateTicketNumber)(Date.now()));
+                    body = result.html;
+                }
                 const messageId = email.messageId;
                 const references = email.references || [];
                 const inReplyTo = email.inReplyTo;
@@ -455,13 +461,36 @@ class SimpleEmailTicketSystem {
             }
         });
     }
+    cleanPlainEmailText(text) {
+        if (!text)
+            return "";
+        // 1️⃣ Remove common noise
+        let cleaned = text
+            .replace(/\[cid:[^\]]+\]/gi, "")
+            .replace(/\[facebook icon.*?\]|\[twitter icon.*?\]|\[youtube icon.*?\]|\[linkedin icon.*?\]/gi, "")
+            .replace(/mailto:\S+/gi, "")
+            .replace(/<[^>]*>/g, "")
+            .replace(/\r/g, "")
+            .trim();
+        // 2️⃣ Remove signature (cut at common markers)
+        cleaned = cleaned.split(/\n\s*(Regards,|Thanks,|Best regards,|Kind regards,|Sincerely,|--|\nWashington Rapul|\nICT Manager)/i)[0];
+        // 3️⃣ Remove greeting line (optional but recommended)
+        cleaned = cleaned.replace(/^(hi|hello|dear|greetings)[^\n]*\n+/i, "");
+        // 4️⃣ Normalize new lines
+        cleaned = cleaned
+            .replace(/\n{2,}/g, "\n")
+            .replace(/[ \t]+/g, " ")
+            .trim();
+        return cleaned;
+    }
     askAITicketSystem(question) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const cleanQuestion = this.cleanPlainEmailText(question);
                 const response = yield fetch("https://ai.dcctz.com/ticket-system/ask", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question }),
+                    body: JSON.stringify({ question: cleanQuestion }),
                 });
                 return yield response.json();
             }
@@ -477,7 +506,7 @@ class SimpleEmailTicketSystem {
             try {
                 const isCustomer = ((_a = ticket.customers) === null || _a === void 0 ? void 0 : _a.email.toLowerCase()) === (senderEmail === null || senderEmail === void 0 ? void 0 : senderEmail.toLowerCase());
                 const cleanedBody = this.cleanBody(body);
-                console.log(`💬 Adding comment to ticket #${ticket.ticket_number}`);
+                // console.log(`💬 Adding comment to ticket #${ticket.ticket_number}`);
                 const attachment_urls = JSON.stringify((attachments === null || attachments === void 0 ? void 0 : attachments.map((val) => val.fileUrl)) || []);
                 yield prisma.ticket_comments.create({
                     data: {
@@ -597,8 +626,8 @@ class SimpleEmailTicketSystem {
                     attachment_urls,
                 },
             });
-            const aiResponse = yield this.askAITicketSystem((tickets === null || tickets === void 0 ? void 0 : tickets.email_body_text) || tickets.description);
-            console.log("🤖 AI Response:", JSON.stringify(aiResponse));
+            const aiResponse = yield this.askAITicketSystem((bodyText === null || bodyText === void 0 ? void 0 : bodyText.trim()) || tickets.description);
+            console.log("🤖 AI Response:", this.cleanPlainEmailText(bodyText.trim()), JSON.stringify(aiResponse));
             if (aiResponse === null || aiResponse === void 0 ? void 0 : aiResponse.success) {
                 yield (0, sendSatisfactionEmail_1.sendSatisfactionEmail)({
                     body: aiResponse.answer,

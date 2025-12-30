@@ -860,7 +860,6 @@ export const ticketController = {
                 updatedTicket?.customers?.last_name,
           }
         );
-        console.log("agentDetails", agentDetails);
         await EmailService.sendCommentEmailToCustomer(updatedTicket, comment, [
           agentDetails?.email,
         ]);

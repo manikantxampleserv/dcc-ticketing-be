@@ -1,3 +1,4 @@
+import axios from "axios";
 import B2 from "backblaze-b2";
 
 const b2 = new B2({
@@ -5,6 +6,41 @@ const b2 = new B2({
   applicationKey: process.env.BACKBLAZE_B2_APPLICATION_KEY as string,
 });
 
+const testDirectAuth = async () => {
+  const keyId = process.env.BACKBLAZE_B2_KEY_ID;
+  const appKey = process.env.BACKBLAZE_B2_APPLICATION_KEY;
+
+  console.log("Testing direct auth...");
+  console.log("Key ID exists:", !!keyId);
+  console.log("App Key exists:", !!appKey);
+  console.log("Key ID length:", keyId?.length);
+  console.log("App Key length:", appKey?.length);
+
+  if (!keyId || !appKey) {
+    throw new Error("Missing Backblaze credentials in environment variables");
+  }
+
+  const credentials = Buffer.from(`${keyId}:${appKey}`).toString("base64");
+
+  try {
+    const res = await axios.get(
+      "https://api.backblazeb2.com/b2api/v2/b2_authorize_account",
+      {
+        headers: {
+          Authorization: `Basic ${credentials}`,
+        },
+        timeout: 30000,
+      }
+    );
+    console.log("Direct auth successful");
+    return res.data;
+  } catch (err: any) {
+    console.error("Auth failed directly:", err.message);
+    console.error("Response data:", err.response?.data);
+    console.error("Response status:", err.response?.status);
+    throw err;
+  }
+};
 export async function authorizeB2(): Promise<void> {
   await b2.authorize();
 }

@@ -222,6 +222,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    console.log("Files : ", req.file);
     const {
       username,
       email,
@@ -273,7 +274,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     if (password) update_data.password_hash = await bcrypt.hash(password, 10);
     if (password_hash)
       update_data.password_hash = await bcrypt.hash(password_hash, 10);
-    console.log("Password : ", password, update_data, req.body);
+    // console.log("Password : ", password, update_data, req.body);
     if (req.file) {
       if (existing_user.avatar) {
         const filePath = existing_user.avatar.replace(
