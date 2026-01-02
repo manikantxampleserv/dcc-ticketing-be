@@ -125,6 +125,9 @@ export class BusinessHoursAwareSLAMonitoringService {
 
   // 7. Main SLA check
   static async checkTicketSLAStatus(ticket: any, isCritical = false) {
+    if (ticket.sla_status === "Paused") {
+      return;
+    }
     const now = new Date();
     const pr = ticket.sla_priority;
     const bhConfig = {
@@ -494,105 +497,221 @@ export class BusinessHoursAwareSLAMonitoringService {
   // }
 
   // 11. Pause SLA for specific ticket
-  static async pauseTicketSLA(ticketId: number, reason?: string) {
-    try {
-      await prisma.tickets.update({
-        where: { id: ticketId },
-        data: { sla_status: "Paused" },
-      });
+  // static async pauseTicketSLA(ticketId: number, reason?: string) {
+  //   try {
+  //     await prisma.tickets.update({
+  //       where: { id: ticketId },
+  //       data: { sla_status: "Paused" },
+  //     });
+  //     console.log("Puseed 1");
 
-      await prisma.ticket_comments.create({
+  //     await prisma.ticket_comments.create({
+  //       data: {
+  //         ticket_id: ticketId,
+  //         user_id: null,
+  //         comment_text: `⏸️ SLA PAUSED: ${
+  //           reason || "Waiting for customer response"
+  //         }`,
+  //         comment_type: "System",
+  //         is_internal: true,
+  //       },
+  //     });
+
+  //     console.log(`⏸️ Paused SLA for ticket ${ticketId}: ${reason}`);
+  //   } catch (error) {
+  //     console.error(`❌ Error pausing SLA for ticket ${ticketId}:`, error);
+  //   }
+  // }
+  static async pauseTicketSLA(
+    ticketId: number,
+    reason = "Waiting for customer"
+  ) {
+    const now = new Date();
+
+    const ticket = await prisma.tickets.findUnique({
+      where: { id: ticketId },
+      include: { sla_priority: true },
+    });
+
+    if (!ticket || ticket.sla_status === "Paused") return;
+
+    const usedSeconds =
+      BusinessHoursSLACalculator.calculateBusinessHoursBetween(
+        ticket.sla_paused_at || ticket?.created_at || new Date(), // last resume / start
+        now,
+        {
+          business_start_time: ticket.sla_priority.business_start_time!,
+          business_end_time: ticket.sla_priority.business_end_time!,
+          include_weekends: ticket.sla_priority.include_weekends!,
+        }
+      ) * 3600;
+
+    await prisma.tickets.update({
+      where: { id: ticketId },
+      data: {
+        sla_status: "Paused",
+        sla_taken_time_sec:
+          (ticket.sla_taken_time_sec || 0) + Math.floor(usedSeconds),
+        sla_paused_at: now,
+      },
+    });
+
+    await prisma.ticket_comments.create({
+      data: {
+        ticket_id: ticketId,
+        comment_text: ` SLA paused: ${reason}`,
+        comment_type: "System",
+        is_internal: true,
+      },
+    });
+  }
+
+  static async resumeTicketSLA(ticketId: number) {
+    const now = new Date();
+
+    const ticket = await prisma.tickets.findUnique({
+      where: { id: ticketId },
+      include: {
+        ticket_sla_history: {
+          where: { status: "Pending", paused_at: { not: null } },
+        },
+        sla_priority: true,
+      },
+    });
+
+    if (!ticket) return;
+
+    const pauseStart = ticket.sla_paused_at || new Date();
+    const pr = ticket.sla_priority;
+
+    for (const sla of ticket.ticket_sla_history) {
+      let extensionMs = 0;
+
+      if (pr.business_hours_only) {
+        // ✅ Calculate ONLY business hours during pause
+        const pausedBusinessHours =
+          BusinessHoursSLACalculator.calculateBusinessHoursBetween(
+            pauseStart,
+            now,
+            {
+              business_start_time: pr.business_start_time!,
+              business_end_time: pr.business_end_time!,
+              include_weekends: pr.include_weekends!,
+            }
+          );
+
+        extensionMs = pausedBusinessHours * 60 * 60 * 1000;
+      } else {
+        // 24/7 SLA
+        extensionMs = now.getTime() - pauseStart.getTime();
+      }
+
+      const newTarget = new Date(sla.target_time.getTime() + extensionMs);
+
+      await prisma.sla_history.update({
+        where: { id: sla.id },
         data: {
-          ticket_id: ticketId,
-          user_id: null,
-          comment_text: `⏸️ SLA PAUSED: ${
-            reason || "Waiting for customer response"
-          }`,
-          comment_type: "System",
-          is_internal: true,
+          target_time: newTarget,
+          paused_at: null,
         },
       });
-
-      console.log(`⏸️ Paused SLA for ticket ${ticketId}: ${reason}`);
-    } catch (error) {
-      console.error(`❌ Error pausing SLA for ticket ${ticketId}:`, error);
     }
+
+    await prisma.tickets.update({
+      where: { id: ticketId },
+      data: {
+        sla_status: "Within",
+        sla_paused_at: new Date(),
+      },
+    });
+
+    await prisma.ticket_comments.create({
+      data: {
+        ticket_id: ticketId,
+        user_id: null,
+        comment_text: `SLA RESUMED.`,
+        comment_type: "System",
+        is_internal: true,
+      },
+    });
+
+    console.log(`▶️ SLA resumed correctly for ticket ${ticketId}`);
   }
 
   // 12. Resume SLA for specific ticket
-  static async resumeTicketSLA(ticketId: number, reason?: string) {
-    try {
-      const ticket = await prisma.tickets.findUnique({
-        where: { id: ticketId },
-        include: {
-          ticket_sla_history: { where: { status: "Pending" } },
-          sla_priority: true,
-        },
-      });
+  // static async resumeTicketSLA(ticketId: number, reason?: string) {
+  //   try {
+  //     const ticket = await prisma.tickets.findUnique({
+  //       where: { id: ticketId },
+  //       include: {
+  //         ticket_sla_history: { where: { status: "Pending" } },
+  //         sla_priority: true,
+  //       },
+  //     });
 
-      if (!ticket || !ticket.sla_priority) return;
+  //     if (!ticket || !ticket.sla_priority) return;
 
-      // Find the last pause comment to calculate pause duration
-      const lastPauseComment = await prisma.ticket_comments.findFirst({
-        where: {
-          ticket_id: ticketId,
-          comment_text: { contains: "SLA PAUSED" },
-        },
-        orderBy: { created_at: "desc" },
-      });
+  //     // Find the last pause comment to calculate pause duration
+  //     const lastPauseComment = await prisma.ticket_comments.findFirst({
+  //       where: {
+  //         ticket_id: ticketId,
+  //         comment_text: { contains: "SLA PAUSED" },
+  //       },
+  //       orderBy: { created_at: "desc" },
+  //     });
 
-      if (lastPauseComment && ticket.ticket_sla_history.length > 0) {
-        const now = new Date();
-        const pauseDuration =
-          now.getTime() - lastPauseComment.created_at.getTime();
+  //     if (lastPauseComment && ticket.ticket_sla_history.length > 0) {
+  //       const now = new Date();
+  //       const pauseDuration =
+  //         now.getTime() - lastPauseComment.created_at.getTime();
 
-        // Extend all pending SLA deadlines by pause duration
-        for (const sla of ticket.ticket_sla_history) {
-          const newDeadline = new Date(
-            sla.target_time.getTime() + pauseDuration
-          );
+  //       // Extend all pending SLA deadlines by pause duration
+  //       for (const sla of ticket.ticket_sla_history) {
+  //         const newDeadline = new Date(
+  //           sla.target_time.getTime() + pauseDuration
+  //         );
 
-          await prisma.sla_history.update({
-            where: { id: sla.id },
-            data: { target_time: newDeadline },
-          });
-        }
+  //         await prisma.sla_history.update({
+  //           where: { id: sla.id },
+  //           data: { target_time: newDeadline },
+  //         });
+  //       }
 
-        // Update main ticket deadline
-        if (ticket.sla_deadline) {
-          await prisma.tickets.update({
-            where: { id: ticketId },
-            data: {
-              sla_deadline: new Date(
-                ticket.sla_deadline.getTime() + pauseDuration
-              ),
-              sla_status: "Within",
-            },
-          });
-        }
+  //       // Update main ticket deadline
+  //       if (ticket.sla_deadline) {
+  //         await prisma.tickets.update({
+  //           where: { id: ticketId },
+  //           data: {
+  //             sla_deadline: new Date(
+  //               ticket.sla_deadline.getTime() + pauseDuration
+  //             ),
+  //             sla_status: "Within",
+  //           },
+  //         });
+  //       }
 
-        await prisma.ticket_comments.create({
-          data: {
-            ticket_id: ticketId,
-            user_id: null,
-            comment_text: `▶️ SLA RESUMED: Extended deadlines by ${Math.floor(
-              pauseDuration / (1000 * 60)
-            )} minutes. ${reason || ""}`,
-            comment_type: "System",
-            is_internal: true,
-          },
-        });
+  //       await prisma.ticket_comments.create({
+  //         data: {
+  //           ticket_id: ticketId,
+  //           user_id: null,
+  //           comment_text: `▶️ SLA RESUMED: Extended deadlines by ${Math.floor(
+  //             pauseDuration / (1000 * 60)
+  //           )} minutes. ${reason || ""}`,
+  //           comment_type: "System",
+  //           is_internal: true,
+  //         },
+  //       });
 
-        console.log(
-          `▶️ Resumed SLA for ticket ${ticketId}, extended by ${Math.floor(
-            pauseDuration / (1000 * 60)
-          )} minutes`
-        );
-      }
-    } catch (error) {
-      console.error(`❌ Error resuming SLA for ticket ${ticketId}:`, error);
-    }
-  }
+  //       console.log(
+  //         `▶️ Resumed SLA for ticket ${ticketId}, extended by ${Math.floor(
+  //           pauseDuration / (1000 * 60)
+  //         )} minutes`
+  //       );
+  //     }
+  //   } catch (error) {
+  //     console.error(`❌ Error resuming SLA for ticket ${ticketId}:`, error);
+  //   }
+  // }
 
   // 13. Force SLA status check for specific ticket (useful for testing)
   static async forceCheckTicket(ticketId: number) {

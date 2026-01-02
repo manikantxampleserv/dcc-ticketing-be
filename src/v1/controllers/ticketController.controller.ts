@@ -7,6 +7,7 @@ import { uploadFile } from "../../utils/blackbaze";
 import { paginate } from "../../utils/pagination";
 import { sendSatisfactionEmail } from "types/sendSatisfactionEmail";
 import notificationService from "../services/notification";
+import { BusinessHoursAwareSLAMonitoringService } from "utils/SLAMonitoringService";
 
 const prisma = new PrismaClient();
 
@@ -31,6 +32,8 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   assigned_by: ticket.assigned_by,
   is_merged: ticket.is_merged,
   reopen_count: ticket.reopen_count,
+  sla_taken_time_sec: ticket.sla_taken_time_sec,
+  sla_paused_at: ticket.sla_paused_at,
   time_spent_minutes: ticket.time_spent_minutes,
   last_reopened_at: ticket.last_reopened_at,
   customer_satisfaction_rating: ticket.customer_satisfaction_rating,
@@ -559,6 +562,21 @@ export const ticketController = {
             sla_priority: true,
           },
         });
+        // SLA pause / resume based on status
+        if (newStatus === "Waiting for Customer Response") {
+          await BusinessHoursAwareSLAMonitoringService.pauseTicketSLA(
+            id,
+            "Waiting for customer response"
+          );
+        }
+
+        if (
+          existing.status === "Waiting for Customer Response" &&
+          newStatus !== "Waiting for Customer Response"
+        ) {
+          await BusinessHoursAwareSLAMonitoringService.resumeTicketSLA(id);
+        }
+
         // Handle specific SLA events
         // await this.handleSpecificSLAUpdates(id, existing, req.body);
       } else {

@@ -255,6 +255,8 @@ model tickets {
   customer_name                             String?
   sort_description                          String?
   sort_comment                              String?
+  sla_taken_time_sec                        Int?
+  sla_paused_at                             DateTime?
   cc_of_ticket                              cc_of_ticket[]
   ticket_sla_history                        sla_history[]
   support_ticket_responses                  support_ticket_responses[]
@@ -325,6 +327,7 @@ model sla_history {
   id                 Int       @id @default(autoincrement())
   ticket_id          Int
   sla_type           String    @db.NVarChar(20)
+  paused_at          DateTime?
   target_time        DateTime
   actual_time        DateTime?
   status             String    @db.NVarChar(20)

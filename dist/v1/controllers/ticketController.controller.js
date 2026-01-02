@@ -21,10 +21,11 @@ const blackbaze_1 = require("../../utils/blackbaze");
 const pagination_1 = require("../../utils/pagination");
 const sendSatisfactionEmail_1 = require("../../types/sendSatisfactionEmail");
 const notification_1 = __importDefault(require("../services/notification"));
+const SLAMonitoringService_1 = require("../../utils/SLAMonitoringService");
 const prisma = new client_1.PrismaClient();
 const serializeTicket = (ticket, includeDates = false) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
-    return (Object.assign(Object.assign({ id: Number(ticket.id), ticket_number: ticket.ticket_number, customer_id: ticket.customer_id, customer_name: ticket.customer_name, customer_email: ticket.customer_email, assigned_agent_id: ticket.assigned_agent_id, category_id: ticket.category_id, subject: ticket.subject, description: ticket.description, priority: ticket.priority, status: ticket.status, source: ticket.source, sla_deadline: ticket.sla_deadline, sla_status: ticket.sla_status, first_response_at: ticket.first_response_at, resolved_at: ticket.resolved_at, closed_at: ticket.closed_at, assigned_by: ticket.assigned_by, is_merged: ticket.is_merged, reopen_count: ticket.reopen_count, time_spent_minutes: ticket.time_spent_minutes, last_reopened_at: ticket.last_reopened_at, customer_satisfaction_rating: ticket.customer_satisfaction_rating, customer_feedback: ticket.customer_feedback, tags: ticket.tags, email_thread_id: ticket.email_thread_id, original_email_message_id: ticket.original_email_message_id, merged_into_ticket_id: ticket.merged_into_ticket_id, attachment_urls: (ticket === null || ticket === void 0 ? void 0 : ticket.attachment_urls) || "", email_body_text: (ticket === null || ticket === void 0 ? void 0 : ticket.email_body_text) || "", ticket_attachments: ticket.ticket_attachments
+    return (Object.assign(Object.assign({ id: Number(ticket.id), ticket_number: ticket.ticket_number, customer_id: ticket.customer_id, customer_name: ticket.customer_name, customer_email: ticket.customer_email, assigned_agent_id: ticket.assigned_agent_id, category_id: ticket.category_id, subject: ticket.subject, description: ticket.description, priority: ticket.priority, status: ticket.status, source: ticket.source, sla_deadline: ticket.sla_deadline, sla_status: ticket.sla_status, first_response_at: ticket.first_response_at, resolved_at: ticket.resolved_at, closed_at: ticket.closed_at, assigned_by: ticket.assigned_by, is_merged: ticket.is_merged, reopen_count: ticket.reopen_count, sla_taken_time_sec: ticket.sla_taken_time_sec, sla_paused_at: ticket.sla_paused_at, time_spent_minutes: ticket.time_spent_minutes, last_reopened_at: ticket.last_reopened_at, customer_satisfaction_rating: ticket.customer_satisfaction_rating, customer_feedback: ticket.customer_feedback, tags: ticket.tags, email_thread_id: ticket.email_thread_id, original_email_message_id: ticket.original_email_message_id, merged_into_ticket_id: ticket.merged_into_ticket_id, attachment_urls: (ticket === null || ticket === void 0 ? void 0 : ticket.attachment_urls) || "", email_body_text: (ticket === null || ticket === void 0 ? void 0 : ticket.email_body_text) || "", ticket_attachments: ticket.ticket_attachments
             ? ticket.ticket_attachments.map((att) => ({
                 id: att.id,
                 ticket_id: att.ticket_id,
@@ -454,6 +455,14 @@ exports.ticketController = {
                             sla_priority: true,
                         },
                     });
+                    // SLA pause / resume based on status
+                    if (newStatus === "Waiting for Customer Response") {
+                        yield SLAMonitoringService_1.BusinessHoursAwareSLAMonitoringService.pauseTicketSLA(id, "Waiting for customer response");
+                    }
+                    if (existing.status === "Waiting for Customer Response" &&
+                        newStatus !== "Waiting for Customer Response") {
+                        yield SLAMonitoringService_1.BusinessHoursAwareSLAMonitoringService.resumeTicketSLA(id);
+                    }
                     // Handle specific SLA events
                     // await this.handleSpecificSLAUpdates(id, existing, req.body);
                 }
