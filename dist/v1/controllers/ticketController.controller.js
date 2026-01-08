@@ -517,7 +517,7 @@ exports.ticketController = {
                     });
                     // Mark resolution SLA as completed (monitoring service will determine if breached)
                     yield exports.ticketController.handleSLACompletion(id, req.body.status);
-                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, comment, []);
+                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailCustomer: true }), []);
                     ticket = updatedTicket;
                 }
                 res.success("Ticket updated successfully", serializeTicket(ticket, true), 200);
@@ -727,12 +727,10 @@ exports.ticketController = {
                                 " " +
                                 ((_c = updatedTicket === null || updatedTicket === void 0 ? void 0 : updatedTicket.customers) === null || _c === void 0 ? void 0 : _c.last_name),
                     });
-                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, comment, [
-                        agentDetails === null || agentDetails === void 0 ? void 0 : agentDetails.email,
-                    ]);
+                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailCustomer: true }), [agentDetails === null || agentDetails === void 0 ? void 0 : agentDetails.email]);
                 }
                 else {
-                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, comment, []);
+                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailCustomer: true }), []);
                 }
                 res.status(200).json({
                     success: true,
@@ -930,7 +928,7 @@ exports.ticketController = {
                     },
                 });
                 // Notify customers
-                yield sendEmailComment_1.default.sendCommentEmailToCustomer(finalTicket, null, []);
+                yield sendEmailComment_1.default.sendCommentEmailToCustomer(finalTicket, { mailCustomer: true }, []);
                 res.success("Ticket updated successfully", serializeTicket(finalTicket, true), 200);
             }
             catch (error) {
@@ -1168,6 +1166,7 @@ exports.ticketController = {
                 // Add status filter
                 if (statusFilter &&
                     statusFilter !== "all" &&
+                    statusFilter !== "Un Assigned" &&
                     statusFilter !== "SLA Breached") {
                     filters.status = {
                         equals: statusFilter,
@@ -1178,6 +1177,9 @@ exports.ticketController = {
                     filters.sla_status = {
                         equals: "Breached",
                     };
+                }
+                if (statusFilter === "Un Assigned") {
+                    filters.assigned_agent_id = null;
                 }
                 if (assigned_agent_id) {
                     filters.assigned_agent_id = {

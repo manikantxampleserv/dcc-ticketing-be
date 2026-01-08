@@ -11,7 +11,6 @@ import slaMonitor from "../types/slaMonitorService";
 import { generateSLAHistory } from "v1/controllers/ticketController.controller";
 import { sendSatisfactionEmail } from "./sendSatisfactionEmail";
 import { replaceBase64ImagesWithUrls } from "./emailImageExtractor";
-import { promises } from "dns";
 
 dotenv.config();
 

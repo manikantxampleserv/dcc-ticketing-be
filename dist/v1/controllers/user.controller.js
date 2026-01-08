@@ -108,6 +108,17 @@ function getUsersList(req, res) {
                     user_role: { select: { id: true, name: true } }, // related role
                     user_department: { select: { id: true, department_name: true } }, // related department
                     tickets: true,
+                    manager: {
+                        select: {
+                            id: true,
+                            username: true,
+                            email: true,
+                            first_name: true,
+                            last_name: true,
+                            phone: true,
+                            avatar: true,
+                        },
+                    },
                 },
                 orderBy: { id: "desc" },
             });
@@ -159,7 +170,7 @@ function getUser(req, res) {
 function createUser(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const { username, email, password_hash, first_name, last_name, role_id, department_id, phone, } = req.body;
+            const { username, email, password_hash, first_name, last_name, role_id, department_id, phone, manager_id, } = req.body;
             const created_by = req.user ? Number(req.user.id) : null;
             console.log("Creating user by:", created_by, req.body, req.file);
             let avatarUrl = null;
@@ -191,6 +202,7 @@ function createUser(req, res) {
                     role_id: Number(role_id),
                     department_id: Number(department_id),
                     phone,
+                    manager_id: Number(manager_id),
                     avatar: avatarUrl,
                     created_by,
                 },
@@ -198,6 +210,17 @@ function createUser(req, res) {
                     user_role: { select: { id: true, name: true } },
                     user_department: { select: { id: true, department_name: true } },
                     tickets: true,
+                    manager: {
+                        select: {
+                            id: true,
+                            username: true,
+                            email: true,
+                            first_name: true,
+                            last_name: true,
+                            phone: true,
+                            avatar: true,
+                        },
+                    },
                 },
             });
             res.status(201).json({
@@ -220,7 +243,7 @@ function updateUser(req, res) {
                 return;
             }
             console.log("Files : ", req.file);
-            const { username, email, password, password_hash, first_name, last_name, role_id, department_id, phone, is_active, } = req.body;
+            const { username, email, password, password_hash, first_name, last_name, role_id, department_id, phone, manager_id, is_active, } = req.body;
             const existing_user = yield prisma_config_1.default.users.findUnique({ where: { id } });
             if (!existing_user) {
                 res.status(404).json({ error: "user not found" });
@@ -259,6 +282,8 @@ function updateUser(req, res) {
                 update_data.department_id = Number(department_id);
             if (phone !== undefined)
                 update_data.phone = phone;
+            if (manager_id !== undefined)
+                update_data.manager_id = Number(manager_id);
             if (is_active !== undefined)
                 update_data.is_active = Boolean(is_active);
             if (password)
@@ -282,6 +307,17 @@ function updateUser(req, res) {
                     user_role: { select: { id: true, name: true } },
                     user_department: { select: { id: true, department_name: true } },
                     tickets: true,
+                    manager: {
+                        select: {
+                            id: true,
+                            username: true,
+                            email: true,
+                            first_name: true,
+                            last_name: true,
+                            phone: true,
+                            avatar: true,
+                        },
+                    },
                 },
             });
             res.status(200).json({

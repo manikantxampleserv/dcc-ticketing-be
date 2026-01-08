@@ -4,6 +4,7 @@ import cron from "node-cron";
 import { PrismaClient } from "@prisma/client";
 import { BusinessHoursSLACalculator } from "./BussinessHoursSLACalculation";
 import { title } from "process";
+import emailService from "types/sendEmailComment";
 
 const prisma = new PrismaClient();
 
@@ -67,7 +68,14 @@ export class BusinessHoursAwareSLAMonitoringService {
       include: {
         ticket_sla_history: { where: { status: "Pending" } },
         sla_priority: true,
-        agents_user: { select: { email: true } },
+        agents_user: {
+          select: {
+            email: true,
+            manager: true,
+            first_name: true,
+            last_name: true,
+          },
+        },
       },
     });
     for (const t of tickets) await this.checkTicketSLAStatus(t);
@@ -83,7 +91,14 @@ export class BusinessHoursAwareSLAMonitoringService {
       include: {
         ticket_sla_history: { where: { status: "Pending" } },
         sla_priority: true,
-        agents_user: { select: { email: true } },
+        agents_user: {
+          select: {
+            email: true,
+            manager: true,
+            first_name: true,
+            last_name: true,
+          },
+        },
       },
     });
     for (const t of tickets) await this.checkTicketSLAStatus(t);
@@ -100,7 +115,14 @@ export class BusinessHoursAwareSLAMonitoringService {
       include: {
         ticket_sla_history: { where: { status: "Pending" } },
         sla_priority: true,
-        agents_user: { select: { email: true } },
+        agents_user: {
+          select: {
+            email: true,
+            manager: true,
+            first_name: true,
+            last_name: true,
+          },
+        },
       },
     });
     for (const t of tickets) await this.checkTicketSLAStatus(t, true);
@@ -171,7 +193,7 @@ export class BusinessHoursAwareSLAMonitoringService {
             data: {
               ticket_id: ticket.id,
               user_id: null,
-              comment_text: `🚨 ${sla.sla_type.toUpperCase()} SLA breached.`,
+              comment_text: ` ${sla.sla_type.toUpperCase()} SLA breached.`,
               comment_type: "System",
               is_internal: true,
             },
@@ -183,6 +205,19 @@ export class BusinessHoursAwareSLAMonitoringService {
             message: `The ${sla.sla_type} SLA has been breached.`,
             type: "sla_warning",
           });
+          console.log("Ticket for Breach : ", ticket);
+          await emailService.sendCommentEmailToCustomer(
+            ticket,
+            `SLA Breach Alert: Ticket ${
+              ticket.ticket_number + " " + sla.sla_type
+            }  Missed by Agent ${
+              ticket?.agents_user?.first_name +
+              " " +
+              ticket?.agents_user?.first_name
+            }.`,
+            [ticket?.agents_user?.manager?.email]
+          );
+
           // Email section (integrate with your email service)
           // await EmailService.sendEmail({
           //   to: ticket.agents_user.email,
@@ -722,7 +757,14 @@ export class BusinessHoursAwareSLAMonitoringService {
           ticket_sla_history: { where: { status: "Pending" } },
           sla_priority: true,
           customers: { select: { email: true } },
-          agents_user: { select: { email: true } },
+          agents_user: {
+            select: {
+              email: true,
+              manager: true,
+              first_name: true,
+              last_name: true,
+            },
+          },
         },
       });
 

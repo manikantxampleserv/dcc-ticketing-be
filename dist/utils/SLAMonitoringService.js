@@ -18,6 +18,7 @@ exports.BusinessHoursAwareSLAMonitoringService = void 0;
 const node_cron_1 = __importDefault(require("node-cron"));
 const client_1 = require("@prisma/client");
 const BussinessHoursSLACalculation_1 = require("./BussinessHoursSLACalculation");
+const sendEmailComment_1 = __importDefault(require("../types/sendEmailComment"));
 const prisma = new client_1.PrismaClient();
 class BusinessHoursAwareSLAMonitoringService {
     // 1. Start monitoring
@@ -71,7 +72,14 @@ class BusinessHoursAwareSLAMonitoringService {
                 include: {
                     ticket_sla_history: { where: { status: "Pending" } },
                     sla_priority: true,
-                    agents_user: { select: { email: true } },
+                    agents_user: {
+                        select: {
+                            email: true,
+                            manager: true,
+                            first_name: true,
+                            last_name: true,
+                        },
+                    },
                 },
             });
             for (const t of tickets)
@@ -89,7 +97,14 @@ class BusinessHoursAwareSLAMonitoringService {
                 include: {
                     ticket_sla_history: { where: { status: "Pending" } },
                     sla_priority: true,
-                    agents_user: { select: { email: true } },
+                    agents_user: {
+                        select: {
+                            email: true,
+                            manager: true,
+                            first_name: true,
+                            last_name: true,
+                        },
+                    },
                 },
             });
             for (const t of tickets)
@@ -108,7 +123,14 @@ class BusinessHoursAwareSLAMonitoringService {
                 include: {
                     ticket_sla_history: { where: { status: "Pending" } },
                     sla_priority: true,
-                    agents_user: { select: { email: true } },
+                    agents_user: {
+                        select: {
+                            email: true,
+                            manager: true,
+                            first_name: true,
+                            last_name: true,
+                        },
+                    },
                 },
             });
             for (const t of tickets)
@@ -134,6 +156,7 @@ class BusinessHoursAwareSLAMonitoringService {
     // 7. Main SLA check
     static checkTicketSLAStatus(ticket_1) {
         return __awaiter(this, arguments, void 0, function* (ticket, isCritical = false) {
+            var _a, _b, _c, _d;
             if (ticket.sla_status === "Paused") {
                 return;
             }
@@ -176,7 +199,7 @@ class BusinessHoursAwareSLAMonitoringService {
                             data: {
                                 ticket_id: ticket.id,
                                 user_id: null,
-                                comment_text: `🚨 ${sla.sla_type.toUpperCase()} SLA breached.`,
+                                comment_text: ` ${sla.sla_type.toUpperCase()} SLA breached.`,
                                 comment_type: "System",
                                 is_internal: true,
                             },
@@ -188,6 +211,10 @@ class BusinessHoursAwareSLAMonitoringService {
                             message: `The ${sla.sla_type} SLA has been breached.`,
                             type: "sla_warning",
                         });
+                        console.log("Ticket for Breach : ", ticket);
+                        yield sendEmailComment_1.default.sendCommentEmailToCustomer(ticket, `SLA Breach Alert: Ticket ${ticket.ticket_number + " " + sla.sla_type}  Missed by Agent ${((_a = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _a === void 0 ? void 0 : _a.first_name) +
+                            " " +
+                            ((_b = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _b === void 0 ? void 0 : _b.first_name)}.`, [(_d = (_c = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _c === void 0 ? void 0 : _c.manager) === null || _d === void 0 ? void 0 : _d.email]);
                         // Email section (integrate with your email service)
                         // await EmailService.sendEmail({
                         //   to: ticket.agents_user.email,
@@ -653,7 +680,14 @@ class BusinessHoursAwareSLAMonitoringService {
                         ticket_sla_history: { where: { status: "Pending" } },
                         sla_priority: true,
                         customers: { select: { email: true } },
-                        agents_user: { select: { email: true } },
+                        agents_user: {
+                            select: {
+                                email: true,
+                                manager: true,
+                                first_name: true,
+                                last_name: true,
+                            },
+                        },
                     },
                 });
                 if (!ticket) {

@@ -23,6 +23,7 @@ model users {
   created_by                               Int?
   role_id                                  Int
   department_id                            Int
+  manager_id                               Int?
   agents                                   agents[]
   ticket_cc_createdBy                      cc_of_ticket[]          @relation("TicketCCCreater")
   user_of_ticket_cc                        cc_of_ticket[]          @relation("TicketCCUser")
@@ -40,6 +41,8 @@ model users {
   user_permissions_granted_by_to_users     user_permissions[]      @relation("UserPermissions_GrantedByToUsers")
   user_permissions_user_id_to_users        user_permissions[]      @relation("UserPermissions_UserIDToUsers")
   user_sessions                            user_sessions[]
+  manager                                  users?                  @relation("tickerUserManager", fields: [manager_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_list                               users[]                 @relation("tickerUserManager")
   users                                    users?                  @relation("UsersToUsers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_users                              users[]                 @relation("UsersToUsers")
   user_department                          department              @relation(fields: [department_id], references: [id], onUpdate: NoAction)

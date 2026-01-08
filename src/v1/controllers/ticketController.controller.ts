@@ -635,7 +635,7 @@ export const ticketController = {
 
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
-          comment,
+          { ...comment, mailCustomer: true },
           []
         );
         ticket = updatedTicket;
@@ -878,13 +878,15 @@ export const ticketController = {
                 updatedTicket?.customers?.last_name,
           }
         );
-        await EmailService.sendCommentEmailToCustomer(updatedTicket, comment, [
-          agentDetails?.email,
-        ]);
+        await EmailService.sendCommentEmailToCustomer(
+          updatedTicket,
+          { ...comment, mailCustomer: true },
+          [agentDetails?.email]
+        );
       } else {
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
-          comment,
+          { ...comment, mailCustomer: true },
           []
         );
       }
@@ -1105,7 +1107,11 @@ export const ticketController = {
       });
 
       // Notify customers
-      await EmailService.sendCommentEmailToCustomer(finalTicket, null, []);
+      await EmailService.sendCommentEmailToCustomer(
+        finalTicket,
+        { mailCustomer: true },
+        []
+      );
 
       res.success(
         "Ticket updated successfully",
@@ -1369,6 +1375,7 @@ export const ticketController = {
       if (
         statusFilter &&
         statusFilter !== "all" &&
+        statusFilter !== "Un Assigned" &&
         statusFilter !== "SLA Breached"
       ) {
         filters.status = {
@@ -1380,6 +1387,9 @@ export const ticketController = {
         filters.sla_status = {
           equals: "Breached",
         };
+      }
+      if (statusFilter === "Un Assigned") {
+        filters.assigned_agent_id = null;
       }
       if (assigned_agent_id) {
         filters.assigned_agent_id = {

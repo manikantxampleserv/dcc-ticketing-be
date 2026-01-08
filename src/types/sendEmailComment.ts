@@ -155,15 +155,16 @@ class EmailService {
     try {
       // ✅ Ensure transporter is initialized
       await this.ensureTransporter();
-
+      const isSeparatedEmail = typeof comment === "string";
       // ✅ Transporter is guaranteed to be non-null here due to ensureTransporter
       if (!this.transporter) {
         throw new Error("Email transporter not available");
       }
 
-      const subject = additionalEmails?.length
-        ? `Re: ${ticket.subject}`
-        : `Re: ${ticket.subject}`;
+      const subject =
+        additionalEmails?.length && isSeparatedEmail
+          ? `${comment}`
+          : `Re: ${ticket.subject}`;
 
       const customerEmail = ticket?.customers?.email
         ? [ticket?.customers?.email]
@@ -172,12 +173,13 @@ class EmailService {
       //   ? [ticket.customer_email, ticket.customers.email]
       //   : [ticket.customer_email];
       const assignedEmail = ticket.agents_user?.email;
-      const agentName = comment.users
+      const agentName = comment?.users
         ? `${comment.users.first_name} ${comment.users.last_name}`
         : "Support Team";
-      let Emails = comment?.mailCustomer
-        ? assignedEmail
-        : [...customerEmail, assignedEmail];
+      let Emails =
+        comment?.mailCustomer || isSeparatedEmail
+          ? assignedEmail
+          : [...customerEmail, assignedEmail];
       if (additionalEmails.length > 0) {
         Emails = [...Emails, ...additionalEmails];
       }
@@ -188,9 +190,9 @@ class EmailService {
       }-${Date.now()}@gmail.com>`;
 
       // ✅ Get the ORIGINAL thread ID (from when ticket was created)
-      const originalThreadId =
-        ticket.email_thread_id || ticket.original_email_message_id;
-      console.log(`📨 New Message ID: ${newMessageId}`);
+      const originalThreadId = isSeparatedEmail
+        ? newMessageId
+        : ticket.email_thread_id || ticket.original_email_message_id;
 
       // ✅ Helper function to determine image MIME type
       const getImageMimeType = (fileName: string): string => {
@@ -210,7 +212,7 @@ class EmailService {
       let emailAttachment: any = null;
 
       // ✅ FIXED: Use correct property name (image_url)
-      if (comment.image_url || comment.imageUrl) {
+      if (comment?.image_url || comment?.imageUrl) {
         const imageUrl = comment.image_url || comment.imageUrl;
 
         try {
@@ -244,7 +246,7 @@ class EmailService {
 
       // ✅ Build image section HTML if image exists
       let imageHtml = "";
-      const imageUrl = comment.image_url || comment.imageUrl;
+      const imageUrl = comment?.image_url || comment?.imageUrl;
 
       if (imageUrl) {
         imageHtml = `
@@ -268,32 +270,6 @@ class EmailService {
         comment,
         imageHtml
       );
-      //   const htmlContent = `
-      //   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 10px;">
-      //     <h2 style="color: #333;">Ticket Update</h2>
-      //     <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-      //       <strong>Ticket #${ticket.ticket_number}</strong><br>
-      //       <strong>Subject:</strong> ${ticket.subject}<br>
-      //       <strong>Status:</strong> ${ticket.status}
-      //     </div>
-
-      //     <div style="margin: 20px 0;">
-      //       <strong>${agentName} commented:</strong>
-      //       <div style="background-color: #fff; padding: 15px; border-left: 4px solid #007bff; margin-top: 10px;">
-      //         ${comment.comment_text.replace(/\n/g, "<br>")}
-      //       </div>
-      //     </div>
-
-      //     <hr style="margin: 30px 0;">
-      //     <p style="color: #666; font-size: 12px;">
-      //       To reply to this ticket, simply reply to this email. Do not change the subject line.
-      //     </p>
-      //   </div>
-      // `;
-      // console.log(
-      //   "CCC : ",
-      //   ticket?.cc_of_ticket?.map((cc: any) => cc.email).join(",")
-      // );
       // ✅ FIXED: Create mail options object with all properties
       const mailOptions: any = {
         from: `"Support Team" <${process.env.SMTP_USERNAME}>`,
@@ -368,7 +344,7 @@ class EmailService {
   }
 
   private getBorderColors(isCustomer: boolean, sourceIsEmail: boolean) {
-    const border = isCustomer ? "#43a047" : "#1e88e5";
+    const border = isCustomer ? "#56be5bff" : "#1e88e5";
     const bg = isCustomer ? "#e8f5e9" : "#e3f2fd";
     const threadBorder = sourceIsEmail ? "#28a745" : "#007bff";
     return { border, bg, threadBorder };
@@ -381,31 +357,35 @@ class EmailService {
     imageHtml: string
   ): Promise<string> {
     try {
-      const previousComments = await prisma.ticket_comments.findMany({
-        where: {
-          ticket_id: ticket.id,
-          is_internal: false,
-          id: { not: comment.id }, // Exclude current comment
-        },
-        include: {
-          ticket_comment_users: {
-            select: {
-              first_name: true,
-              last_name: true,
-              avatar: true,
+      const isSeparatedEmail = typeof comment === "string";
+
+      const previousComments = isSeparatedEmail
+        ? null
+        : await prisma.ticket_comments.findMany({
+            where: {
+              ticket_id: ticket.id,
+              is_internal: false,
+              id: { not: comment?.id }, // Exclude current comment
             },
-          },
-          ticket_comment_customers: {
-            select: {
-              first_name: true,
-              last_name: true,
+            include: {
+              ticket_comment_users: {
+                select: {
+                  first_name: true,
+                  last_name: true,
+                  avatar: true,
+                },
+              },
+              ticket_comment_customers: {
+                select: {
+                  first_name: true,
+                  last_name: true,
+                },
+              },
             },
-          },
-        },
-        orderBy: {
-          created_at: "desc",
-        },
-      });
+            orderBy: {
+              created_at: "desc",
+            },
+          });
 
       const sourceIsEmail = ticket.source === "Email";
       const threadBorderColor = sourceIsEmail ? "#28a745" : "#007bff";
@@ -441,12 +421,16 @@ class EmailService {
            
            <div style="background-color: #c1e9fd8d; padding: 20px; border-left: 5px solid #28a745; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
              <div style="font-size: 15px; line-height: 1.6; color: #333;">
-               ${comment.comment_text.replace(/\n/g, "<br>")}
+               ${
+                 isSeparatedEmail
+                   ? comment
+                   : comment?.comment_text.replace(/\n/g, "<br>")
+               }
              </div>
            </div>
          ${
            ticket.description
-             ? `<div style="background-color: #e6f0f58d; padding: 10px;margin-top:5px; border: 1px solid #152b1ad8; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+             ? `<div style="background-color: #f0f6f88d; padding: 10px;margin-top:5px;border-radius: 8px;">
              <div style="font-size: 15px; line-height: 1.6; color: #333;">
                ${ticket.description}
              </div>
@@ -455,7 +439,7 @@ class EmailService {
          }
          </div>`;
 
-      if (previousComments.length > 0) {
+      if (previousComments && previousComments?.length > 0) {
         html += `
           <table width="100%" cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif; margin-top:20px;">
             <tr>
@@ -466,7 +450,7 @@ class EmailService {
               </td>
             </tr>`;
 
-        previousComments.forEach((pc: any) => {
+        previousComments?.forEach((pc: any) => {
           const isCustomer = !!pc.ticket_comment_customers;
           const author = pc.ticket_comment_customers
             ? `${pc.ticket_comment_customers.first_name} ${pc.ticket_comment_customers.last_name}`

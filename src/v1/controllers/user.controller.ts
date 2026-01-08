@@ -93,6 +93,17 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
         user_role: { select: { id: true, name: true } }, // related role
         user_department: { select: { id: true, department_name: true } }, // related department
         tickets: true,
+        manager: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            first_name: true,
+            last_name: true,
+            phone: true,
+            avatar: true,
+          },
+        },
       },
       orderBy: { id: "desc" },
     });
@@ -153,6 +164,7 @@ export async function createUser(req: any, res: Response): Promise<void> {
       role_id,
       department_id,
       phone,
+      manager_id,
     } = req.body;
 
     const created_by = req.user ? Number(req.user.id) : null;
@@ -194,6 +206,7 @@ export async function createUser(req: any, res: Response): Promise<void> {
         role_id: Number(role_id),
         department_id: Number(department_id),
         phone,
+        manager_id: Number(manager_id),
         avatar: avatarUrl,
         created_by,
       },
@@ -201,6 +214,17 @@ export async function createUser(req: any, res: Response): Promise<void> {
         user_role: { select: { id: true, name: true } },
         user_department: { select: { id: true, department_name: true } },
         tickets: true,
+        manager: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            first_name: true,
+            last_name: true,
+            phone: true,
+            avatar: true,
+          },
+        },
       },
     });
 
@@ -233,6 +257,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       role_id,
       department_id,
       phone,
+      manager_id,
       is_active,
     } = req.body;
 
@@ -270,6 +295,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     if (role_id) update_data.role_id = Number(role_id);
     if (department_id) update_data.department_id = Number(department_id);
     if (phone !== undefined) update_data.phone = phone;
+    if (manager_id !== undefined) update_data.manager_id = Number(manager_id);
     if (is_active !== undefined) update_data.is_active = Boolean(is_active);
     if (password) update_data.password_hash = await bcrypt.hash(password, 10);
     if (password_hash)
@@ -299,6 +325,17 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
         user_role: { select: { id: true, name: true } },
         user_department: { select: { id: true, department_name: true } },
         tickets: true,
+        manager: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            first_name: true,
+            last_name: true,
+            phone: true,
+            avatar: true,
+          },
+        },
       },
     });
 
