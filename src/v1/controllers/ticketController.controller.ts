@@ -8,6 +8,7 @@ import { paginate } from "../../utils/pagination";
 import { sendSatisfactionEmail } from "types/sendSatisfactionEmail";
 import notificationService from "../services/notification";
 import { BusinessHoursAwareSLAMonitoringService } from "utils/SLAMonitoringService";
+import { replaceBase64ImagesWithUrls } from "types/emailImageExtractor";
 
 const prisma = new PrismaClient();
 
@@ -1545,8 +1546,9 @@ export const ticketController = {
               ticket_id: true,
               // user_id: true,
               // customer_id: true,
-              // comment_text: true,
-              // comment_type: true,
+              email_body_text: true,
+              comment_text: true,
+              comment_type: true,
               created_at: true,
               ticket_comment_users: {
                 select: {
@@ -1884,6 +1886,7 @@ export const ticketController = {
       } = req.body;
       // const user_id = null;
       const user_id = req?.user?.id; // Assuming you have user auth middleware
+      let new_comment_text = comment_text;
 
       let imageUrl = null;
       if (req.file) {
@@ -1951,6 +1954,13 @@ export const ticketController = {
         res.error("Ticket not found", 404);
         return;
       }
+      if (comment_text.includes("data:image")) {
+        const result = await replaceBase64ImagesWithUrls(
+          comment_text,
+          ticket?.ticket_number
+        );
+        new_comment_text = result.html;
+      }
       let additionalEmails: any[] = [];
       const new_is_internal = is_internal == "true" ? true : false;
 
@@ -1987,7 +1997,7 @@ export const ticketController = {
         data: {
           ticket_id: Number(ticket_id),
           user_id: user_id ? Number(user_id) : undefined,
-          comment_text,
+          comment_text: new_comment_text,
           comment_type,
           is_internal: new_is_internal,
           mentioned_users:
@@ -2070,10 +2080,10 @@ export const ticketController = {
           data: {
             first_response_at: new Date(comment.created_at),
             sort_comment: (() => {
-              const words = comment_text.trim().split(/\s+/);
+              const words = new_comment_text.trim().split(/\s+/);
               return words.length > 30
                 ? words.slice(0, 30).join(" ") + "..."
-                : comment_text;
+                : new_comment_text;
             })(),
           },
         });
@@ -2082,10 +2092,10 @@ export const ticketController = {
           where: { id: ticket.id },
           data: {
             sort_comment: (() => {
-              const words = comment_text.trim().split(/\s+/);
+              const words = new_comment_text.trim().split(/\s+/);
               return words.length > 30
                 ? words.slice(0, 30).join(" ") + "..."
-                : comment_text;
+                : new_comment_text;
             })(),
           },
         });

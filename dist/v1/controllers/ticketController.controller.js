@@ -22,6 +22,7 @@ const pagination_1 = require("../../utils/pagination");
 const sendSatisfactionEmail_1 = require("../../types/sendSatisfactionEmail");
 const notification_1 = __importDefault(require("../services/notification"));
 const SLAMonitoringService_1 = require("../../utils/SLAMonitoringService");
+const emailImageExtractor_1 = require("../../types/emailImageExtractor");
 const prisma = new client_1.PrismaClient();
 const serializeTicket = (ticket, includeDates = false) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
@@ -1324,8 +1325,9 @@ exports.ticketController = {
                                 ticket_id: true,
                                 // user_id: true,
                                 // customer_id: true,
-                                // comment_text: true,
-                                // comment_type: true,
+                                email_body_text: true,
+                                comment_text: true,
+                                comment_type: true,
                                 created_at: true,
                                 ticket_comment_users: {
                                     select: {
@@ -1630,6 +1632,7 @@ exports.ticketController = {
                 const { ticket_id, comment_text, comment_type, is_internal = false, mentioned_users, } = req.body;
                 // const user_id = null;
                 const user_id = (_a = req === null || req === void 0 ? void 0 : req.user) === null || _a === void 0 ? void 0 : _a.id; // Assuming you have user auth middleware
+                let new_comment_text = comment_text;
                 let imageUrl = null;
                 if (req.file) {
                     const fileName = `ticket-${ticket_id}-comment/${Date.now()}_${req.file.originalname}`;
@@ -1688,6 +1691,10 @@ exports.ticketController = {
                     res.error("Ticket not found", 404);
                     return;
                 }
+                if (comment_text.includes("data:image")) {
+                    const result = yield (0, emailImageExtractor_1.replaceBase64ImagesWithUrls)(comment_text, ticket === null || ticket === void 0 ? void 0 : ticket.ticket_number);
+                    new_comment_text = result.html;
+                }
                 let additionalEmails = [];
                 const new_is_internal = is_internal == "true" ? true : false;
                 let validatedMentionedUsers = [];
@@ -1720,7 +1727,7 @@ exports.ticketController = {
                     data: {
                         ticket_id: Number(ticket_id),
                         user_id: user_id ? Number(user_id) : undefined,
-                        comment_text,
+                        comment_text: new_comment_text,
                         comment_type,
                         is_internal: new_is_internal,
                         mentioned_users: validatedMentionedUsers.length > 0
@@ -1780,10 +1787,10 @@ exports.ticketController = {
                         data: {
                             first_response_at: new Date(comment.created_at),
                             sort_comment: (() => {
-                                const words = comment_text.trim().split(/\s+/);
+                                const words = new_comment_text.trim().split(/\s+/);
                                 return words.length > 30
                                     ? words.slice(0, 30).join(" ") + "..."
-                                    : comment_text;
+                                    : new_comment_text;
                             })(),
                         },
                     });
@@ -1793,10 +1800,10 @@ exports.ticketController = {
                         where: { id: ticket.id },
                         data: {
                             sort_comment: (() => {
-                                const words = comment_text.trim().split(/\s+/);
+                                const words = new_comment_text.trim().split(/\s+/);
                                 return words.length > 30
                                     ? words.slice(0, 30).join(" ") + "..."
-                                    : comment_text;
+                                    : new_comment_text;
                             })(),
                         },
                     });

@@ -791,11 +791,12 @@ class SimpleEmailTicketSystem {
       this.cleanPlainEmailText(bodyText.trim()),
       JSON.stringify(aiResponse)
     );
-    if (aiResponse?.success) {
+    if (aiResponse?.success && customer) {
       await sendSatisfactionEmail({
         body: aiResponse.answer,
         ticketId: tickets.id,
-        requesterEmail: senderEmail,
+        requesterEmail: customer?.email,
+        // requesterEmail:  senderEmail,
         ticketNumber: generateTicketNumber(tickets.id),
         requesterName: senderNames || "",
       });

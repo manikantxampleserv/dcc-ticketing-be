@@ -628,11 +628,12 @@ class SimpleEmailTicketSystem {
             });
             const aiResponse = yield this.askAITicketSystem((bodyText === null || bodyText === void 0 ? void 0 : bodyText.trim()) || tickets.description);
             console.log("🤖 AI Response:", this.cleanPlainEmailText(bodyText.trim()), JSON.stringify(aiResponse));
-            if (aiResponse === null || aiResponse === void 0 ? void 0 : aiResponse.success) {
+            if ((aiResponse === null || aiResponse === void 0 ? void 0 : aiResponse.success) && customer) {
                 yield (0, sendSatisfactionEmail_1.sendSatisfactionEmail)({
                     body: aiResponse.answer,
                     ticketId: tickets.id,
-                    requesterEmail: senderEmail,
+                    requesterEmail: customer === null || customer === void 0 ? void 0 : customer.email,
+                    // requesterEmail:  senderEmail,
                     ticketNumber: (0, GenerateTicket_1.generateTicketNumber)(tickets.id),
                     requesterName: senderNames || "",
                 });
