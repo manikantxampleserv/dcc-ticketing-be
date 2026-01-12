@@ -450,6 +450,183 @@ export const ticketController = {
       res.error(error.message);
     }
   },
+  // async updateTicket(req: any, res: Response): Promise<any> {
+  //   try {
+  //     const id = Number(req.params.id);
+  //     const reason = req.body.reason || "";
+  //     const userId = Number(req.user?.id);
+
+  //     const existing = await prisma.tickets.findUnique({ where: { id } });
+  //     if (!existing) return res.error("Ticket not found", 404);
+
+  //     const allowedFields = [
+  //       "ticket_number",
+  //       "customer_id",
+  //       "assigned_agent_id",
+  //       "category_id",
+  //       "subject",
+  //       "description",
+  //       "priority",
+  //       "status",
+  //       "source",
+  //       "sla_deadline",
+  //       "sla_status",
+  //       "first_response_at",
+  //       "resolved_at",
+  //       "closed_at",
+  //       "assigned_by",
+  //       "is_merged",
+  //       "reopen_count",
+  //       "time_spent_minutes",
+  //       "last_reopened_at",
+  //       "customer_satisfaction_rating",
+  //       "customer_feedback",
+  //       "tags",
+  //       "merged_into_ticket_id",
+  //     ];
+
+  //     const dataToUpdate: Record<string, any> = {};
+  //     for (const field of allowedFields) {
+  //       if (req.body[field] !== undefined) {
+  //         dataToUpdate[field] = req.body[field];
+  //       }
+  //     }
+
+  //     const prevStatus = existing.status;
+  //     const newStatus = req.body.status as string | undefined;
+
+  //     // ⏱ Time tracking
+  //     if (prevStatus !== "In Progress" && newStatus === "In Progress") {
+  //       dataToUpdate.start_timer_at = new Date();
+  //     }
+
+  //     if (prevStatus === "In Progress" && newStatus !== "In Progress") {
+  //       if (existing.start_timer_at) {
+  //         const elapsedSec =
+  //           (Date.now() - existing.start_timer_at.getTime()) / 1000;
+  //         dataToUpdate.time_spent_minutes =
+  //           (existing.time_spent_minutes || 0) + Math.floor(elapsedSec);
+  //         dataToUpdate.start_timer_at = null;
+  //       }
+  //     }
+
+  //     dataToUpdate.updated_at = new Date();
+
+  //     let updatedTicket: any;
+  //     let systemComment: any = null;
+
+  //     // 🟢 NORMAL STATUS UPDATE
+  //     if (newStatus !== "Closed" && newStatus !== "Resolved") {
+  //       updatedTicket = await prisma.tickets.update({
+  //         where: { id },
+  //         data: dataToUpdate,
+  //         include: {
+  //           users: true,
+  //           customers: true,
+  //           agents_user: true,
+  //           sla_priority: true,
+  //         },
+  //       });
+  //     }
+  //     // 🔴 RESOLVED / CLOSED (transaction)
+  //     else {
+  //       const commentText =
+  //         newStatus === "Closed"
+  //           ? `Ticket is closed. Remarks: "${reason}".`
+  //           : `Ticket is resolved. Remarks: "${reason}".`;
+
+  //       const result = await prisma.$transaction([
+  //         prisma.tickets.update({
+  //           where: { id },
+  //           data: dataToUpdate,
+  //           include: {
+  //             users: true,
+  //             customers: true,
+  //             agents_user: true,
+  //             ticket_sla_history: true,
+  //             sla_priority: true,
+  //           },
+  //         }),
+  //         prisma.ticket_comments.create({
+  //           data: {
+  //             ticket_id: id,
+  //             user_id: userId,
+  //             comment_text: commentText,
+  //             comment_type: "System",
+  //             is_internal: true,
+  //           },
+  //         }),
+  //       ]);
+
+  //       updatedTicket = result[0];
+  //       systemComment = result[1];
+  //     }
+
+  //     // ✅ RESPOND FAST
+  //     res.success(
+  //       "Ticket updated successfully",
+  //       serializeTicket(updatedTicket, true),
+  //       200
+  //     );
+
+  //     // ───────────── BACKGROUND TASKS ─────────────
+  //     setImmediate(async () => {
+  //       try {
+  //         // SLA pause/resume
+  //         if (newStatus === "Waiting for Customer Response") {
+  //           await BusinessHoursAwareSLAMonitoringService.pauseTicketSLA(
+  //             id,
+  //             "Waiting for customer response"
+  //           );
+  //         }
+
+  //         if (
+  //           prevStatus === "Waiting for Customer Response" &&
+  //           newStatus !== "Waiting for Customer Response"
+  //         ) {
+  //           await BusinessHoursAwareSLAMonitoringService.resumeTicketSLA(id);
+  //         }
+
+  //         // SLA completion
+  //         if (newStatus === "Resolved" || newStatus === "Closed") {
+  //           await ticketController.handleSLACompletion(id, newStatus);
+  //         }
+
+  //         // Satisfaction email
+  //         if (newStatus === "Resolved") {
+  //           await sendSatisfactionEmail({
+  //             body: "Resolved",
+  //             ticketId: updatedTicket.id,
+  //             requesterEmail:
+  //               updatedTicket.customer_email ||
+  //               updatedTicket.customers?.email ||
+  //               "",
+  //             ticketNumber: updatedTicket.ticket_number,
+  //             requesterName:
+  //               updatedTicket.customer_name ||
+  //               `${updatedTicket.customers?.first_name || ""} ${
+  //                 updatedTicket.customers?.last_name || ""
+  //               }`,
+  //           });
+  //         }
+
+  //         // System comment email
+  //         if (systemComment) {
+  //           await EmailService.sendCommentEmailToCustomer(
+  //             updatedTicket,
+  //             { ...systemComment, mailCustomer: true },
+  //             []
+  //           );
+  //         }
+  //       } catch (err) {
+  //         console.error("❌ Background updateTicket task failed:", err);
+  //       }
+  //     });
+  //   } catch (error: any) {
+  //     console.error(error);
+  //     res.error(error.message);
+  //   }
+  // },
 
   async updateTicket(req: any, res: Response): Promise<any> {
     try {
@@ -1888,25 +2065,42 @@ export const ticketController = {
       const user_id = req?.user?.id; // Assuming you have user auth middleware
       let new_comment_text = comment_text;
 
-      let imageUrl = null;
-      if (req.file) {
-        const fileName = `ticket-${ticket_id}-comment/${Date.now()}_${
-          req.file.originalname
-        }`;
-        imageUrl = await uploadFile(
-          req.file.buffer,
-          fileName,
-          req.file.mimetype
-        );
+      // let imageUrl = null;
+      // if (req.file) {
+      //   const fileName = `ticket-${ticket_id}-comment/${Date.now()}_${
+      //     req.file.originalname
+      //   }`;
+      //   imageUrl = await uploadFile(
+      //     req.file.buffer,
+      //     fileName,
+      //     req.file.mimetype
+      //   );
 
-        // imageUrl = await uploadToBackblaze(
-        //   req.file.buffer,
-        //   req.file.originalname,
-        //   req.file.mimetype,
-        //   "TicketComments",
-        //   `ticket-${ticket_id}-comment`
-        // );
-      }
+      // let imageUrls: string[] = [];
+      // if (req.files && Array.isArray(req.files)) {
+      //   for (const file of req.files) {
+      //     const fileName = `ticket-${ticket_id}-comment/${Date.now()}_${
+      //       file.originalname
+      //     }`;
+
+      //     const imageUrl = await uploadFile(
+      //       file.buffer,
+      //       fileName,
+      //       file.mimetype
+      //     );
+
+      //     imageUrls.push(imageUrl);
+      //   }
+      // }
+      const imageUrls = await Promise.all(
+        (req.files || []).map((file: any) => {
+          const fileName = `ticket-${ticket_id}-comment/${Date.now()}_${
+            file.originalname
+          }`;
+          return uploadFile(file.buffer, fileName, file.mimetype);
+        })
+      );
+
       // Validate ticket exists
       const ticket = await prisma.tickets.findUnique({
         where: { id: Number(ticket_id) },
@@ -1991,7 +2185,10 @@ export const ticketController = {
           // Continue without failing the entire request
         }
       }
-      const attachment_urls = imageUrl ? JSON.stringify([imageUrl]) : null;
+      // const attachment_urls = imageUrl ? JSON.stringify([imageUrl]) : null;
+      const attachment_urls =
+        imageUrls.length > 0 ? JSON.stringify(imageUrls) : null;
+
       // Create comment
       const comment = await prisma.ticket_comments.create({
         data: {
@@ -2018,89 +2215,89 @@ export const ticketController = {
         },
       });
 
-      // ✅ Send email to customer if it's a public comment
-      if (!new_is_internal) {
-        console.log("Sending email to customer...");
-        await EmailService.sendCommentEmailToCustomer(
-          serializeTicket(ticket),
-          {
-            ...comment,
-            imageUrl: imageUrl ? imageUrl : null,
-            mailCustomer: new_is_internal,
-          },
-          additionalEmails
-        );
-      } else {
-        console.log("Internal comment created, no email sent to customer.");
-        await EmailService.sendCommentEmailToCustomer(
-          serializeTicket(ticket),
-          {
-            ...comment,
-            imageUrl: imageUrl ? imageUrl : null,
-            mailCustomer: !new_is_internal,
-          },
-          additionalEmails
-        );
-      }
-      // const countComment = await prisma.ticket_comments.count()
-      // After successfully creating the comment and before ticket update
-      const isAssignedAgent =
-        ticket?.assigned_agent_id && req?.user?.id === ticket.assigned_agent_id;
-      const isFirstAgentResponse =
-        !ticket.first_response_at && isAssignedAgent && !comment.is_internal;
-      // &&        !new_is_internal;
-
-      if (isFirstAgentResponse && ticket.ticket_sla_history?.length) {
-        const responseSLA = ticket.ticket_sla_history.find(
-          (sla: any) => sla.sla_type === "Response" && sla.status === "Pending"
-        );
-        if (responseSLA) {
-          let statusToUpdate = "Met";
-          const commentDate = new Date(comment.created_at);
-          const slaTargetDate = new Date(responseSLA.target_time);
-
-          // Determine if the response met the SLA deadline
-          if (commentDate <= slaTargetDate) {
-            statusToUpdate = "Met";
-          } else {
-            statusToUpdate = "Breached"; // or whatever logic your app uses
-          }
-
-          await prisma.sla_history.update({
-            where: { id: responseSLA.id },
-            data: {
-              status: statusToUpdate,
-              actual_time: commentDate,
-            },
-          });
-        }
-        // Also update the ticket's first_response_at timestamp
-        await prisma.tickets.update({
-          where: { id: ticket.id },
-          data: {
-            first_response_at: new Date(comment.created_at),
-            sort_comment: (() => {
-              const words = new_comment_text.trim().split(/\s+/);
-              return words.length > 30
-                ? words.slice(0, 30).join(" ") + "..."
-                : new_comment_text;
-            })(),
-          },
-        });
-      } else {
-        await prisma.tickets.update({
-          where: { id: ticket.id },
-          data: {
-            sort_comment: (() => {
-              const words = new_comment_text.trim().split(/\s+/);
-              return words.length > 30
-                ? words.slice(0, 30).join(" ") + "..."
-                : new_comment_text;
-            })(),
-          },
-        });
-      }
       res.success("Comment created successfully", comment, 201);
+      // ───────────────── BACKGROUND TASKS ─────────────────
+
+      setImmediate(async () => {
+        try {
+          // 📧 Email (async)
+          EmailService.sendCommentEmailToCustomer(
+            serializeTicket(ticket),
+            {
+              ...comment,
+              imageUrls,
+              mailCustomer: is_internal,
+            },
+            additionalEmails
+          ).catch(console.error);
+
+          // ⏱ SLA & ticket update (async)
+          // const countComment = await prisma.ticket_comments.count()
+          // After successfully creating the comment and before ticket update
+          const isAssignedAgent =
+            ticket?.assigned_agent_id &&
+            req?.user?.id === ticket.assigned_agent_id;
+          const isFirstAgentResponse =
+            !ticket.first_response_at &&
+            isAssignedAgent &&
+            !comment.is_internal;
+          // &&        !new_is_internal;
+
+          if (isFirstAgentResponse && ticket.ticket_sla_history?.length) {
+            const responseSLA = ticket.ticket_sla_history.find(
+              (sla: any) =>
+                sla.sla_type === "Response" && sla.status === "Pending"
+            );
+            if (responseSLA) {
+              let statusToUpdate = "Met";
+              const commentDate = new Date(comment.created_at);
+              const slaTargetDate = new Date(responseSLA.target_time);
+
+              // Determine if the response met the SLA deadline
+              if (commentDate <= slaTargetDate) {
+                statusToUpdate = "Met";
+              } else {
+                statusToUpdate = "Breached"; // or whatever logic your app uses
+              }
+
+              await prisma.sla_history.update({
+                where: { id: responseSLA.id },
+                data: {
+                  status: statusToUpdate,
+                  actual_time: commentDate,
+                },
+              });
+            }
+            // Also update the ticket's first_response_at timestamp
+            await prisma.tickets.update({
+              where: { id: ticket.id },
+              data: {
+                first_response_at: new Date(comment.created_at),
+                sort_comment: (() => {
+                  const words = new_comment_text.trim().split(/\s+/);
+                  return words.length > 30
+                    ? words.slice(0, 30).join(" ") + "..."
+                    : new_comment_text;
+                })(),
+              },
+            });
+          } else {
+            await prisma.tickets.update({
+              where: { id: ticket.id },
+              data: {
+                sort_comment: (() => {
+                  const words = new_comment_text.trim().split(/\s+/);
+                  return words.length > 30
+                    ? words.slice(0, 30).join(" ") + "..."
+                    : new_comment_text;
+                })(),
+              },
+            });
+          }
+        } catch (err) {
+          console.error("❌ Background task failed:", err);
+        }
+      });
     } catch (error: any) {
       console.error(error);
       res.error(error.message);

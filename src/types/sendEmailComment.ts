@@ -212,58 +212,119 @@ class EmailService {
       let emailAttachment: any = null;
 
       // ✅ FIXED: Use correct property name (image_url)
-      if (comment?.image_url || comment?.imageUrl) {
-        const imageUrl = comment.image_url || comment.imageUrl;
+      // if (comment?.image_url || comment?.imageUrl) {
+      //   const imageUrl = comment.image_url || comment.imageUrl;
+
+      //   try {
+      //     // Download image from Backblaze URL
+      //     const response = await fetch(imageUrl);
+      //     if (response.ok) {
+      //       const buffer = Buffer.from(await response.arrayBuffer());
+
+      //       // Get filename from URL or use default
+      //       const urlParts = imageUrl.split("/");
+      //       const fileName =
+      //         urlParts[urlParts.length - 1] || `ticket_${ticket.id}_image.jpg`;
+
+      //       emailAttachment = {
+      //         filename: fileName,
+      //         content: buffer,
+      //         contentType: getImageMimeType(fileName),
+      //         cid: "attached-image", // Content ID for inline images
+      //       };
+
+      //       console.log(`✅ Image prepared for email attachment: ${fileName}`);
+      //     } else {
+      //       console.error(
+      //         `❌ Failed to download image: ${response.statusText}`
+      //       );
+      //     }
+      //   } catch (imageError) {
+      //     console.error(`❌ Error processing image attachment:`, imageError);
+      //   }
+      // }
+
+      // ✅ Build image section HTML if image exists
+
+      // const imageUrl = comment?.image_url || comment?.imageUrl;
+      const imageUrls: string[] = Array.isArray(comment?.imageUrls)
+        ? comment.imageUrls
+        : [];
+
+      const emailAttachments: any[] = [];
+
+      for (let i = 0; i < imageUrls.length; i++) {
+        const imageUrl = imageUrls[i];
 
         try {
-          // Download image from Backblaze URL
           const response = await fetch(imageUrl);
-          if (response.ok) {
-            const buffer = Buffer.from(await response.arrayBuffer());
+          if (!response.ok) continue;
 
-            // Get filename from URL or use default
-            const urlParts = imageUrl.split("/");
-            const fileName =
-              urlParts[urlParts.length - 1] || `ticket_${ticket.id}_image.jpg`;
+          const buffer = Buffer.from(await response.arrayBuffer());
 
-            emailAttachment = {
-              filename: fileName,
-              content: buffer,
-              contentType: getImageMimeType(fileName),
-              cid: "attached-image", // Content ID for inline images
-            };
+          const fileName =
+            imageUrl.split("/").pop() || `ticket_${ticket.id}_${i + 1}.jpg`;
 
-            console.log(`✅ Image prepared for email attachment: ${fileName}`);
-          } else {
-            console.error(
-              `❌ Failed to download image: ${response.statusText}`
-            );
-          }
-        } catch (imageError) {
-          console.error(`❌ Error processing image attachment:`, imageError);
+          emailAttachments.push({
+            filename: fileName,
+            content: buffer,
+            contentType: getImageMimeType(fileName),
+            disposition: "attachment", // ✅ FORCE ATTACHMENT
+          });
+        } catch (err) {
+          console.error("❌ Image download failed:", imageUrl, err);
         }
       }
 
-      // ✅ Build image section HTML if image exists
       let imageHtml = "";
-      const imageUrl = comment?.image_url || comment?.imageUrl;
-
-      if (imageUrl) {
+      if (imageUrls.length > 0) {
         imageHtml = `
-        <div style="margin: 20px 0;">
-          <h3 style="color: #333; font-size: 16px; margin-bottom: 10px;">📷 Image Attachment:</h3>
-          <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center;">
-            <img src="${imageUrl}" 
-                 alt="Attached Image" 
-                 style="max-width: 100%; max-height: 300px; border-radius: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-            <br>
-            <a href="${imageUrl}" 
-               style="color: #007bff; text-decoration: none; font-size: 14px; margin-top: 10px; display: inline-block;"
-               target="_blank">🔗 View Full Size</a>
-          </div>
-        </div>
-      `;
+    <div style="margin:20px 0;">
+      <h3 style="font-size:16px;margin-bottom:10px;">📎 Attachments :</h3>
+
+      <table cellpadding="0" cellspacing="0" width="100%">
+        ${imageUrls
+          .map(
+            (url) => `
+            <tr>
+              <td style="padding:6px 0;">
+                <div style="
+                  display:flex;
+                  align-items:center;
+                  gap:10px;
+                  background:#f6f8fa;
+                  border:1px solid #e1e4e8;
+                  border-radius:6px;
+                  padding:8px 12px;
+                  max-width:420px;
+                ">
+                  <span style="font-size:18px;">📎</span>
+
+                  <a href="${url}"
+                     target="_blank"
+                     style="
+                       font-size:14px;
+                       color:#0366d6;
+                       text-decoration:none;
+                       white-space:nowrap;
+                       overflow:hidden;
+                       text-overflow:ellipsis;
+                       max-width:320px;
+                       display:inline-block;
+                     ">
+                    ${url.split("/").pop()}
+                  </a>
+                </div>
+              </td>
+            </tr>
+          `
+          )
+          .join("")}
+      </table>
+    </div>
+  `;
       }
+
       const htmlContent = await this.ticketCommentConversation(
         ticket,
         agentName,
@@ -304,9 +365,10 @@ class EmailService {
       };
 
       // ✅ CRITICAL: Add attachment to email if it exists
-      if (emailAttachment) {
-        mailOptions.attachments = [emailAttachment];
+      if (emailAttachments.length > 0) {
+        mailOptions.attachments = emailAttachments;
       }
+
       await this.transporter.sendMail(mailOptions);
 
       //  Update comment with the message ID of the email we just sent
@@ -344,9 +406,9 @@ class EmailService {
   }
 
   private getBorderColors(isCustomer: boolean, sourceIsEmail: boolean) {
-    const border = isCustomer ? "#56be5bff" : "#1e88e5";
-    const bg = isCustomer ? "#e8f5e9" : "#e3f2fd";
-    const threadBorder = sourceIsEmail ? "#28a745" : "#007bff";
+    const border = isCustomer ? "#56be5bff" : "#5299d7ff";
+    const bg = isCustomer ? "#f4fbf5ff" : "#f8fcffff";
+    const threadBorder = sourceIsEmail ? "#28a745" : "#3697feff";
     return { border, bg, threadBorder };
   }
 
@@ -404,7 +466,7 @@ class EmailService {
                    ticket.subject
                  }</span>
                </td>
-               <td style="text-align: right; vertical-align: top;">
+               <td style="text-align: right; vertical-align: center;">
                  <span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
                    ${ticket.status.toUpperCase()}
                  </span>
@@ -412,6 +474,7 @@ class EmailService {
              </tr>
            </table>
          </div
+
          <!-- Latest Comment -->
          <div style="margin: 5px;">
            <h2 style="color: #28a745; margin-bottom: 10px;  font-size: 15px;">
@@ -419,19 +482,21 @@ class EmailService {
              Latest Comment from ${agentName}
            </h2>
            
-           <div style="background-color: #c1e9fd8d; padding: 20px; border-left: 5px solid #28a745; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+           <div style="background-color: #c1e9fd8d; padding: 10px; border-left: 5px solid #28a745; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
              <div style="font-size: 15px; line-height: 1.6; color: #333;">
                ${
                  isSeparatedEmail
                    ? comment
                    : comment?.comment_text.replace(/\n/g, "<br>")
                }
-             </div>
-           </div>
+               </div>
+               </div>
+               ${imageHtml || ""}
+           <div style="padding:20p 0x;">
          ${
            ticket.description
-             ? `<div style="background-color: #f0f6f88d; padding: 10px;margin-top:5px;border-radius: 8px;">
-             <div style="font-size: 15px; line-height: 1.6; color: #333;">
+             ? `<div style="background-color: #f0f6f88d; padding: 10px 0;margin-top:5px;border-radius: 8px;">
+             <div style="font-size: 15px;padding:0 4px; line-height: 1.6; color: #333;">
                ${ticket.description}
              </div>
            </div>`
@@ -443,7 +508,7 @@ class EmailService {
         html += `
           <table width="100%" cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif; margin-top:20px;">
             <tr>
-              <td style="padding:0 20px 10px;">
+              <td style="padding:0 20px 0 0;">
                 <h3 style="font-size:16px; color:#333333; margin:0;">
                   📋 Conversation History (${previousComments.length})
                 </h3>
@@ -473,45 +538,59 @@ class EmailService {
 
           html += `
             <tr>
-              <td style="padding:10px 20px;">
+              <td style="padding:10px 0px;">
                 <table width="100%" cellpadding="0" cellspacing="0"
-                  style="border-left:4px solid ${border}; background:${bg}; border-radius:4px; padding:10px;">
+                  style="background:${bg}; border-radius:4px; padding:10px;">
                   <tr>
-                    <td width="40" valign="top">
-                      ${
-                        pc.ticket_comment_users?.avatar
-                          ? `<img src="${pc.ticket_comment_users.avatar}" alt="avatar" style="width:32px; height:32px; border-radius:50%;">`
-                          : `<div style="width:32px; height:32px; border-radius:50%; background:#cfd8dc; text-align:center; line-height:32px; color:#607d8b;">👤</div>`
-                      }
-                    </td>
+
                     <td style="padding-left:10px;">
-                      <div style="font-size:14px; font-weight:600; color:#333333;">
+                    <div style="display:flex;align-items:start;">
+                     ${
+                       pc.ticket_comment_users?.avatar
+                         ? `<img src="${pc.ticket_comment_users.avatar}" alt="avatar" style="width:32px; height:32px; border-radius:50%;">`
+                         : `<div style="width:32px; height:32px; border-radius:50%; background:#cfd8dc; text-align:center; line-height:32px; color:#607d8b;">👤</div>`
+                     }
+                      <div style="font-size:14px; font-weight:600; margin-left:7px; color:#333333;">
                         ${author}
-                        <span style="font-size:12px; color:#555555; margin-left:8px;">
+                        <div style="font-size:12px; color:#555555; margin-left:8px;">
                           ${date}
-                        </span>
+                        </div>
+                      </div>
                       </div>
                       <div style="margin-top:8px; font-size:14px; color:#333333; line-height:1.5;">
                      <div style="margin-top:8px; font-size:14px; color:#333333; line-height:1.5;">
   ${
-    pc.comment_text?.replace(
-      /(data:image[^"]+)/g,
-      (match: any) =>
-        `<img src="${match}" style="max-width:300px; display:block; margin-top:10px;">`
-    ) ?? ""
+    pc.comment_text ?? ""
+
+    // pc.comment_text?.replace(
+    //   /(data:image[^"]+)/g,
+    //   (match: any) =>
+    //     `<img src="${match}" style="max-width:300px; display:block; margin-top:10px;">`
+    // ) ?? ""
   }
 </div>
                       </div>
                       
-                      ${
-                        pc.attachment_urls
-                          ? `<div style="margin-top:8px;">
-                              <a href="${pc.attachment_urls}" style="font-size:12px; color:#1e88e5; text-decoration:none;">
-                                📎 View Attachment
-                              </a>
-                            </div>`
-                          : ""
-                      }
+                     ${
+                       pc.attachment_urls
+                         ? (() => {
+                             const urls = JSON.parse(
+                               pc.attachment_urls || "[]"
+                             );
+                             return urls
+                               .map(
+                                 (url: string) => `
+              <div style="margin-top:4px;">
+                📎 <a href="${url}" target="_blank" style="font-size:12px; color:#1e88e5;">
+                  ${url.split("/").pop()}
+                </a>
+              </div>`
+                               )
+                               .join("");
+                           })()
+                         : ""
+                     }
+
                     </td>
                   </tr>
                 </table>

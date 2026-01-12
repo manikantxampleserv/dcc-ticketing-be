@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { authenticateToken } from "../../middlewares/auth";
 import { validate } from "../../middlewares/validate";
-import { uploadSingleFile } from "../../utils/fileUpload";
+import {
+  handleUploadErrors,
+  uploadMultipleFiles,
+  uploadSingleFile,
+} from "../../utils/fileUpload";
 import { ticketController } from "../controllers/ticketController.controller";
 
 const router = Router();
@@ -16,7 +20,9 @@ uploadSingleFile("attachment"),
 router.post(
   "/ticket-comment",
   authenticateToken,
-  uploadSingleFile("attachment"),
+  uploadMultipleFiles("attachments", 10), // 👈 MATCH FRONTEND
+  handleUploadErrors, // 👈 IMPORTANT
+  // uploadSingleFile("attachment"),
   //   upload.single("attachment"),
   ticketController.createComment
 );

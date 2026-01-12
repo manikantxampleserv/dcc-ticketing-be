@@ -8,7 +8,9 @@ const ticketController_controller_1 = require("../controllers/ticketController.c
 const router = (0, express_1.Router)();
 (0, fileUpload_1.uploadSingleFile)("attachment"),
     router.post("/ticket", auth_1.authenticateToken, (0, fileUpload_1.uploadSingleFile)("attachment_urls"), ticketController_controller_1.ticketController.createTicket);
-router.post("/ticket-comment", auth_1.authenticateToken, (0, fileUpload_1.uploadSingleFile)("attachment"), 
+router.post("/ticket-comment", auth_1.authenticateToken, (0, fileUpload_1.uploadMultipleFiles)("attachments", 10), // 👈 MATCH FRONTEND
+fileUpload_1.handleUploadErrors, // 👈 IMPORTANT
+// uploadSingleFile("attachment"),
 //   upload.single("attachment"),
 ticketController_controller_1.ticketController.createComment);
 router.put("/ticket/:id", auth_1.authenticateToken, ticketController_controller_1.ticketController.updateTicket);
