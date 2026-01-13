@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import emailService from "types/sendEmailComment";
 
 const jwt = require("jsonwebtoken");
 const prisma = new PrismaClient();
@@ -37,7 +38,20 @@ export async function getFeedback(req: any, res: any): Promise<void> {
       // 1) Make sure ticket exists and is still awaiting feedback (status = 'Resolved')
       const ticket = await tx.tickets.findUnique({
         where: { id: ticketId },
-        select: { id: true, status: true, closed_at: true },
+        select: {
+          id: true,
+          status: true,
+          closed_at: true,
+          ticket_number: true,
+          agents_user: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              manager: true,
+            },
+          },
+        },
       });
       if (!ticket) {
         throw Object.assign(new Error("Ticket not found"), { status: 400 });
@@ -45,7 +59,7 @@ export async function getFeedback(req: any, res: any): Promise<void> {
 
       // 2) Single-use guard: proceed ONLY if status is 'Resolved'
       // Use a conditional update so only the first click wins.
-      const nextStatus = score === 1 ? "Closed" : "Open";
+      const nextStatus = score === 1 ? "Closed" : "ReOpen";
 
       const result = await tx.tickets.updateMany({
         where: { id: ticketId, status: "Resolved" }, // only update if still unresolved feedback
@@ -54,6 +68,38 @@ export async function getFeedback(req: any, res: any): Promise<void> {
           updated_at: new Date(),
         },
       });
+      if (nextStatus == "ReOpen") {
+        await prisma.notifications.create({
+          data: {
+            user_id: Number(ticket?.agents_user?.manager?.id),
+            type: "ticket_reopen",
+            title: `Ticket ${ticket.ticket_number} was reopened by the customer.`,
+            message: `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
+The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}.`,
+            ticket_id: ticket.id,
+            read: false,
+            sent_via: "in_app",
+          },
+        });
+        await prisma.notifications.create({
+          data: {
+            user_id: Number(ticket?.agents_user?.id),
+            type: "ticket_reopen",
+            title: `Ticket ${ticket.ticket_number} was reopened by the customer.`,
+            message: `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
+The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}.`,
+            ticket_id: ticket.id,
+            read: false,
+            sent_via: "in_app",
+          },
+        });
+        await emailService.sendCommentEmailToCustomer(
+          ticket,
+          `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
+The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}.`,
+          [ticket?.agents_user?.manager?.email]
+        );
+      }
 
       if (result.count === 0) {
         // Someone already used the link (status no longer 'Resolved')

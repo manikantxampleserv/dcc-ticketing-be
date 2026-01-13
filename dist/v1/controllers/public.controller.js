@@ -8,9 +8,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getFeedback = getFeedback;
 const client_1 = require("@prisma/client");
+const sendEmailComment_1 = __importDefault(require("../../types/sendEmailComment"));
 const jwt = require("jsonwebtoken");
 const prisma = new client_1.PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -38,17 +42,31 @@ function getFeedback(req, res) {
             }
             const { ticketId /*, email*/ } = payload;
             yield prisma.$transaction((tx) => __awaiter(this, void 0, void 0, function* () {
+                var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
                 // 1) Make sure ticket exists and is still awaiting feedback (status = 'Resolved')
                 const ticket = yield tx.tickets.findUnique({
                     where: { id: ticketId },
-                    select: { id: true, status: true, closed_at: true },
+                    select: {
+                        id: true,
+                        status: true,
+                        closed_at: true,
+                        ticket_number: true,
+                        agents_user: {
+                            select: {
+                                id: true,
+                                first_name: true,
+                                last_name: true,
+                                manager: true,
+                            },
+                        },
+                    },
                 });
                 if (!ticket) {
                     throw Object.assign(new Error("Ticket not found"), { status: 400 });
                 }
                 // 2) Single-use guard: proceed ONLY if status is 'Resolved'
                 // Use a conditional update so only the first click wins.
-                const nextStatus = score === 1 ? "Closed" : "Open";
+                const nextStatus = score === 1 ? "Closed" : "ReOpen";
                 const result = yield tx.tickets.updateMany({
                     where: { id: ticketId, status: "Resolved" }, // only update if still unresolved feedback
                     data: {
@@ -56,6 +74,34 @@ function getFeedback(req, res) {
                         updated_at: new Date(),
                     },
                 });
+                if (nextStatus == "ReOpen") {
+                    yield prisma.notifications.create({
+                        data: {
+                            user_id: Number((_b = (_a = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _a === void 0 ? void 0 : _a.manager) === null || _b === void 0 ? void 0 : _b.id),
+                            type: "ticket_reopen",
+                            title: `Ticket ${ticket.ticket_number} was reopened by the customer.`,
+                            message: `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
+The ticket remains assigned to Agent ${(_c = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _c === void 0 ? void 0 : _c.first_name} ${(_d = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _d === void 0 ? void 0 : _d.last_name}.`,
+                            ticket_id: ticket.id,
+                            read: false,
+                            sent_via: "in_app",
+                        },
+                    });
+                    yield prisma.notifications.create({
+                        data: {
+                            user_id: Number((_e = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _e === void 0 ? void 0 : _e.id),
+                            type: "ticket_reopen",
+                            title: `Ticket ${ticket.ticket_number} was reopened by the customer.`,
+                            message: `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
+The ticket remains assigned to Agent ${(_f = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _f === void 0 ? void 0 : _f.first_name} ${(_g = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _g === void 0 ? void 0 : _g.last_name}.`,
+                            ticket_id: ticket.id,
+                            read: false,
+                            sent_via: "in_app",
+                        },
+                    });
+                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(ticket, `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
+The ticket remains assigned to Agent ${(_h = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _h === void 0 ? void 0 : _h.first_name} ${(_j = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _j === void 0 ? void 0 : _j.last_name}.`, [(_l = (_k = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _k === void 0 ? void 0 : _k.manager) === null || _l === void 0 ? void 0 : _l.email]);
+                }
                 if (result.count === 0) {
                     // Someone already used the link (status no longer 'Resolved')
                     throw Object.assign(new Error("This feedback link has already been used or is no longer valid."), { status: 410 });
