@@ -664,7 +664,7 @@ export class BusinessHoursAwareSLAMonitoringService {
       data: {
         ticket_id: ticketId,
         user_id: null,
-        comment_text: `SLA RESUMED.`,
+        comment_text: `SLA resumed after ticket status update.`,
         comment_type: "System",
         is_internal: true,
       },
