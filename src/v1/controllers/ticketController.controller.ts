@@ -813,7 +813,7 @@ export const ticketController = {
 
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
-          { ...comment, mailCustomer: true },
+          { ...comment, mailCustomer: false },
           []
         );
         ticket = updatedTicket;

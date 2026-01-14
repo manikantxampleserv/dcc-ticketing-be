@@ -46,11 +46,12 @@ function getFeedback(req, res) {
                 // 1) Make sure ticket exists and is still awaiting feedback (status = 'Resolved')
                 const ticket = yield tx.tickets.findUnique({
                     where: { id: ticketId },
-                    select: {
-                        id: true,
-                        status: true,
-                        closed_at: true,
-                        ticket_number: true,
+                    include: {
+                        users: true,
+                        customers: true,
+                        other_tickets: true,
+                        tickets: true,
+                        categories: true,
                         agents_user: {
                             select: {
                                 id: true,
@@ -59,6 +60,8 @@ function getFeedback(req, res) {
                                 manager: true,
                             },
                         },
+                        ticket_sla_history: true,
+                        sla_priority: true,
                     },
                 });
                 if (!ticket) {
@@ -74,37 +77,59 @@ function getFeedback(req, res) {
                         updated_at: new Date(),
                     },
                 });
-                if (nextStatus == "ReOpen") {
-                    yield prisma.notifications.create({
-                        data: {
-                            user_id: Number((_b = (_a = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _a === void 0 ? void 0 : _a.manager) === null || _b === void 0 ? void 0 : _b.id),
-                            type: "ticket_reopen",
-                            title: `Ticket ${ticket.ticket_number} was reopened by the customer.`,
-                            message: `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
-The ticket remains assigned to Agent ${(_c = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _c === void 0 ? void 0 : _c.first_name} ${(_d = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _d === void 0 ? void 0 : _d.last_name}.`,
-                            ticket_id: ticket.id,
-                            read: false,
-                            sent_via: "in_app",
-                        },
-                    });
-                    yield prisma.notifications.create({
-                        data: {
-                            user_id: Number((_e = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _e === void 0 ? void 0 : _e.id),
-                            type: "ticket_reopen",
-                            title: `Ticket ${ticket.ticket_number} was reopened by the customer.`,
-                            message: `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
-The ticket remains assigned to Agent ${(_f = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _f === void 0 ? void 0 : _f.first_name} ${(_g = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _g === void 0 ? void 0 : _g.last_name}.`,
-                            ticket_id: ticket.id,
-                            read: false,
-                            sent_via: "in_app",
-                        },
-                    });
-                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(ticket, `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
-The ticket remains assigned to Agent ${(_h = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _h === void 0 ? void 0 : _h.first_name} ${(_j = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _j === void 0 ? void 0 : _j.last_name}.`, [(_l = (_k = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _k === void 0 ? void 0 : _k.manager) === null || _l === void 0 ? void 0 : _l.email]);
-                }
                 if (result.count === 0) {
                     // Someone already used the link (status no longer 'Resolved')
                     throw Object.assign(new Error("This feedback link has already been used or is no longer valid."), { status: 410 });
+                }
+                if (nextStatus === "ReOpen" && result) {
+                    const comments = yield tx.ticket_comments.create({
+                        data: {
+                            ticket_id: ticket.id,
+                            // user_id: Number(ticket?.agents_user?.id),
+                            comment_text: `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
+The ticket remains assigned to Agent ${(_a = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _a === void 0 ? void 0 : _a.first_name} ${(_b = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _b === void 0 ? void 0 : _b.last_name}.`,
+                            comment_type: "System",
+                            is_internal: true,
+                        },
+                        include: {
+                            ticket_comment_users: {
+                                select: {
+                                    id: true,
+                                    first_name: true,
+                                    last_name: true,
+                                    email: true,
+                                },
+                            },
+                        },
+                    });
+                    yield tx.notifications.create({
+                        data: {
+                            user_id: Number((_d = (_c = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _c === void 0 ? void 0 : _c.manager) === null || _d === void 0 ? void 0 : _d.id),
+                            type: "ticket_reopen",
+                            title: `Ticket ${ticket.ticket_number} was reopened by the customer.`,
+                            message: `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
+The ticket remains assigned to Agent ${(_e = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _e === void 0 ? void 0 : _e.first_name} ${(_f = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _f === void 0 ? void 0 : _f.last_name}.`,
+                            ticket_id: ticket.id,
+                            read: false,
+                            sent_via: "in_app",
+                        },
+                    });
+                    yield tx.notifications.create({
+                        data: {
+                            user_id: Number((_g = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _g === void 0 ? void 0 : _g.id),
+                            type: "ticket_reopen",
+                            title: `Ticket ${ticket.ticket_number} was reopened by the customer.`,
+                            message: `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
+The ticket remains assigned to Agent ${(_h = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _h === void 0 ? void 0 : _h.first_name} ${(_j = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _j === void 0 ? void 0 : _j.last_name}.`,
+                            ticket_id: ticket.id,
+                            read: false,
+                            sent_via: "in_app",
+                        },
+                    });
+                    const emailRs = sendEmailComment_1.default.sendCommentEmailToCustomer(ticket, Object.assign(Object.assign({}, comments), { mailCustomer: false }), 
+                    //           `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution.
+                    // The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}.`,
+                    [(_l = (_k = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _k === void 0 ? void 0 : _k.manager) === null || _l === void 0 ? void 0 : _l.email]);
                 }
                 // 3) (Optional) if satisfied & never had closed_at, set it
                 if (score === 1 && !ticket.closed_at) {

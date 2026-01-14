@@ -38,11 +38,12 @@ export async function getFeedback(req: any, res: any): Promise<void> {
       // 1) Make sure ticket exists and is still awaiting feedback (status = 'Resolved')
       const ticket = await tx.tickets.findUnique({
         where: { id: ticketId },
-        select: {
-          id: true,
-          status: true,
-          closed_at: true,
-          ticket_number: true,
+        include: {
+          users: true,
+          customers: true,
+          other_tickets: true,
+          tickets: true,
+          categories: true,
           agents_user: {
             select: {
               id: true,
@@ -51,6 +52,8 @@ export async function getFeedback(req: any, res: any): Promise<void> {
               manager: true,
             },
           },
+          ticket_sla_history: true,
+          sla_priority: true,
         },
       });
       if (!ticket) {
@@ -68,8 +71,40 @@ export async function getFeedback(req: any, res: any): Promise<void> {
           updated_at: new Date(),
         },
       });
-      if (nextStatus == "ReOpen") {
-        await prisma.notifications.create({
+
+      if (result.count === 0) {
+        // Someone already used the link (status no longer 'Resolved')
+        throw Object.assign(
+          new Error(
+            "This feedback link has already been used or is no longer valid."
+          ),
+          { status: 410 }
+        );
+      }
+
+      if (nextStatus === "ReOpen" && result) {
+        const comments = await tx.ticket_comments.create({
+          data: {
+            ticket_id: ticket.id,
+            // user_id: Number(ticket?.agents_user?.id),
+            comment_text: `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
+The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}.`,
+            comment_type: "System",
+            is_internal: true,
+          },
+          include: {
+            ticket_comment_users: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
+            },
+          },
+        });
+
+        await tx.notifications.create({
           data: {
             user_id: Number(ticket?.agents_user?.manager?.id),
             type: "ticket_reopen",
@@ -81,7 +116,7 @@ The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket
             sent_via: "in_app",
           },
         });
-        await prisma.notifications.create({
+        await tx.notifications.create({
           data: {
             user_id: Number(ticket?.agents_user?.id),
             type: "ticket_reopen",
@@ -93,21 +128,12 @@ The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket
             sent_via: "in_app",
           },
         });
-        await emailService.sendCommentEmailToCustomer(
+        const emailRs = emailService.sendCommentEmailToCustomer(
           ticket,
-          `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution. 
-The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}.`,
+          { ...comments, mailCustomer: false },
+          //           `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution.
+          // The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}.`,
           [ticket?.agents_user?.manager?.email]
-        );
-      }
-
-      if (result.count === 0) {
-        // Someone already used the link (status no longer 'Resolved')
-        throw Object.assign(
-          new Error(
-            "This feedback link has already been used or is no longer valid."
-          ),
-          { status: 410 }
         );
       }
 

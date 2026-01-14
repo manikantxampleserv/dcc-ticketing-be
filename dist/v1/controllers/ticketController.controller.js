@@ -678,7 +678,7 @@ exports.ticketController = {
                     });
                     // Mark resolution SLA as completed (monitoring service will determine if breached)
                     yield exports.ticketController.handleSLACompletion(id, req.body.status);
-                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailCustomer: true }), []);
+                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailCustomer: false }), []);
                     ticket = updatedTicket;
                 }
                 res.success("Ticket updated successfully", serializeTicket(ticket, true), 200);
