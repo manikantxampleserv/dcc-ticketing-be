@@ -626,15 +626,25 @@ class SimpleEmailTicketSystem {
                     attachment_urls,
                 },
             });
+            const updatedTicket = yield prisma.tickets.update({
+                where: { id: tickets.id },
+                data: {
+                    ticket_number: (0, GenerateTicket_1.generateTicketNumber)(tickets.id),
+                },
+            });
             const aiResponse = yield this.askAITicketSystem((bodyText === null || bodyText === void 0 ? void 0 : bodyText.trim()) || tickets.description);
-            console.log("🤖 AI Response:", this.cleanPlainEmailText(bodyText.trim()), JSON.stringify(aiResponse));
+            // console.log(
+            //   "🤖 AI Response:",
+            //   this.cleanPlainEmailText(bodyText.trim()),
+            //   JSON.stringify(aiResponse)
+            // );
             if ((aiResponse === null || aiResponse === void 0 ? void 0 : aiResponse.success) && customer) {
                 yield (0, sendSatisfactionEmail_1.sendSatisfactionEmail)({
                     body: aiResponse.answer,
                     ticketId: tickets.id,
                     requesterEmail: customer === null || customer === void 0 ? void 0 : customer.email,
                     // requesterEmail:  senderEmail,
-                    ticketNumber: (0, GenerateTicket_1.generateTicketNumber)(tickets.id),
+                    ticketNumber: updatedTicket.ticket_number,
                     requesterName: senderNames || "",
                 });
             }
@@ -647,12 +657,6 @@ class SimpleEmailTicketSystem {
             if (attachments && attachments.length > 0) {
                 yield this.saveTicketAttachments(tickets.id, attachments);
             }
-            const updatedTicket = yield prisma.tickets.update({
-                where: { id: tickets.id },
-                data: {
-                    ticket_number: (0, GenerateTicket_1.generateTicketNumber)(tickets.id),
-                },
-            });
             return updatedTicket;
         });
     }

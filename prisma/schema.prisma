@@ -24,6 +24,9 @@ model users {
   role_id                                  Int
   department_id                            Int
   manager_id                               Int?
+  reset_otp                                String?                 @db.NVarChar(10)
+  reset_otp_expiry                         DateTime?
+  reset_otp_attempts                       Int?                    @default(0)
   agents                                   agents[]
   ticket_cc_createdBy                      cc_of_ticket[]          @relation("TicketCCCreater")
   user_of_ticket_cc                        cc_of_ticket[]          @relation("TicketCCUser")

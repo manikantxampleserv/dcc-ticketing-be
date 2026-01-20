@@ -783,21 +783,28 @@ class SimpleEmailTicketSystem {
         attachment_urls,
       },
     });
+
+    const updatedTicket = await prisma.tickets.update({
+      where: { id: tickets.id },
+      data: {
+        ticket_number: generateTicketNumber(tickets.id),
+      },
+    });
     const aiResponse = await this.askAITicketSystem(
       bodyText?.trim() || tickets.description
     );
-    console.log(
-      "🤖 AI Response:",
-      this.cleanPlainEmailText(bodyText.trim()),
-      JSON.stringify(aiResponse)
-    );
+    // console.log(
+    //   "🤖 AI Response:",
+    //   this.cleanPlainEmailText(bodyText.trim()),
+    //   JSON.stringify(aiResponse)
+    // );
     if (aiResponse?.success && customer) {
       await sendSatisfactionEmail({
         body: aiResponse.answer,
         ticketId: tickets.id,
         requesterEmail: customer?.email,
         // requesterEmail:  senderEmail,
-        ticketNumber: generateTicketNumber(tickets.id),
+        ticketNumber: updatedTicket.ticket_number,
         requesterName: senderNames || "",
       });
     }
@@ -813,13 +820,6 @@ class SimpleEmailTicketSystem {
     if (attachments && attachments.length > 0) {
       await this.saveTicketAttachments(tickets.id, attachments);
     }
-
-    const updatedTicket = await prisma.tickets.update({
-      where: { id: tickets.id },
-      data: {
-        ticket_number: generateTicketNumber(tickets.id),
-      },
-    });
 
     return updatedTicket;
   }

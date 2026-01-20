@@ -4,6 +4,8 @@ const express_1 = require("express");
 const user_controller_1 = require("../controllers/user.controller");
 const auth_1 = require("../../middlewares/auth");
 const multer_1 = require("../../utils/multer");
+const forgetPassword_1 = require("../controllers/forgetPassword");
+const express_validator_1 = require("express-validator");
 const routes = (0, express_1.Router)();
 routes.post("/users", auth_1.authenticateToken, multer_1.upload.single("avatar"), user_controller_1.createUser);
 routes.get("/users", auth_1.authenticateToken, (req, res) => (0, user_controller_1.getUsersList)(req, res));
@@ -11,4 +13,9 @@ routes.get("/users/:id", auth_1.authenticateToken, (req, res) => (0, user_contro
 routes.put("/users/:id", auth_1.authenticateToken, multer_1.upload.single("avatar"), user_controller_1.updateUser);
 routes.delete("/users", auth_1.authenticateToken, user_controller_1.deleteUser);
 routes.patch("/users/status/:id", auth_1.authenticateToken, (req, res) => (0, user_controller_1.updateUserStatus)(req, res));
+routes.post("/forgot-password", (0, express_validator_1.body)("email").isEmail(), forgetPassword_1.forgotPassword);
+routes.post("/reset-password/:token", (0, express_validator_1.body)("password").isLength({ min: 8 }), forgetPassword_1.resetPassword);
+// OTP flow
+routes.post("/forgot-password/verify-otp", (0, express_validator_1.body)("email").isEmail(), forgetPassword_1.verifyResetOtp);
+routes.post("/forgot-password/reset-with-otp", (0, express_validator_1.body)("email").isEmail(), forgetPassword_1.resetPasswordWithOtp);
 exports.default = routes;
