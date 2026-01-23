@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { paginate } from "../../utils/pagination";
 import { validationResult } from "express-validator";
+import { connect } from "http2";
 
 const prisma = new PrismaClient();
 
@@ -60,6 +61,9 @@ export const customerController = {
         email,
         phone,
         job_title,
+        support_type,
+        l1_support_hours,
+        l1_support_applicable,
         is_active,
       } = req.body;
 
@@ -70,6 +74,9 @@ export const customerController = {
           last_name,
           email,
           phone,
+          support_type: support_type?.toString(),
+          l1_support_hours: l1_support_hours?.toString(),
+          l1_support_applicable: l1_support_applicable?.toString(),
           job_title,
           is_active,
           created_at: new Date(),
@@ -136,7 +143,6 @@ export const customerController = {
       });
     }
   },
-
   async updateCustomer(req: Request, res: Response): Promise<void> {
     try {
       const errors = validationResult(req);
@@ -152,14 +158,36 @@ export const customerController = {
         return;
       }
 
-      const { created_at, updated_at, ...updateData } = req.body;
+      // ❌ remove fields that should not be updated directly
+      const {
+        created_at,
+        updated_at,
+        company_id,
+        support_type,
+        l1_support_hours,
+        l1_support_applicable,
+        ...updateData
+      } = req.body;
+
+      // ✅ build prisma update data safely
+      const prismaData: any = {
+        ...updateData,
+        support_type: support_type?.toString(),
+        l1_support_hours: l1_support_hours?.toString(),
+        l1_support_applicable: l1_support_applicable?.toString(),
+        updated_at: new Date(),
+      };
+
+      // ✅ conditionally connect company
+      if (company_id) {
+        prismaData.companies = {
+          connect: { id: Number(company_id) },
+        };
+      }
 
       const updatedCustomer = await prisma.customers.update({
         where: { id },
-        data: {
-          ...updateData,
-          updated_at: new Date(),
-        },
+        data: prismaData,
         include: {
           companies: true,
           support_ticket_responses: true,
@@ -174,8 +202,12 @@ export const customerController = {
       });
     } catch (error: any) {
       console.error(error);
+
       if (error.code === "P2025") {
-        res.status(404).json({ success: false, message: "Customer not found" });
+        res.status(404).json({
+          success: false,
+          message: "Customer not found",
+        });
       } else {
         res.status(500).json({
           success: false,
@@ -184,7 +216,6 @@ export const customerController = {
       }
     }
   },
-
   async deleteCustomer(req: Request, res: Response): Promise<void> {
     // try {
     //   const id = Number(req.params.id);

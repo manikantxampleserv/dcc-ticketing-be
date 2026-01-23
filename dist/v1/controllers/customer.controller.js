@@ -53,7 +53,7 @@ exports.customerController = {
                     res.status(400).json({ success: false, error: firstError.msg });
                     return;
                 }
-                const { company_id, first_name, last_name, email, phone, job_title, is_active, } = req.body;
+                const { company_id, first_name, last_name, email, phone, job_title, support_type, l1_support_hours, l1_support_applicable, is_active, } = req.body;
                 const customer = yield prisma.customers.create({
                     data: {
                         company_id,
@@ -61,6 +61,9 @@ exports.customerController = {
                         last_name,
                         email,
                         phone,
+                        support_type: support_type === null || support_type === void 0 ? void 0 : support_type.toString(),
+                        l1_support_hours: l1_support_hours === null || l1_support_hours === void 0 ? void 0 : l1_support_hours.toString(),
+                        l1_support_applicable: l1_support_applicable === null || l1_support_applicable === void 0 ? void 0 : l1_support_applicable.toString(),
                         job_title,
                         is_active,
                         created_at: new Date(),
@@ -140,10 +143,19 @@ exports.customerController = {
                     res.status(400).json({ success: false, error: "Invalid customer ID" });
                     return;
                 }
-                const _a = req.body, { created_at, updated_at } = _a, updateData = __rest(_a, ["created_at", "updated_at"]);
+                // ❌ remove fields that should not be updated directly
+                const _a = req.body, { created_at, updated_at, company_id, support_type, l1_support_hours, l1_support_applicable } = _a, updateData = __rest(_a, ["created_at", "updated_at", "company_id", "support_type", "l1_support_hours", "l1_support_applicable"]);
+                // ✅ build prisma update data safely
+                const prismaData = Object.assign(Object.assign({}, updateData), { support_type: support_type === null || support_type === void 0 ? void 0 : support_type.toString(), l1_support_hours: l1_support_hours === null || l1_support_hours === void 0 ? void 0 : l1_support_hours.toString(), l1_support_applicable: l1_support_applicable === null || l1_support_applicable === void 0 ? void 0 : l1_support_applicable.toString(), updated_at: new Date() });
+                // ✅ conditionally connect company
+                if (company_id) {
+                    prismaData.companies = {
+                        connect: { id: Number(company_id) },
+                    };
+                }
                 const updatedCustomer = yield prisma.customers.update({
                     where: { id },
-                    data: Object.assign(Object.assign({}, updateData), { updated_at: new Date() }),
+                    data: prismaData,
                     include: {
                         companies: true,
                         support_ticket_responses: true,
@@ -159,7 +171,10 @@ exports.customerController = {
             catch (error) {
                 console.error(error);
                 if (error.code === "P2025") {
-                    res.status(404).json({ success: false, message: "Customer not found" });
+                    res.status(404).json({
+                        success: false,
+                        message: "Customer not found",
+                    });
                 }
                 else {
                     res.status(500).json({
