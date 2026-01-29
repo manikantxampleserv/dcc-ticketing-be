@@ -33,8 +33,6 @@ export class BusinessHoursAwareSLAMonitoringService {
 
     // Clear notification cache hourly
     cron.schedule("0 * * * *", () => this.sentNotifications.clear());
-
-    console.log("✅ Business‐hours‐aware SLA monitoring started");
   }
 
   // 2. Check business hours
@@ -53,7 +51,7 @@ export class BusinessHoursAwareSLAMonitoringService {
         business_start_time: cfg.business_start_time!,
         business_end_time: cfg.business_end_time!,
         include_weekends: cfg.include_weekends!,
-      })
+      }),
     );
   }
 
@@ -185,7 +183,6 @@ export class BusinessHoursAwareSLAMonitoringService {
           where: { id: ticket.id },
           data: { sla_status: "Breached" },
         });
-        console.log("Sent tonification for key:1", this.sentNotifications, key);
         if (!this.sentNotifications.has(key)) {
           this.sentNotifications.add(key);
           // Add system comment
@@ -205,18 +202,39 @@ export class BusinessHoursAwareSLAMonitoringService {
             message: `The ${sla.sla_type} SLA has been breached.`,
             type: "sla_warning",
           });
-          console.log("Ticket for Breach : ", ticket);
-          await emailService.sendCommentEmailToCustomer(
-            ticket,
-            `SLA Breach Alert: Ticket ${
-              ticket.ticket_number + " " + sla.sla_type
-            }  Missed by Agent ${
+          this.sendNotification({
+            ticket_id: ticket.id,
+            userId: ticket?.agents_user?.manager?.id,
+            title: `SLA Breached for ticket ${ticket.ticket_number} by Agent ${
               ticket?.agents_user?.first_name +
               " " +
-              ticket?.agents_user?.first_name
-            }.`,
-            [ticket?.agents_user?.manager?.email]
-          );
+              ticket?.agents_user?.last_name
+            }`,
+            message: `The ${sla.sla_type} SLA for ticket ${ticket.ticket_number} has been breached.
+Assigned Agent: ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}.
+Immediate review and corrective action may be required..`,
+            type: "sla_warning",
+          });
+
+          const emailBody = `
+ SLA Breach Alert: Ticket ${ticket.ticket_number + " " + sla.sla_type}  Missed by Agent ${ticket?.agents_user?.first_name + " " + ticket?.agents_user?.last_name}.
+ 
+ The ${sla.sla_type} SLA for ticket <b>${ticket.ticket_number}</b> has been breached.
+
+<b>Ticket Details:</b>
+• Ticket Number: ${ticket.ticket_number}
+• SLA Type: ${sla.sla_type}
+• Assigned Agent: ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}
+• Current Status: ${ticket?.status}
+
+Please review the ticket and take the necessary corrective actions to prevent further impact.
+
+This is an automated notification from the Ticketing System.
+`;
+
+          await emailService.sendCommentEmailToCustomer(ticket, emailBody, [
+            ticket?.agents_user?.manager?.email,
+          ]);
 
           // Email section (integrate with your email service)
           // await EmailService.sendEmail({
@@ -235,10 +253,10 @@ export class BusinessHoursAwareSLAMonitoringService {
             ? 60 * 60 * 1000
             : 2 * 60 * 60 * 1000
           : pr.sla_priority.priority == "Critical"
-          ? 30 * 60 * 1000
-          : pr.sla_priority.priority == "High"
-          ? 60 * 60 * 1000
-          : 120 * 60 * 1000;
+            ? 30 * 60 * 1000
+            : pr.sla_priority.priority == "High"
+              ? 60 * 60 * 1000
+              : 120 * 60 * 1000;
         // console.log(
         //   "Sent @@@@@@@@@@@@ nification for key:",
         //   this.sentNotifications,
@@ -254,7 +272,7 @@ export class BusinessHoursAwareSLAMonitoringService {
               ticket_id: ticket.id,
               user_id: null,
               comment_text: `⚠️ ${sla.sla_type.toUpperCase()} SLA due in ${Math.ceil(
-                delta / 60000
+                delta / 60000,
               )} minutes`,
               comment_type: "System",
               is_internal: true,
@@ -266,7 +284,7 @@ export class BusinessHoursAwareSLAMonitoringService {
             userId: ticket.assigned_agent_id,
             title: `SLA Warning - ${ticket.ticket_number}`,
             message: `The ${sla.sla_type} SLA is due in ${Math.ceil(
-              delta / 60000
+              delta / 60000,
             )} minutes.`,
             type: "sla_warning",
           });
@@ -319,12 +337,12 @@ export class BusinessHoursAwareSLAMonitoringService {
             });
 
             console.log(
-              `💬 Created breach comment for ticket ${notification.ticketNumber}`
+              `💬 Created breach comment for ticket ${notification.ticketNumber}`,
             );
           } catch (commentError) {
             console.error(
               `❌ Error creating breach comment for ticket ${notification.ticketId}:`,
-              commentError
+              commentError,
             );
           }
 
@@ -345,20 +363,20 @@ export class BusinessHoursAwareSLAMonitoringService {
               } catch (emailError) {
                 console.error(
                   `❌ Error sending email notification:`,
-                  emailError
+                  emailError,
                 );
               }
             }
           }
 
           console.log(
-            `📧 Sent ${urgency} SLA notification for ticket ${notification.ticketNumber}`
+            `📧 Sent ${urgency} SLA notification for ticket ${notification.ticketNumber}`,
           );
         }
       } catch (error) {
         console.error(
           `❌ Error sending notification for ticket ${notification.ticketId}:`,
-          error
+          error,
         );
       }
     }
@@ -372,7 +390,7 @@ export class BusinessHoursAwareSLAMonitoringService {
         : " [24/7 SLA]";
 
       console.log(
-        `📧 [${emailData.urgency.toUpperCase()}] Sending to ${emailData.to}:`
+        `📧 [${emailData.urgency.toUpperCase()}] Sending to ${emailData.to}:`,
       );
       console.log(`   Subject: ${emailData.subject}${businessHoursNote}`);
       console.log(`   Message: ${emailData.message}`);
@@ -559,7 +577,7 @@ export class BusinessHoursAwareSLAMonitoringService {
   // }
   static async pauseTicketSLA(
     ticketId: number,
-    reason = "Waiting for customer"
+    reason = "Waiting for customer",
   ) {
     const now = new Date();
 
@@ -578,7 +596,7 @@ export class BusinessHoursAwareSLAMonitoringService {
           business_start_time: ticket.sla_priority.business_start_time!,
           business_end_time: ticket.sla_priority.business_end_time!,
           include_weekends: ticket.sla_priority.include_weekends!,
-        }
+        },
       ) * 3600;
 
     await prisma.tickets.update({
@@ -632,7 +650,7 @@ export class BusinessHoursAwareSLAMonitoringService {
               business_start_time: pr.business_start_time!,
               business_end_time: pr.business_end_time!,
               include_weekends: pr.include_weekends!,
-            }
+            },
           );
 
         extensionMs = pausedBusinessHours * 60 * 60 * 1000;
@@ -774,7 +792,7 @@ export class BusinessHoursAwareSLAMonitoringService {
       }
 
       console.log(
-        `🔍 Force checking SLA status for ticket ${ticket.ticket_number}`
+        `🔍 Force checking SLA status for ticket ${ticket.ticket_number}`,
       );
 
       const slaUpdate = await this.checkTicketSLAStatus(ticket, true);

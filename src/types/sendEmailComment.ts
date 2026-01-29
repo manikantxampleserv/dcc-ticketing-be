@@ -95,13 +95,13 @@ class EmailService {
       if (this.transporter) {
         await this.transporter.verify();
         console.log(
-          `✅ Email transporter initialized successfully for logInst: ${this.logInst}`
+          `✅ Email transporter initialized successfully for logInst: ${this.logInst}`,
         );
       }
     } catch (error) {
       console.error(
         `❌ Failed to initialize email transporter for logInst ${this.logInst}:`,
-        error
+        error,
       );
       this.transporter = null;
       throw error;
@@ -119,7 +119,7 @@ class EmailService {
 
       if (!emailConfiguration) {
         throw new Error(
-          `No active email configuration found for logInst: ${this.logInst}`
+          `No active email configuration found for logInst: ${this.logInst}`,
         );
       }
 
@@ -130,7 +130,7 @@ class EmailService {
     } catch (error) {
       console.error(
         `❌ Error loading email configuration for logInst ${this.logInst}:`,
-        error
+        error,
       );
       throw error;
     }
@@ -150,7 +150,7 @@ class EmailService {
   async sendCommentEmailToCustomer(
     ticket: any,
     comment: any,
-    additionalEmails: any[]
+    additionalEmails: any[],
   ): Promise<any> {
     try {
       // ✅ Ensure transporter is initialized
@@ -317,7 +317,7 @@ class EmailService {
                 </div>
               </td>
             </tr>
-          `
+          `,
           )
           .join("")}
       </table>
@@ -329,7 +329,7 @@ class EmailService {
         ticket,
         agentName,
         comment,
-        imageHtml
+        imageHtml,
       );
       // ✅ FIXED: Create mail options object with all properties
       const mailOptions: any = {
@@ -380,7 +380,7 @@ class EmailService {
       }
 
       console.log(
-        `✅ Email sent to customer ${customerEmail} for ticket #${ticket.ticket_number}`
+        `✅ Email sent to customer ${customerEmail} for ticket #${ticket.ticket_number}`,
       );
       console.log(`🧵 Threaded with original: ${originalThreadId}`);
     } catch (error) {
@@ -416,7 +416,7 @@ class EmailService {
     ticket: any,
     agentName: string,
     comment: any,
-    imageHtml: string
+    imageHtml: string,
   ): Promise<string> {
     try {
       const isSeparatedEmail = typeof comment === "string";
@@ -467,9 +467,13 @@ class EmailService {
                  }</span>
                </td>
                <td style="text-align: right; vertical-align: center;">
-                 <span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
+                 ${
+                   comment?.mailCustomer ||
+                   (isSeparatedEmail &&
+                     `<span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
                    ${ticket.status.toUpperCase()}
-                 </span>
+                 </span>`)
+                 }
                </td>
              </tr>
            </table>
@@ -520,8 +524,8 @@ class EmailService {
           const author = pc.ticket_comment_customers
             ? `${pc.ticket_comment_customers.first_name} ${pc.ticket_comment_customers.last_name}`
             : pc.ticket_comment_users
-            ? `${pc.ticket_comment_users.first_name} ${pc.ticket_comment_users.last_name}`
-            : "Support Team";
+              ? `${pc.ticket_comment_users.first_name} ${pc.ticket_comment_users.last_name}`
+              : "Support Team";
           // const date = this.formatDate(pc?.created_at);
           const date = new Date(pc.created_at).toLocaleDateString("en-US", {
             year: "numeric",
@@ -533,7 +537,7 @@ class EmailService {
           });
           const { border, bg } = this.getBorderColors(
             isCustomer,
-            sourceIsEmail
+            sourceIsEmail,
           );
 
           html += `
@@ -575,7 +579,7 @@ class EmailService {
                        pc.attachment_urls
                          ? (() => {
                              const urls = JSON.parse(
-                               pc.attachment_urls || "[]"
+                               pc.attachment_urls || "[]",
                              );
                              return urls
                                .map(
@@ -584,7 +588,7 @@ class EmailService {
                 📎 <a href="${url}" target="_blank" style="font-size:12px; color:#1e88e5;">
                   ${url.split("/").pop()}
                 </a>
-              </div>`
+              </div>`,
                                )
                                .join("");
                            })()
@@ -634,7 +638,7 @@ class EmailService {
 
   async sendTicketCreationEmailToCustomer(
     ticket: any,
-    customerEmail: string | undefined
+    customerEmail: string | undefined,
   ): Promise<{ messageId: string; threadId: string } | null> {
     try {
       // ✅ Ensure transporter is initialized
@@ -680,7 +684,7 @@ class EmailService {
       await this.transporter.sendMail(mailOptions);
 
       console.log(
-        `✅ Ticket creation email sent to ${customerEmail} for ticket #${ticket.ticket_number}`
+        `✅ Ticket creation email sent to ${customerEmail} for ticket #${ticket.ticket_number}`,
       );
 
       return {

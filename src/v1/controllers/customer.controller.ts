@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 const serializeCustomer = (
   customer: any,
   includeCreatedAt = false,
-  includeUpdatedAt = false
+  includeUpdatedAt = false,
 ) => ({
   id: customer.id,
   company_id: customer.company_id,
@@ -19,6 +19,12 @@ const serializeCustomer = (
   phone: customer.phone,
   job_title: customer.job_title,
   is_active: customer.is_active,
+  support_type: customer?.support_type,
+  l1_support_hours: customer?.l1_support_hours,
+  server_hosted_on: customer?.server_hosted_on,
+  signed_waiver_form: customer?.signed_waiver_form,
+  customer_support_type: customer?.customer_support_type,
+  l1_support_applicable: customer?.l1_support_applicable,
   ...(includeCreatedAt && { created_at: customer.created_at }),
   ...(includeUpdatedAt && { updated_at: customer.updated_at }),
 
@@ -42,6 +48,12 @@ const serializeCustomer = (
         ticket_number: ticket.ticket_number,
       }))
     : undefined,
+  // customer_support_type: customer.customer_support_type
+  //   ? customer.customer_support_type.map((type: any) => ({
+  //       id: type.id,
+  //       category_name: type.category_name,
+  //     }))
+  //   : undefined,
 });
 
 export const customerController = {
@@ -64,6 +76,8 @@ export const customerController = {
         support_type,
         l1_support_hours,
         l1_support_applicable,
+        server_hosted_on,
+        signed_waiver_form,
         is_active,
       } = req.body;
 
@@ -74,9 +88,11 @@ export const customerController = {
           last_name,
           email,
           phone,
-          support_type: support_type?.toString(),
+          support_type: Number(support_type),
           l1_support_hours: l1_support_hours?.toString(),
           l1_support_applicable: l1_support_applicable?.toString(),
+          server_hosted_on: server_hosted_on?.toString(),
+          signed_waiver_form: signed_waiver_form?.toString(),
           job_title,
           is_active,
           created_at: new Date(),
@@ -85,6 +101,7 @@ export const customerController = {
           companies: true,
           support_ticket_responses: true,
           tickets: true,
+          customer_support_type: true,
         },
       });
 
@@ -123,6 +140,7 @@ export const customerController = {
           companies: true,
           support_ticket_responses: true,
           tickets: true,
+          customer_support_type: true,
         },
       });
 
@@ -166,14 +184,18 @@ export const customerController = {
         support_type,
         l1_support_hours,
         l1_support_applicable,
+        server_hosted_on,
+        signed_waiver_form,
         ...updateData
       } = req.body;
 
       // ✅ build prisma update data safely
       const prismaData: any = {
         ...updateData,
-        support_type: support_type?.toString(),
+        support_type: Number(support_type),
         l1_support_hours: l1_support_hours?.toString(),
+        server_hosted_on: server_hosted_on?.toString(),
+        signed_waiver_form: signed_waiver_form?.toString(),
         l1_support_applicable: l1_support_applicable?.toString(),
         updated_at: new Date(),
       };
@@ -192,6 +214,7 @@ export const customerController = {
           companies: true,
           support_ticket_responses: true,
           tickets: true,
+          customer_support_type: true,
         },
       });
 
@@ -270,13 +293,13 @@ export const customerController = {
         }
         res.success(
           `${deletedCustomer.count} customers deleted successfully`,
-          200
+          200,
         );
         return;
       }
       res.error(
         "Please provide a valid 'id' or 'ids[]' in the request body",
-        400
+        400,
       );
     } catch (error: any) {
       res.error(error.message, 500);
@@ -325,6 +348,7 @@ export const customerController = {
           companies: true,
           support_ticket_responses: true,
           tickets: true,
+          customer_support_type: true,
         },
       });
 
@@ -332,7 +356,7 @@ export const customerController = {
         success: true,
         message: "Customers retrieved successfully",
         data: data.map((customer: any) =>
-          serializeCustomer(customer, true, true)
+          serializeCustomer(customer, true, true),
         ),
         pagination,
       });

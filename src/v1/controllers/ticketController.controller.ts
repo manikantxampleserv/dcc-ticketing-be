@@ -45,6 +45,7 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   merged_into_ticket_id: ticket.merged_into_ticket_id,
   attachment_urls: ticket?.attachment_urls || "",
   email_body_text: ticket?.email_body_text || "",
+  support_level_id: ticket?.support_level_id || "",
   ticket_attachments: ticket.ticket_attachments
     ? ticket.ticket_attachments.map((att: any) => ({
         id: att.id,
@@ -157,7 +158,7 @@ const getDefaultEscalationTime = (priority: number): number => {
 const createSLAHistoryEntries = async (
   ticketId: number,
   slaConfig: any,
-  createdAt: Date
+  createdAt: Date,
 ): Promise<void> => {
   // Extract business hours configuration from SLA config
   const businessConfig = {
@@ -178,13 +179,13 @@ const createSLAHistoryEntries = async (
   const responseDeadline = BusinessHoursSLACalculator.calculateSLADeadline(
     createdAt,
     slaConfig.response_time_hours,
-    businessConfig
+    businessConfig,
   );
 
   const resolutionDeadline = BusinessHoursSLACalculator.calculateSLADeadline(
     createdAt,
     slaConfig.resolution_time_hours,
-    businessConfig
+    businessConfig,
   );
 
   // Calculate escalation deadline (50% of resolution time)
@@ -192,7 +193,7 @@ const createSLAHistoryEntries = async (
   const escalationDeadline = BusinessHoursSLACalculator.calculateSLADeadline(
     createdAt,
     escalationHours,
-    businessConfig
+    businessConfig,
   );
 
   // Create SLA history entries with consistent naming
@@ -244,7 +245,7 @@ export const generateSLAHistory = async (
   ticketId: number,
   priority: number,
   // customerTier: string,
-  createdAt: Date
+  createdAt: Date,
 ): Promise<void> => {
   try {
     // Get SLA configuration
@@ -280,7 +281,7 @@ export const generateSLAHistory = async (
   } catch (error) {
     console.error(
       `Error generating SLA history for ticket ${ticketId}:`,
-      error
+      error,
     );
     throw error;
   }
@@ -311,6 +312,7 @@ export const ticketController = {
         customer_feedback,
         tags,
         merged_into_ticket_id,
+        support_level_id,
       } = req.body;
 
       const assigned_by = Number(req?.user?.id);
@@ -324,7 +326,7 @@ export const ticketController = {
         avatarUrl = await uploadFile(
           req.file.buffer,
           fileName,
-          req.file.mimetype
+          req.file.mimetype,
         );
       }
       const attachment_urls = avatarUrl ? JSON.stringify([avatarUrl]) : "";
@@ -355,6 +357,7 @@ export const ticketController = {
           customer_feedback,
           tags,
           merged_into_ticket_id,
+          support_level_id,
         },
         include: {
           users: true,
@@ -406,7 +409,7 @@ export const ticketController = {
         await generateSLAHistory(
           ticket.id,
           priority,
-          ticket.created_at || new Date()
+          ticket.created_at || new Date(),
         );
       } catch (slaError) {
         console.error("Error generating SLA history:", slaError);
@@ -443,7 +446,7 @@ export const ticketController = {
       res.success(
         "Ticket created successfully",
         serializeTicket(ticket, true),
-        201
+        201,
       );
     } catch (error: any) {
       console.error(error);
@@ -689,6 +692,7 @@ export const ticketController = {
         "customer_feedback",
         "tags",
         "merged_into_ticket_id",
+        "support_level_id",
       ];
 
       const dataToUpdate: Record<string, any> = {};
@@ -723,8 +727,8 @@ export const ticketController = {
         newStatus === "Closed"
           ? `Ticket is closed , Remarks : "${reason}".`
           : newStatus === "Resolved"
-          ? `Ticket is resolved , Remarks : "${reason}".`
-          : "";
+            ? `Ticket is resolved , Remarks : "${reason}".`
+            : "";
       let ticket = {};
       if (newStatus !== "Closed" && newStatus !== "Resolved") {
         ticket = await prisma.tickets.update({
@@ -744,7 +748,7 @@ export const ticketController = {
         if (newStatus === "Waiting for Customer Response") {
           await BusinessHoursAwareSLAMonitoringService.pauseTicketSLA(
             id,
-            "Waiting for customer response"
+            "Waiting for customer response",
           );
         }
 
@@ -797,9 +801,8 @@ export const ticketController = {
           body: "Resolved",
           ticketId: updatedTicket.id,
           requesterEmail:
-            updatedTicket?.customer_email ||
-            updatedTicket?.customers?.email ||
-            "",
+            // updatedTicket?.customer_email ||
+            updatedTicket?.customers?.email || "",
           ticketNumber: updatedTicket.ticket_number,
           requesterName:
             updatedTicket?.customer_name ||
@@ -814,7 +817,7 @@ export const ticketController = {
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
           { ...comment, mailCustomer: false },
-          []
+          [],
         );
         ticket = updatedTicket;
       }
@@ -822,7 +825,7 @@ export const ticketController = {
       res.success(
         "Ticket updated successfully",
         serializeTicket(ticket, true),
-        200
+        200,
       );
     } catch (error: any) {
       console.error(error);
@@ -848,7 +851,7 @@ export const ticketController = {
       });
 
       console.log(
-        `✅ Marked resolution SLA as completed for ticket ${ticketId}`
+        `✅ Marked resolution SLA as completed for ticket ${ticketId}`,
       );
     } catch (error) {
       console.error(`❌ Error handling SLA completion:`, error);
@@ -859,7 +862,7 @@ export const ticketController = {
   async handleSpecificSLAUpdates(
     ticketId: number,
     existingTicket: any,
-    updateData: any
+    updateData: any,
   ) {
     try {
       // Handle first response
@@ -886,7 +889,7 @@ export const ticketController = {
         });
 
         console.log(
-          `✅ Marked first response SLA as met for ticket ${ticketId}`
+          `✅ Marked first response SLA as met for ticket ${ticketId}`,
         );
       }
 
@@ -1054,18 +1057,18 @@ export const ticketController = {
               updatedTicket?.customers?.first_name +
                 " " +
                 updatedTicket?.customers?.last_name,
-          }
+          },
         );
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
           { ...comment, mailCustomer: true },
-          [agentDetails?.email]
+          [agentDetails?.email],
         );
       } else {
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
           { ...comment, mailCustomer: true },
-          []
+          [],
         );
       }
 
@@ -1198,7 +1201,7 @@ export const ticketController = {
               ticket_id: ticketId,
               user_id: { in: toDelete },
             },
-          })
+          }),
         );
         // Add comments for each removal
         for (const uid of toDelete) {
@@ -1217,7 +1220,7 @@ export const ticketController = {
                 comment_type: "System",
                 is_internal: true,
               },
-            })
+            }),
           );
         }
       }
@@ -1226,7 +1229,7 @@ export const ticketController = {
       if (toAdd.length > 0) {
         // Prevent duplicates
         const existingCCIds = existing.cc_of_ticket.map(
-          (cc: any) => cc.user_id
+          (cc: any) => cc.user_id,
         );
         const newAdds = toAdd.filter((uid) => !existingCCIds.includes(uid));
 
@@ -1243,7 +1246,7 @@ export const ticketController = {
                 user_id: uid,
                 created_by: currentUserId,
               },
-            })
+            }),
           );
           txOps.push(
             prisma.ticket_comments.create({
@@ -1256,7 +1259,7 @@ export const ticketController = {
                 comment_type: "System",
                 is_internal: true,
               },
-            })
+            }),
           );
         }
       }
@@ -1288,13 +1291,13 @@ export const ticketController = {
       await EmailService.sendCommentEmailToCustomer(
         finalTicket,
         { mailCustomer: true },
-        []
+        [],
       );
 
       res.success(
         "Ticket updated successfully",
         serializeTicket(finalTicket, true),
-        200
+        200,
       );
     } catch (error: any) {
       console.error(error);
@@ -1398,7 +1401,7 @@ export const ticketController = {
       res.success(
         "Ticket fetched successfully",
         serializeTicket(ticket, true),
-        200
+        200,
       );
     } catch (error: any) {
       console.log("Error : ", error);
@@ -1437,14 +1440,14 @@ export const ticketController = {
 
         res.success(
           `${deletedTickets.count} tickets deleted successfully`,
-          200
+          200,
         );
         return;
       }
 
       res.error(
         "Please provide a valid 'id' or 'ids[]' in the request body",
-        400
+        400,
       );
     } catch (error: any) {
       res.error(error.message, 500);
@@ -1760,7 +1763,7 @@ export const ticketController = {
         data,
         // data.map((ticket: any) => serializeTicket(ticket, true)),
         200,
-        pagination
+        pagination,
       );
     } catch (error: any) {
       console.log("Error : ", error);
@@ -2044,7 +2047,7 @@ export const ticketController = {
         data,
         // data.map((ticket: any) => serializeTicket(ticket, true)),
         200,
-        pagination
+        pagination,
       );
     } catch (error: any) {
       console.log("Error : ", error);
@@ -2098,7 +2101,7 @@ export const ticketController = {
             file.originalname
           }`;
           return uploadFile(file.buffer, fileName, file.mimetype);
-        })
+        }),
       );
 
       // Validate ticket exists
@@ -2151,7 +2154,7 @@ export const ticketController = {
       if (comment_text.includes("data:image")) {
         const result = await replaceBase64ImagesWithUrls(
           comment_text,
-          ticket?.ticket_number
+          ticket?.ticket_number,
         );
         new_comment_text = result.html;
       }
@@ -2228,7 +2231,7 @@ export const ticketController = {
               imageUrls,
               mailCustomer: is_internal,
             },
-            additionalEmails
+            additionalEmails,
           ).catch(console.error);
 
           // ⏱ SLA & ticket update (async)
@@ -2246,7 +2249,7 @@ export const ticketController = {
           if (isFirstAgentResponse && ticket.ticket_sla_history?.length) {
             const responseSLA = ticket.ticket_sla_history.find(
               (sla: any) =>
-                sla.sla_type === "Response" && sla.status === "Pending"
+                sla.sla_type === "Response" && sla.status === "Pending",
             );
             if (responseSLA) {
               let statusToUpdate = "Met";

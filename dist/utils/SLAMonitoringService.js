@@ -39,7 +39,6 @@ class BusinessHoursAwareSLAMonitoringService {
         }));
         // Clear notification cache hourly
         node_cron_1.default.schedule("0 * * * *", () => this.sentNotifications.clear());
-        console.log("✅ Business‐hours‐aware SLA monitoring started");
     }
     // 2. Check business hours
     static isCurrentlyBusinessHours() {
@@ -156,7 +155,7 @@ class BusinessHoursAwareSLAMonitoringService {
     // 7. Main SLA check
     static checkTicketSLAStatus(ticket_1) {
         return __awaiter(this, arguments, void 0, function* (ticket, isCritical = false) {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
             if (ticket.sla_status === "Paused") {
                 return;
             }
@@ -191,7 +190,6 @@ class BusinessHoursAwareSLAMonitoringService {
                         where: { id: ticket.id },
                         data: { sla_status: "Breached" },
                     });
-                    console.log("Sent tonification for key:1", this.sentNotifications, key);
                     if (!this.sentNotifications.has(key)) {
                         this.sentNotifications.add(key);
                         // Add system comment
@@ -211,10 +209,35 @@ class BusinessHoursAwareSLAMonitoringService {
                             message: `The ${sla.sla_type} SLA has been breached.`,
                             type: "sla_warning",
                         });
-                        console.log("Ticket for Breach : ", ticket);
-                        yield sendEmailComment_1.default.sendCommentEmailToCustomer(ticket, `SLA Breach Alert: Ticket ${ticket.ticket_number + " " + sla.sla_type}  Missed by Agent ${((_a = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _a === void 0 ? void 0 : _a.first_name) +
-                            " " +
-                            ((_b = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _b === void 0 ? void 0 : _b.first_name)}.`, [(_d = (_c = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _c === void 0 ? void 0 : _c.manager) === null || _d === void 0 ? void 0 : _d.email]);
+                        this.sendNotification({
+                            ticket_id: ticket.id,
+                            userId: (_b = (_a = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _a === void 0 ? void 0 : _a.manager) === null || _b === void 0 ? void 0 : _b.id,
+                            title: `SLA Breached for ticket ${ticket.ticket_number} by Agent ${((_c = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _c === void 0 ? void 0 : _c.first_name) +
+                                " " +
+                                ((_d = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _d === void 0 ? void 0 : _d.last_name)}`,
+                            message: `The ${sla.sla_type} SLA for ticket ${ticket.ticket_number} has been breached.
+Assigned Agent: ${(_e = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _e === void 0 ? void 0 : _e.first_name} ${(_f = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _f === void 0 ? void 0 : _f.last_name}.
+Immediate review and corrective action may be required..`,
+                            type: "sla_warning",
+                        });
+                        const emailBody = `
+ SLA Breach Alert: Ticket ${ticket.ticket_number + " " + sla.sla_type}  Missed by Agent ${((_g = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _g === void 0 ? void 0 : _g.first_name) + " " + ((_h = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _h === void 0 ? void 0 : _h.last_name)}.
+ 
+ The ${sla.sla_type} SLA for ticket <b>${ticket.ticket_number}</b> has been breached.
+
+<b>Ticket Details:</b>
+• Ticket Number: ${ticket.ticket_number}
+• SLA Type: ${sla.sla_type}
+• Assigned Agent: ${(_j = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _j === void 0 ? void 0 : _j.first_name} ${(_k = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _k === void 0 ? void 0 : _k.last_name}
+• Current Status: ${ticket === null || ticket === void 0 ? void 0 : ticket.status}
+
+Please review the ticket and take the necessary corrective actions to prevent further impact.
+
+This is an automated notification from the Ticketing System.
+`;
+                        yield sendEmailComment_1.default.sendCommentEmailToCustomer(ticket, emailBody, [
+                            (_m = (_l = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _l === void 0 ? void 0 : _l.manager) === null || _m === void 0 ? void 0 : _m.email,
+                        ]);
                         // Email section (integrate with your email service)
                         // await EmailService.sendEmail({
                         //   to: ticket.agents_user.email,

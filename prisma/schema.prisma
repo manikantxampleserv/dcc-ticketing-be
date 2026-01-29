@@ -206,7 +206,7 @@ model customers {
   created_at               DateTime?                  @default(now(), map: "DF__Customers__Creat__2C3393D0")
   updated_at               DateTime?                  @default(now(), map: "DF__Customers__Updat__2D27B809")
   companies                companies                  @relation(fields: [company_id], references: [id], onUpdate: NoAction)
-  support_type             String?                    @db.NVarChar(200)
+  support_type             Int?
   server_hosted_on         String?                    @db.NVarChar(200)
   signed_waiver_form       String?                    @db.NVarChar(200)
   l1_support_applicable    String?                    @db.NVarChar(200)
@@ -214,6 +214,7 @@ model customers {
   support_ticket_responses support_ticket_responses[]
   ticket_comment_customers ticket_comments[]
   tickets                  tickets[]
+  customer_support_type    categories?                @relation(fields: [support_type], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([company_id])
   @@index([email])
@@ -221,12 +222,13 @@ model customers {
 }
 
 model categories {
-  id            Int       @id @default(autoincrement())
-  category_name String    @db.NVarChar(100)
-  description   String?   @db.NVarChar(500)
-  is_active     Boolean?  @default(true)
-  created_at    DateTime? @default(now(), map: "DF__Categorie__Creat__38996AB5")
-  tickets       tickets[]
+  id                    Int         @id @default(autoincrement())
+  category_name         String      @db.NVarChar(100)
+  description           String?     @db.NVarChar(500)
+  is_active             Boolean?    @default(true)
+  created_at            DateTime?   @default(now(), map: "DF__Categorie__Creat__38996AB5")
+  tickets               tickets[]
+  customer_support_type customers[]
 }
 
 model tickets {
@@ -315,7 +317,7 @@ model ticket_comments {
   created_at               DateTime   @default(now())
   updated_at               DateTime   @default(now()) @updatedAt
   mentioned_users          String?
-  ticket_comment_customers customers? @relation(fields: [customer_id], references: [id])
+  ticket_comment_customers customers? @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ticket_comments          tickets    @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
   ticket_comment_users     users?     @relation(fields: [user_id], references: [id])
 

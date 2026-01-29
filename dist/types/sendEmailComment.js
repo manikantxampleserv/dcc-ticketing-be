@@ -400,9 +400,11 @@ class EmailService {
                  <span style="color: #666; font-size: 14px;">Subject: ${ticket.subject}</span>
                </td>
                <td style="text-align: right; vertical-align: center;">
-                 <span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
+                 ${(comment === null || comment === void 0 ? void 0 : comment.mailCustomer) ||
+                    (isSeparatedEmail &&
+                        `<span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
                    ${ticket.status.toUpperCase()}
-                 </span>
+                 </span>`)}
                </td>
              </tr>
            </table>

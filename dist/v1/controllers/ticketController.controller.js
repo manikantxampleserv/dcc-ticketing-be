@@ -26,7 +26,7 @@ const emailImageExtractor_1 = require("../../types/emailImageExtractor");
 const prisma = new client_1.PrismaClient();
 const serializeTicket = (ticket, includeDates = false) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
-    return (Object.assign(Object.assign({ id: Number(ticket.id), ticket_number: ticket.ticket_number, customer_id: ticket.customer_id, customer_name: ticket.customer_name, customer_email: ticket.customer_email, assigned_agent_id: ticket.assigned_agent_id, category_id: ticket.category_id, subject: ticket.subject, description: ticket.description, priority: ticket.priority, status: ticket.status, source: ticket.source, sla_deadline: ticket.sla_deadline, sla_status: ticket.sla_status, first_response_at: ticket.first_response_at, resolved_at: ticket.resolved_at, closed_at: ticket.closed_at, assigned_by: ticket.assigned_by, is_merged: ticket.is_merged, reopen_count: ticket.reopen_count, sla_taken_time_sec: ticket.sla_taken_time_sec, sla_paused_at: ticket.sla_paused_at, time_spent_minutes: ticket.time_spent_minutes, last_reopened_at: ticket.last_reopened_at, customer_satisfaction_rating: ticket.customer_satisfaction_rating, customer_feedback: ticket.customer_feedback, tags: ticket.tags, email_thread_id: ticket.email_thread_id, original_email_message_id: ticket.original_email_message_id, merged_into_ticket_id: ticket.merged_into_ticket_id, attachment_urls: (ticket === null || ticket === void 0 ? void 0 : ticket.attachment_urls) || "", email_body_text: (ticket === null || ticket === void 0 ? void 0 : ticket.email_body_text) || "", ticket_attachments: ticket.ticket_attachments
+    return (Object.assign(Object.assign({ id: Number(ticket.id), ticket_number: ticket.ticket_number, customer_id: ticket.customer_id, customer_name: ticket.customer_name, customer_email: ticket.customer_email, assigned_agent_id: ticket.assigned_agent_id, category_id: ticket.category_id, subject: ticket.subject, description: ticket.description, priority: ticket.priority, status: ticket.status, source: ticket.source, sla_deadline: ticket.sla_deadline, sla_status: ticket.sla_status, first_response_at: ticket.first_response_at, resolved_at: ticket.resolved_at, closed_at: ticket.closed_at, assigned_by: ticket.assigned_by, is_merged: ticket.is_merged, reopen_count: ticket.reopen_count, sla_taken_time_sec: ticket.sla_taken_time_sec, sla_paused_at: ticket.sla_paused_at, time_spent_minutes: ticket.time_spent_minutes, last_reopened_at: ticket.last_reopened_at, customer_satisfaction_rating: ticket.customer_satisfaction_rating, customer_feedback: ticket.customer_feedback, tags: ticket.tags, email_thread_id: ticket.email_thread_id, original_email_message_id: ticket.original_email_message_id, merged_into_ticket_id: ticket.merged_into_ticket_id, attachment_urls: (ticket === null || ticket === void 0 ? void 0 : ticket.attachment_urls) || "", email_body_text: (ticket === null || ticket === void 0 ? void 0 : ticket.email_body_text) || "", support_level_id: (ticket === null || ticket === void 0 ? void 0 : ticket.support_level_id) || "", ticket_attachments: ticket.ticket_attachments
             ? ticket.ticket_attachments.map((att) => ({
                 id: att.id,
                 ticket_id: att.ticket_id,
@@ -224,7 +224,7 @@ exports.ticketController = {
         return __awaiter(this, void 0, void 0, function* () {
             var _a;
             try {
-                const { customer_id, assigned_agent_id, category_id, subject, description, priority, status, source, sla_deadline, sla_status, first_response_at, resolved_at, closed_at, is_merged, reopen_count, time_spent_minutes, last_reopened_at, customer_satisfaction_rating, customer_feedback, tags, merged_into_ticket_id, } = req.body;
+                const { customer_id, assigned_agent_id, category_id, subject, description, priority, status, source, sla_deadline, sla_status, first_response_at, resolved_at, closed_at, is_merged, reopen_count, time_spent_minutes, last_reopened_at, customer_satisfaction_rating, customer_feedback, tags, merged_into_ticket_id, support_level_id, } = req.body;
                 const assigned_by = Number((_a = req === null || req === void 0 ? void 0 : req.user) === null || _a === void 0 ? void 0 : _a.id);
                 const ticket_number = `TCKT-${Date.now()}`;
                 let avatarUrl = null;
@@ -259,6 +259,7 @@ exports.ticketController = {
                         customer_feedback,
                         tags,
                         merged_into_ticket_id,
+                        support_level_id,
                     },
                     include: {
                         users: true,
@@ -569,6 +570,7 @@ exports.ticketController = {
                     "customer_feedback",
                     "tags",
                     "merged_into_ticket_id",
+                    "support_level_id",
                 ];
                 const dataToUpdate = {};
                 for (const field of allowedFields) {
@@ -666,9 +668,9 @@ exports.ticketController = {
                     yield (0, sendSatisfactionEmail_1.sendSatisfactionEmail)({
                         body: "Resolved",
                         ticketId: updatedTicket.id,
-                        requesterEmail: (updatedTicket === null || updatedTicket === void 0 ? void 0 : updatedTicket.customer_email) ||
-                            ((_c = updatedTicket === null || updatedTicket === void 0 ? void 0 : updatedTicket.customers) === null || _c === void 0 ? void 0 : _c.email) ||
-                            "",
+                        requesterEmail: 
+                        // updatedTicket?.customer_email ||
+                        ((_c = updatedTicket === null || updatedTicket === void 0 ? void 0 : updatedTicket.customers) === null || _c === void 0 ? void 0 : _c.email) || "",
                         ticketNumber: updatedTicket.ticket_number,
                         requesterName: (updatedTicket === null || updatedTicket === void 0 ? void 0 : updatedTicket.customer_name) ||
                             ((_d = updatedTicket === null || updatedTicket === void 0 ? void 0 : updatedTicket.customers) === null || _d === void 0 ? void 0 : _d.first_name) +

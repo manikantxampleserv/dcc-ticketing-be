@@ -88,7 +88,7 @@ class SimpleEmailTicketSystem {
 
       if (!emailConfiguration) {
         throw new Error(
-          `No email configuration found for logInst: ${this.logInst} or configId: ${this.configId}`
+          `No email configuration found for logInst: ${this.logInst} or configId: ${this.configId}`,
         );
       }
 
@@ -180,7 +180,7 @@ class SimpleEmailTicketSystem {
       if (fs.existsSync(this.lastUidFilePath)) {
         const content = await fs.promises.readFile(
           this.lastUidFilePath,
-          "utf-8"
+          "utf-8",
         );
         this.lastUid = parseInt(content, 10) || 0;
         console.log(`📥 Loaded lastUid: ${this.lastUid}`);
@@ -199,7 +199,7 @@ class SimpleEmailTicketSystem {
       await fs.promises.writeFile(
         this.lastUidFilePath,
         newUid.toString(),
-        "utf-8"
+        "utf-8",
       );
       this.lastUid = newUid;
       console.log(`💾 Saved lastUid: ${this.lastUid}`);
@@ -224,7 +224,7 @@ class SimpleEmailTicketSystem {
         console.log(
           `📬 Inbox opened: total=${box.messages.total} unseen=${
             box.messages.unseen || 0
-          } uidnext=${box.uidnext}`
+          } uidnext=${box.uidnext}`,
         );
 
         if (this.imap?.serverSupports && this.imap.serverSupports("IDLE")) {
@@ -376,7 +376,7 @@ class SimpleEmailTicketSystem {
                 if (processedCount === totalMessages) {
                   this.saveLastUid(currentUidNext).then(() => {
                     console.log(
-                      `✅ Finished fetching emails. Updated lastUid to ${currentUidNext}`
+                      `✅ Finished fetching emails. Updated lastUid to ${currentUidNext}`,
                     );
                     this.isFetching = false;
                     resolve();
@@ -462,7 +462,7 @@ class SimpleEmailTicketSystem {
       if (body.includes("data:image")) {
         const result = await replaceBase64ImagesWithUrls(
           body,
-          generateTicketNumber(Date.now())
+          generateTicketNumber(Date.now()),
         );
         body = result.html;
       }
@@ -499,7 +499,7 @@ class SimpleEmailTicketSystem {
 
         if (existingTicket) {
           console.log(
-            `✅ Adding reply to existing ticket #${existingTicket.ticket_number}`
+            `✅ Adding reply to existing ticket #${existingTicket.ticket_number}`,
           );
           await this.createCommentFromEmail(
             existingTicket,
@@ -508,12 +508,12 @@ class SimpleEmailTicketSystem {
             bodyText,
             messageId,
             email,
-            attachments
+            attachments,
           );
           return;
         } else {
           console.log(
-            `ℹ️ No existing ticket found with thread ID: ${threadId}`
+            `ℹ️ No existing ticket found with thread ID: ${threadId}`,
           );
         }
       }
@@ -530,7 +530,7 @@ class SimpleEmailTicketSystem {
         threadId ?? "",
         email,
         senderName,
-        attachments
+        attachments,
       );
 
       console.log(
@@ -538,7 +538,7 @@ class SimpleEmailTicketSystem {
           customer
             ? `${customer.first_name} ${customer.last_name}`
             : senderEmail
-        }`
+        }`,
       );
     } catch (error) {
       console.error("❌ Error handling email:", error);
@@ -552,7 +552,7 @@ class SimpleEmailTicketSystem {
       .replace(/\[cid:[^\]]+\]/gi, "")
       .replace(
         /\[facebook icon.*?\]|\[twitter icon.*?\]|\[youtube icon.*?\]|\[linkedin icon.*?\]/gi,
-        ""
+        "",
       )
       .replace(/mailto:\S+/gi, "")
       .replace(/<[^>]*>/g, "")
@@ -561,7 +561,7 @@ class SimpleEmailTicketSystem {
 
     // 2️⃣ Remove signature (cut at common markers)
     cleaned = cleaned.split(
-      /\n\s*(Regards,|Thanks,|Best regards,|Kind regards,|Sincerely,|--|\nWashington Rapul|\nICT Manager)/i
+      /\n\s*(Regards,|Thanks,|Best regards,|Kind regards,|Sincerely,|--|\nWashington Rapul|\nICT Manager)/i,
     )[0];
 
     // 3️⃣ Remove greeting line (optional but recommended)
@@ -600,7 +600,7 @@ class SimpleEmailTicketSystem {
     bodyText: string,
     messageId?: string,
     fullEmail?: ParsedEmail,
-    attachments?: any[]
+    attachments?: any[],
   ): Promise<void> {
     try {
       const isCustomer =
@@ -611,7 +611,7 @@ class SimpleEmailTicketSystem {
       // console.log(`💬 Adding comment to ticket #${ticket.ticket_number}`);
 
       const attachment_urls = JSON.stringify(
-        attachments?.map((val: any) => val.fileUrl) || []
+        attachments?.map((val: any) => val.fileUrl) || [],
       );
 
       await prisma.ticket_comments.create({
@@ -651,7 +651,7 @@ class SimpleEmailTicketSystem {
 
   private async processEmailAttachments(
     email: any,
-    ticketNumber?: string
+    ticketNumber?: string,
   ): Promise<any[]> {
     const attachments: any[] = [];
 
@@ -668,21 +668,21 @@ class SimpleEmailTicketSystem {
             if (
               !this.isAllowedFileType(
                 attachment.filename || "",
-                attachment.contentType || ""
+                attachment.contentType || "",
               )
             ) {
               console.warn(
-                `❌ Skipping disallowed file type: ${attachment.filename}`
+                `❌ Skipping disallowed file type: ${attachment.filename}`,
               );
               continue;
             }
 
             const maxSize = parseInt(
-              process.env.MAX_ATTACHMENT_SIZE || "10485760"
+              process.env.MAX_ATTACHMENT_SIZE || "10485760",
             );
             if (attachment.size && attachment.size > maxSize) {
               console.warn(
-                `❌ Skipping oversized file: ${attachment.filename} (${attachment.size} bytes)`
+                `❌ Skipping oversized file: ${attachment.filename} (${attachment.size} bytes)`,
               );
               continue;
             }
@@ -690,7 +690,7 @@ class SimpleEmailTicketSystem {
             const timestamp = Date.now();
             const sanitizedName = (attachment.filename || "unknown").replace(
               /[^a-zA-Z0-9.-]/g,
-              "_"
+              "_",
             );
 
             const fileName = ticketNumber
@@ -698,13 +698,13 @@ class SimpleEmailTicketSystem {
               : `email-attachments/temp/${timestamp}_${sanitizedName}`;
 
             console.log(
-              `📤 Uploading ${attachment.filename} to Backblaze B2...`
+              `📤 Uploading ${attachment.filename} to Backblaze B2...`,
             );
 
             const fileUrl = await uploadFile(
               attachment.content,
               fileName,
-              attachment.contentType || "application/octet-stream"
+              attachment.contentType || "application/octet-stream",
             );
 
             const attachmentData = {
@@ -718,12 +718,12 @@ class SimpleEmailTicketSystem {
 
             attachments.push(attachmentData);
             console.log(
-              `✅ Uploaded attachment: ${attachment.filename} → ${fileUrl}`
+              `✅ Uploaded attachment: ${attachment.filename} → ${fileUrl}`,
             );
           } catch (attachmentError) {
             console.error(
               `❌ Error processing attachment ${attachment.filename}:`,
-              attachmentError
+              attachmentError,
             );
           }
         }
@@ -745,7 +745,7 @@ class SimpleEmailTicketSystem {
     threadId?: string,
     fullEmail?: ParsedEmail,
     senderNames?: string,
-    attachments?: any[]
+    attachments?: any[],
   ): Promise<any> {
     const ticketNumber = `TCKT-${Date.now()}`;
 
@@ -757,7 +757,7 @@ class SimpleEmailTicketSystem {
 
     const cleanedBody = this.cleanBody(body);
     const attachment_urls = JSON.stringify(
-      attachments?.map((val: any) => val.fileUrl) || []
+      attachments?.map((val: any) => val.fileUrl) || [],
     );
 
     const tickets = await prisma.tickets.create({
@@ -791,7 +791,7 @@ class SimpleEmailTicketSystem {
       },
     });
     const aiResponse = await this.askAITicketSystem(
-      bodyText?.trim() || tickets.description
+      bodyText?.trim() || tickets.description,
     );
     // console.log(
     //   "🤖 AI Response:",
@@ -812,7 +812,7 @@ class SimpleEmailTicketSystem {
       await generateSLAHistory(
         tickets.id,
         slaConfig ? slaConfig.id : 0,
-        tickets.created_at || new Date()
+        tickets.created_at || new Date(),
       );
     } catch (slaError) {
       console.error("Error generating SLA history:", slaError);
@@ -826,7 +826,7 @@ class SimpleEmailTicketSystem {
 
   private async saveTicketAttachments(
     ticketId: number,
-    attachments: any[]
+    attachments: any[],
   ): Promise<void> {
     try {
       const attachmentRecords = attachments.map((att) => ({
@@ -846,7 +846,7 @@ class SimpleEmailTicketSystem {
       });
 
       console.log(
-        `✅ Saved ${attachments.length} attachment(s) for ticket ${ticketId}`
+        `✅ Saved ${attachments.length} attachment(s) for ticket ${ticketId}`,
       );
     } catch (error) {
       console.error(`❌ Error saving ticket attachments:`, error);
