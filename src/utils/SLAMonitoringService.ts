@@ -215,26 +215,19 @@ Assigned Agent: ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_n
 Immediate review and corrective action may be required..`,
             type: "sla_warning",
           });
+          console.log("Ticket for Breach : ", ticket);
 
-          const emailBody = `
- SLA Breach Alert: Ticket ${ticket.ticket_number + " " + sla.sla_type}  Missed by Agent ${ticket?.agents_user?.first_name + " " + ticket?.agents_user?.last_name}.
- 
- The ${sla.sla_type} SLA for ticket <b>${ticket.ticket_number}</b> has been breached.
-
-<b>Ticket Details:</b>
-• Ticket Number: ${ticket.ticket_number}
-• SLA Type: ${sla.sla_type}
-• Assigned Agent: ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}
-• Current Status: ${ticket?.status}
-
-Please review the ticket and take the necessary corrective actions to prevent further impact.
-
-This is an automated notification from the Ticketing System.
-`;
-
-          await emailService.sendCommentEmailToCustomer(ticket, emailBody, [
-            ticket?.agents_user?.manager?.email,
-          ]);
+          await emailService.sendCommentEmailToCustomer(
+            ticket,
+            `SLA Breach Alert: Ticket ${
+              ticket.ticket_number + " " + sla.sla_type
+            }  Missed by Agent ${
+              ticket?.agents_user?.first_name +
+              " " +
+              ticket?.agents_user?.last_name
+            }.`,
+            [ticket?.agents_user?.manager?.email],
+          );
 
           // Email section (integrate with your email service)
           // await EmailService.sendEmail({

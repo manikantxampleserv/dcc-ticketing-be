@@ -13,7 +13,7 @@ class SLAMonitor {
     this.check(); // Run immediately
     this.intervalId = setInterval(
       () => this.check(),
-      intervalMinutes * 60 * 1000
+      intervalMinutes * 60 * 1000,
     );
   }
 
@@ -86,7 +86,7 @@ class SLAMonitor {
   private async sendWarning(
     ticket: any,
     percentUsed: number,
-    remaining: number
+    remaining: number,
   ) {
     const userIds: number[] = [];
 

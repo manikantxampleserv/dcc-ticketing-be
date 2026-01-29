@@ -155,7 +155,7 @@ class BusinessHoursAwareSLAMonitoringService {
     // 7. Main SLA check
     static checkTicketSLAStatus(ticket_1) {
         return __awaiter(this, arguments, void 0, function* (ticket, isCritical = false) {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
             if (ticket.sla_status === "Paused") {
                 return;
             }
@@ -220,24 +220,10 @@ Assigned Agent: ${(_e = ticket === null || ticket === void 0 ? void 0 : ticket.a
 Immediate review and corrective action may be required..`,
                             type: "sla_warning",
                         });
-                        const emailBody = `
- SLA Breach Alert: Ticket ${ticket.ticket_number + " " + sla.sla_type}  Missed by Agent ${((_g = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _g === void 0 ? void 0 : _g.first_name) + " " + ((_h = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _h === void 0 ? void 0 : _h.last_name)}.
- 
- The ${sla.sla_type} SLA for ticket <b>${ticket.ticket_number}</b> has been breached.
-
-<b>Ticket Details:</b>
-• Ticket Number: ${ticket.ticket_number}
-• SLA Type: ${sla.sla_type}
-• Assigned Agent: ${(_j = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _j === void 0 ? void 0 : _j.first_name} ${(_k = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _k === void 0 ? void 0 : _k.last_name}
-• Current Status: ${ticket === null || ticket === void 0 ? void 0 : ticket.status}
-
-Please review the ticket and take the necessary corrective actions to prevent further impact.
-
-This is an automated notification from the Ticketing System.
-`;
-                        yield sendEmailComment_1.default.sendCommentEmailToCustomer(ticket, emailBody, [
-                            (_m = (_l = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _l === void 0 ? void 0 : _l.manager) === null || _m === void 0 ? void 0 : _m.email,
-                        ]);
+                        console.log("Ticket for Breach : ", ticket);
+                        yield sendEmailComment_1.default.sendCommentEmailToCustomer(ticket, `SLA Breach Alert: Ticket ${ticket.ticket_number + " " + sla.sla_type}  Missed by Agent ${((_g = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _g === void 0 ? void 0 : _g.first_name) +
+                            " " +
+                            ((_h = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _h === void 0 ? void 0 : _h.last_name)}.`, [(_k = (_j = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _j === void 0 ? void 0 : _j.manager) === null || _k === void 0 ? void 0 : _k.email]);
                         // Email section (integrate with your email service)
                         // await EmailService.sendEmail({
                         //   to: ticket.agents_user.email,

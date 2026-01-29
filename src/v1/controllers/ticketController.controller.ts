@@ -1,3 +1,4 @@
+import { customers } from "./../../../node_modules/.prisma/client/index.d";
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import { BusinessHoursSLACalculator } from "../../utils/BussinessHoursSLACalculation";
@@ -696,6 +697,7 @@ export const ticketController = {
       ];
 
       const dataToUpdate: Record<string, any> = {};
+      let elapsedSec = 0;
 
       for (const field of allowedFields) {
         if (req.body[field] !== undefined) {
@@ -714,7 +716,7 @@ export const ticketController = {
         if (existing?.start_timer_at) {
           const now = new Date();
           const elapsedMs = now.getTime() - existing.start_timer_at.getTime();
-          const elapsedSec = Math.floor(elapsedMs / 1000);
+          elapsedSec = Math.floor(elapsedMs / 1000);
 
           dataToUpdate.time_spent_minutes =
             (existing.time_spent_minutes || 0) + elapsedSec;
@@ -729,7 +731,7 @@ export const ticketController = {
           : newStatus === "Resolved"
             ? `Ticket is resolved , Remarks : "${reason}".`
             : "";
-      let ticket = {};
+      let ticket: any = {};
       if (newStatus !== "Closed" && newStatus !== "Resolved") {
         ticket = await prisma.tickets.update({
           where: { id },
@@ -820,6 +822,37 @@ export const ticketController = {
           [],
         );
         ticket = updatedTicket;
+      }
+      console.log(
+        "dataToUpdate.time_spent_minutes",
+        dataToUpdate.time_spent_minutes,
+        ticket?.customers,
+        Number(ticket?.customers?.l1_support_used_hours || 0),
+        Number(ticket?.customers?.l1_support_used_hours),
+        Number(ticket?.customers?.l1_support_used_hours || 0) +
+          dataToUpdate.time_spent_minutes,
+        elapsedSec,
+      );
+      if (
+        ticket?.customers &&
+        ticket?.customers?.l1_support_applicable == "true" &&
+        ticket?.support_level_id == "L1"
+      ) {
+        const existingHours = Number(
+          ticket?.customers?.l1_support_used_hours || 0,
+        );
+
+        const spentSeconds = Number(elapsedSec || 0);
+
+        const spentHours = spentSeconds / 3600;
+        await prisma.customers.update({
+          where: { id: ticket?.customers?.id },
+          data: {
+            l1_support_used_hours: (existingHours + spentHours)
+              .toFixed(2)
+              .toString(),
+          },
+        });
       }
 
       res.success(
@@ -1376,7 +1409,7 @@ export const ticketController = {
               },
             },
 
-            orderBy: { created_at: "desc" },
+            orderBy: { created_at: "asc" },
           },
           customers: {
             select: {

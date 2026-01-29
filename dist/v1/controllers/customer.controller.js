@@ -25,7 +25,7 @@ const client_1 = require("@prisma/client");
 const pagination_1 = require("../../utils/pagination");
 const express_validator_1 = require("express-validator");
 const prisma = new client_1.PrismaClient();
-const serializeCustomer = (customer, includeCreatedAt = false, includeUpdatedAt = false) => (Object.assign(Object.assign(Object.assign({ id: customer.id, company_id: customer.company_id, first_name: customer.first_name, last_name: customer.last_name, email: customer.email, phone: customer.phone, job_title: customer.job_title, is_active: customer.is_active, support_type: customer === null || customer === void 0 ? void 0 : customer.support_type, l1_support_hours: customer === null || customer === void 0 ? void 0 : customer.l1_support_hours, server_hosted_on: customer === null || customer === void 0 ? void 0 : customer.server_hosted_on, signed_waiver_form: customer === null || customer === void 0 ? void 0 : customer.signed_waiver_form, customer_support_type: customer === null || customer === void 0 ? void 0 : customer.customer_support_type, l1_support_applicable: customer === null || customer === void 0 ? void 0 : customer.l1_support_applicable }, (includeCreatedAt && { created_at: customer.created_at })), (includeUpdatedAt && { updated_at: customer.updated_at })), { companies: customer.companies
+const serializeCustomer = (customer, includeCreatedAt = false, includeUpdatedAt = false) => (Object.assign(Object.assign(Object.assign({ id: customer.id, company_id: customer.company_id, first_name: customer.first_name, last_name: customer.last_name, email: customer.email, phone: customer.phone, job_title: customer.job_title, is_active: customer.is_active, support_type: customer === null || customer === void 0 ? void 0 : customer.support_type, l1_support_hours: customer === null || customer === void 0 ? void 0 : customer.l1_support_hours, l1_support_used_hours: customer === null || customer === void 0 ? void 0 : customer.l1_support_used_hours, server_hosted_on: customer === null || customer === void 0 ? void 0 : customer.server_hosted_on, signed_waiver_form: customer === null || customer === void 0 ? void 0 : customer.signed_waiver_form, customer_support_type: customer === null || customer === void 0 ? void 0 : customer.customer_support_type, l1_support_applicable: customer === null || customer === void 0 ? void 0 : customer.l1_support_applicable }, (includeCreatedAt && { created_at: customer.created_at })), (includeUpdatedAt && { updated_at: customer.updated_at })), { companies: customer.companies
         ? {
             id: customer.companies.id,
             company_name: customer.companies.company_name,
@@ -53,7 +53,7 @@ exports.customerController = {
                     res.status(400).json({ success: false, error: firstError.msg });
                     return;
                 }
-                const { company_id, first_name, last_name, email, phone, job_title, support_type, l1_support_hours, l1_support_applicable, server_hosted_on, signed_waiver_form, is_active, } = req.body;
+                const { company_id, first_name, last_name, email, phone, job_title, support_type, l1_support_hours, l1_support_used_hours, l1_support_applicable, server_hosted_on, signed_waiver_form, is_active, } = req.body;
                 const customer = yield prisma.customers.create({
                     data: {
                         company_id,
@@ -63,6 +63,7 @@ exports.customerController = {
                         phone,
                         support_type: Number(support_type),
                         l1_support_hours: l1_support_hours === null || l1_support_hours === void 0 ? void 0 : l1_support_hours.toString(),
+                        l1_support_used_hours: l1_support_used_hours === null || l1_support_used_hours === void 0 ? void 0 : l1_support_used_hours.toString(),
                         l1_support_applicable: l1_support_applicable === null || l1_support_applicable === void 0 ? void 0 : l1_support_applicable.toString(),
                         server_hosted_on: server_hosted_on === null || server_hosted_on === void 0 ? void 0 : server_hosted_on.toString(),
                         signed_waiver_form: signed_waiver_form === null || signed_waiver_form === void 0 ? void 0 : signed_waiver_form.toString(),
@@ -148,9 +149,9 @@ exports.customerController = {
                     return;
                 }
                 // ❌ remove fields that should not be updated directly
-                const _a = req.body, { created_at, updated_at, company_id, support_type, l1_support_hours, l1_support_applicable, server_hosted_on, signed_waiver_form } = _a, updateData = __rest(_a, ["created_at", "updated_at", "company_id", "support_type", "l1_support_hours", "l1_support_applicable", "server_hosted_on", "signed_waiver_form"]);
+                const _a = req.body, { created_at, updated_at, company_id, support_type, l1_support_hours, l1_support_used_hours, l1_support_applicable, server_hosted_on, signed_waiver_form } = _a, updateData = __rest(_a, ["created_at", "updated_at", "company_id", "support_type", "l1_support_hours", "l1_support_used_hours", "l1_support_applicable", "server_hosted_on", "signed_waiver_form"]);
                 // ✅ build prisma update data safely
-                const prismaData = Object.assign(Object.assign({}, updateData), { support_type: Number(support_type), l1_support_hours: l1_support_hours === null || l1_support_hours === void 0 ? void 0 : l1_support_hours.toString(), server_hosted_on: server_hosted_on === null || server_hosted_on === void 0 ? void 0 : server_hosted_on.toString(), signed_waiver_form: signed_waiver_form === null || signed_waiver_form === void 0 ? void 0 : signed_waiver_form.toString(), l1_support_applicable: l1_support_applicable === null || l1_support_applicable === void 0 ? void 0 : l1_support_applicable.toString(), updated_at: new Date() });
+                const prismaData = Object.assign(Object.assign({}, updateData), { support_type: Number(support_type), l1_support_hours: l1_support_hours === null || l1_support_hours === void 0 ? void 0 : l1_support_hours.toString(), l1_support_used_hours: l1_support_used_hours === null || l1_support_used_hours === void 0 ? void 0 : l1_support_used_hours.toString(), server_hosted_on: server_hosted_on === null || server_hosted_on === void 0 ? void 0 : server_hosted_on.toString(), signed_waiver_form: signed_waiver_form === null || signed_waiver_form === void 0 ? void 0 : signed_waiver_form.toString(), l1_support_applicable: l1_support_applicable === null || l1_support_applicable === void 0 ? void 0 : l1_support_applicable.toString(), updated_at: new Date() });
                 // ✅ conditionally connect company
                 if (company_id) {
                     prismaData.companies = {

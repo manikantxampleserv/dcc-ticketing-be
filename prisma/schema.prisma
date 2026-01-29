@@ -211,6 +211,7 @@ model customers {
   signed_waiver_form       String?                    @db.NVarChar(200)
   l1_support_applicable    String?                    @db.NVarChar(200)
   l1_support_hours         String?                    @db.NVarChar(200)
+  l1_support_used_hours    String?                    @db.NVarChar(200)
   support_ticket_responses support_ticket_responses[]
   ticket_comment_customers ticket_comments[]
   tickets                  tickets[]

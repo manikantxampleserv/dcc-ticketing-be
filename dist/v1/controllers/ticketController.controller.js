@@ -511,7 +511,7 @@ exports.ticketController = {
     // },
     updateTicket(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d, _e;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
             try {
                 const id = Number(req.params.id);
                 const reason = req.body.reason || "";
@@ -573,6 +573,7 @@ exports.ticketController = {
                     "support_level_id",
                 ];
                 const dataToUpdate = {};
+                let elapsedSec = 0;
                 for (const field of allowedFields) {
                     if (req.body[field] !== undefined) {
                         dataToUpdate[field] = req.body[field];
@@ -590,7 +591,7 @@ exports.ticketController = {
                     if (existing === null || existing === void 0 ? void 0 : existing.start_timer_at) {
                         const now = new Date();
                         const elapsedMs = now.getTime() - existing.start_timer_at.getTime();
-                        const elapsedSec = Math.floor(elapsedMs / 1000);
+                        elapsedSec = Math.floor(elapsedMs / 1000);
                         dataToUpdate.time_spent_minutes =
                             (existing.time_spent_minutes || 0) + elapsedSec;
                         dataToUpdate.start_timer_at = null;
@@ -682,6 +683,23 @@ exports.ticketController = {
                     yield exports.ticketController.handleSLACompletion(id, req.body.status);
                     yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailCustomer: false }), []);
                     ticket = updatedTicket;
+                }
+                console.log("dataToUpdate.time_spent_minutes", dataToUpdate.time_spent_minutes, ticket === null || ticket === void 0 ? void 0 : ticket.customers, Number(((_f = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _f === void 0 ? void 0 : _f.l1_support_used_hours) || 0), Number((_g = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _g === void 0 ? void 0 : _g.l1_support_used_hours), Number(((_h = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _h === void 0 ? void 0 : _h.l1_support_used_hours) || 0) +
+                    dataToUpdate.time_spent_minutes, elapsedSec);
+                if ((ticket === null || ticket === void 0 ? void 0 : ticket.customers) &&
+                    ((_j = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _j === void 0 ? void 0 : _j.l1_support_applicable) == "true" &&
+                    (ticket === null || ticket === void 0 ? void 0 : ticket.support_level_id) == "L1") {
+                    const existingHours = Number(((_k = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _k === void 0 ? void 0 : _k.l1_support_used_hours) || 0);
+                    const spentSeconds = Number(elapsedSec || 0);
+                    const spentHours = spentSeconds / 3600;
+                    yield prisma.customers.update({
+                        where: { id: (_l = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _l === void 0 ? void 0 : _l.id },
+                        data: {
+                            l1_support_used_hours: (existingHours + spentHours)
+                                .toFixed(2)
+                                .toString(),
+                        },
+                    });
                 }
                 res.success("Ticket updated successfully", serializeTicket(ticket, true), 200);
             }
@@ -1172,7 +1190,7 @@ exports.ticketController = {
                                     },
                                 },
                             },
-                            orderBy: { created_at: "desc" },
+                            orderBy: { created_at: "asc" },
                         },
                         customers: {
                             select: {

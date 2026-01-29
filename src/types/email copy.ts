@@ -168,12 +168,12 @@ class SimpleEmailTicketSystem {
         customer,
         subject,
         body,
-        senderEmail
+        senderEmail,
       );
       console.log(
         `🎫 Ticket created: Ticket No. ${ticket.ticket_number} for ${
           customer.first_name + " " + customer.last_name
-        } Customer`
+        } Customer`,
       );
     } catch (error) {
       console.error("❌ Error handling email:", error);
@@ -200,7 +200,7 @@ class SimpleEmailTicketSystem {
     customer: any,
     subject: string,
     body: string,
-    senderEmail: string
+    senderEmail: string,
   ): Promise<any> {
     const ticketNumber = `TCKT-${Date.now()}`;
 
