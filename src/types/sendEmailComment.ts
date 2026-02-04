@@ -177,7 +177,7 @@ class EmailService {
         ? `${comment.users.first_name} ${comment.users.last_name}`
         : "Support Team";
       let Emails =
-        comment?.mailCustomer || isSeparatedEmail
+        comment?.mailInternal == "false" || isSeparatedEmail
           ? assignedEmail
           : [...customerEmail, assignedEmail];
       if (additionalEmails.length > 0) {
@@ -468,11 +468,11 @@ class EmailService {
                </td>
                <td style="text-align: right; vertical-align: center;">
                  ${
-                   comment?.mailCustomer ||
-                   (isSeparatedEmail &&
-                     `<span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
+                   comment?.mailInternal == "false" || isSeparatedEmail
+                     ? `<span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
                    ${ticket.status.toUpperCase()}
-                 </span>`)
+                 </span>`
+                     : ""
                  }
                </td>
              </tr>

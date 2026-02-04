@@ -17,8 +17,8 @@ const serializeCustomer = (
   last_name: customer.last_name,
   email: customer.email,
   phone: customer.phone,
-  job_title: customer.job_title,
   is_active: customer.is_active,
+  job_title: customer.job_title,
   support_type: customer?.support_type,
   l1_support_hours: customer?.l1_support_hours,
   l1_support_used_hours: customer?.l1_support_used_hours,
@@ -196,7 +196,10 @@ export const customerController = {
       // ✅ build prisma update data safely
       const prismaData: any = {
         ...updateData,
-        support_type: Number(support_type),
+        // support_type: Number(support_type),
+        customer_support_type: support_type
+          ? { connect: { id: Number(support_type) } }
+          : undefined,
         l1_support_hours: l1_support_hours?.toString(),
         l1_support_used_hours: l1_support_used_hours?.toString(),
         server_hosted_on: server_hosted_on?.toString(),
@@ -229,7 +232,7 @@ export const customerController = {
         data: serializeCustomer(updatedCustomer, true, true),
       });
     } catch (error: any) {
-      console.error(error);
+      console.error("Customer Error : ", error);
 
       if (error.code === "P2025") {
         res.status(404).json({
@@ -355,6 +358,77 @@ export const customerController = {
           tickets: true,
           customer_support_type: true,
         },
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Customers retrieved successfully",
+        data: data.map((customer: any) =>
+          serializeCustomer(customer, true, true),
+        ),
+        pagination,
+      });
+    } catch (error: any) {
+      console.error(error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Internal Server Error",
+      });
+    }
+  },
+  async getAllCustomerOption(req: Request, res: Response): Promise<void> {
+    try {
+      const { page = "1", limit = "10", search = "" } = req.query;
+      const page_num = parseInt(page as string, 10);
+      const limit_num = parseInt(limit as string, 10);
+      const searchTerm = (search as string).toLowerCase().trim();
+
+      // Base filter object
+      let filters: any = {};
+
+      if (searchTerm) {
+        // If there’s a space, assume “first last”
+        const parts = searchTerm.split(/\s+/);
+        if (parts.length >= 2) {
+          // Use first part for first_name and last part for last_name
+          const [firstPart, ...rest] = parts;
+          const lastPart = rest.join(" ");
+          filters.AND = [
+            { first_name: { contains: firstPart } },
+            { last_name: { contains: lastPart } },
+          ];
+        } else {
+          // Single term: OR across all fields
+          filters.OR = [
+            { email: { contains: searchTerm } },
+            { first_name: { contains: searchTerm } },
+            { last_name: { contains: searchTerm } },
+            // { job_title: { contains: searchTerm } },
+            // { phone: { contains: searchTerm } },
+          ];
+        }
+      }
+      const { data, pagination } = await paginate({
+        model: prisma.customers,
+        filters,
+        page: page_num,
+        limit: limit_num,
+        orderBy: { id: "desc" },
+        select: {
+          id: true,
+          company_id: true,
+          first_name: true,
+          last_name: true,
+          email: true,
+          phone: true,
+          is_active: true,
+        },
+        // include: {
+        //   companies: true,
+        //   support_ticket_responses: true,
+        //   tickets: true,
+        //   customer_support_type: true,
+        // },
       });
 
       res.status(200).json({

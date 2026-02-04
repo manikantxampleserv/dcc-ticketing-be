@@ -496,7 +496,7 @@ exports.ticketController = {
     //         if (systemComment) {
     //           await EmailService.sendCommentEmailToCustomer(
     //             updatedTicket,
-    //             { ...systemComment, mailCustomer: true },
+    //             { ...systemComment, mailInternal: true },
     //             []
     //           );
     //         }
@@ -681,7 +681,7 @@ exports.ticketController = {
                     });
                     // Mark resolution SLA as completed (monitoring service will determine if breached)
                     yield exports.ticketController.handleSLACompletion(id, req.body.status);
-                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailCustomer: false }), []);
+                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailInternal: false }), []);
                     ticket = updatedTicket;
                 }
                 console.log("dataToUpdate.time_spent_minutes", dataToUpdate.time_spent_minutes, ticket === null || ticket === void 0 ? void 0 : ticket.customers, Number(((_f = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _f === void 0 ? void 0 : _f.l1_support_used_hours) || 0), Number((_g = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _g === void 0 ? void 0 : _g.l1_support_used_hours), Number(((_h = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _h === void 0 ? void 0 : _h.l1_support_used_hours) || 0) +
@@ -861,6 +861,7 @@ exports.ticketController = {
                 dataToUpdate.is_merged = true;
                 dataToUpdate.merged_into_ticket_id = parentId;
                 dataToUpdate.status = "Merged";
+                dataToUpdate.updated_at = new Date();
             }
             try {
                 // Execute update and comment creation atomically
@@ -908,10 +909,10 @@ exports.ticketController = {
                                 " " +
                                 ((_c = updatedTicket === null || updatedTicket === void 0 ? void 0 : updatedTicket.customers) === null || _c === void 0 ? void 0 : _c.last_name),
                     });
-                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailCustomer: true }), [agentDetails === null || agentDetails === void 0 ? void 0 : agentDetails.email]);
+                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailInternal: true }), [agentDetails === null || agentDetails === void 0 ? void 0 : agentDetails.email]);
                 }
                 else {
-                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailCustomer: true }), []);
+                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailInternal: true }), []);
                 }
                 res.status(200).json({
                     success: true,
@@ -1089,6 +1090,12 @@ exports.ticketController = {
                 }
                 // Run all operations in one transaction
                 yield prisma.$transaction(txOps);
+                yield prisma.tickets.update({
+                    where: { id: ticketId },
+                    data: {
+                        updated_at: new Date(),
+                    },
+                });
                 // Reload ticket
                 const finalTicket = yield prisma.tickets.findUnique({
                     where: { id: ticketId },
@@ -1109,7 +1116,7 @@ exports.ticketController = {
                     },
                 });
                 // Notify customers
-                yield sendEmailComment_1.default.sendCommentEmailToCustomer(finalTicket, { mailCustomer: true }, []);
+                yield sendEmailComment_1.default.sendCommentEmailToCustomer(finalTicket, { mailInternal: true }, []);
                 res.success("Ticket updated successfully", serializeTicket(finalTicket, true), 200);
             }
             catch (error) {
@@ -1257,7 +1264,7 @@ exports.ticketController = {
     getAllTicket(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const { page = "1", limit = "10", search = "", status = "", priority = "", assigned_agent_id = "", } = req.query;
+                const { page = "1", limit = "10", search = "", status = "", priority = "", assigned_agent_id = "", customer_id = "", } = req.query;
                 const page_num = parseInt(page, 10);
                 const limit_num = parseInt(limit, 10);
                 const searchTerm = search.toLowerCase().trim();
@@ -1367,6 +1374,11 @@ exports.ticketController = {
                         equals: Number(assigned_agent_id),
                     };
                 }
+                if (customer_id) {
+                    filters.customer_id = {
+                        equals: Number(customer_id),
+                    };
+                }
                 if (priorityFilter) {
                     filters.sla_priority = {
                         priority: {
@@ -1414,6 +1426,7 @@ exports.ticketController = {
                         start_timer_at: true,
                         created_at: true,
                         updated_at: true,
+                        support_level_id: true,
                         // Relations with nested select
                         users: {
                             select: {
@@ -1837,10 +1850,12 @@ exports.ticketController = {
                 //     imageUrls.push(imageUrl);
                 //   }
                 // }
+                console.log("Getting File s : ", req.files, req.file);
                 const imageUrls = yield Promise.all((req.files || []).map((file) => {
                     const fileName = `ticket-${ticket_id}-comment/${Date.now()}_${file.originalname}`;
                     return (0, blackbaze_1.uploadFile)(file.buffer, fileName, file.mimetype);
                 }));
+                console.log("Image Urls : ", imageUrls);
                 // Validate ticket exists
                 const ticket = yield prisma.tickets.findUnique({
                     where: { id: Number(ticket_id) },
@@ -1949,7 +1964,7 @@ exports.ticketController = {
                     var _a, _b;
                     try {
                         // 📧 Email (async)
-                        sendEmailComment_1.default.sendCommentEmailToCustomer(serializeTicket(ticket), Object.assign(Object.assign({}, comment), { imageUrls, mailCustomer: is_internal }), additionalEmails).catch(console.error);
+                        sendEmailComment_1.default.sendCommentEmailToCustomer(serializeTicket(ticket), Object.assign(Object.assign({}, comment), { imageUrls, mailInternal: is_internal }), additionalEmails).catch(console.error);
                         // ⏱ SLA & ticket update (async)
                         // const countComment = await prisma.ticket_comments.count()
                         // After successfully creating the comment and before ticket update
@@ -1985,6 +2000,7 @@ exports.ticketController = {
                                 where: { id: ticket.id },
                                 data: {
                                     first_response_at: new Date(comment.created_at),
+                                    updated_at: new Date(),
                                     sort_comment: (() => {
                                         const words = new_comment_text.trim().split(/\s+/);
                                         return words.length > 30
@@ -1998,6 +2014,7 @@ exports.ticketController = {
                             yield prisma.tickets.update({
                                 where: { id: ticket.id },
                                 data: {
+                                    updated_at: new Date(),
                                     sort_comment: (() => {
                                         const words = new_comment_text.trim().split(/\s+/);
                                         return words.length > 30

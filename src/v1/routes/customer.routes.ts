@@ -14,35 +14,40 @@ router.post(
   authenticateToken,
   createCustomerValidation,
   validate,
-  customerController.createCustomer
+  customerController.createCustomer,
 );
 router.get(
   "/customers/:id",
   authenticateToken,
-  customerController.getCustomerById
+  customerController.getCustomerById,
 );
 
 router.get("/customers", authenticateToken, customerController.getAllCustomer);
+router.get(
+  "/customers-options",
+  authenticateToken,
+  customerController.getAllCustomerOption,
+);
 
 router.put(
   "/customers/:id",
   authenticateToken,
   updateCustomerValidation,
   validate,
-  customerController.updateCustomer
+  customerController.updateCustomer,
 );
 
 router.delete(
   "/customers/:id",
   authenticateToken,
   validate,
-  customerController.deleteCustomer
+  customerController.deleteCustomer,
 );
 router.delete(
   "/customers",
   authenticateToken,
   validate,
-  customerController.deleteCustomer
+  customerController.deleteCustomer,
 );
 
 export default router;

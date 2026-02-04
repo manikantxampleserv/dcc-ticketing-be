@@ -9,6 +9,7 @@ const express_validator_1 = require("express-validator");
 const routes = (0, express_1.Router)();
 routes.post("/users", auth_1.authenticateToken, multer_1.upload.single("avatar"), user_controller_1.createUser);
 routes.get("/users", auth_1.authenticateToken, (req, res) => (0, user_controller_1.getUsersList)(req, res));
+routes.get("/users-option", auth_1.authenticateToken, (req, res) => (0, user_controller_1.getUsersOption)(req, res));
 routes.get("/users/:id", auth_1.authenticateToken, (req, res) => (0, user_controller_1.getUser)(req, res));
 routes.put("/users/:id", auth_1.authenticateToken, multer_1.upload.single("avatar"), user_controller_1.updateUser);
 routes.delete("/users", auth_1.authenticateToken, user_controller_1.deleteUser);

@@ -124,6 +124,123 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
     res.status(500).json({ error: "internal server error" });
   }
 }
+export async function getUsersOption(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  try {
+    const {
+      page = "1",
+      limit = "1000",
+      search,
+      role_id,
+      department_id,
+    } = req.query;
+    const page_num = parseInt(page as string, 10);
+    const limit_num = parseInt(limit as string, 10);
+
+    const searchLower = ((search || "") as string).toLowerCase();
+    // const filters: any = search
+    //   ? {
+    //       username: {
+    //         contains: searchLower,
+    //       },
+    //       email: {
+    //         contains: searchLower,
+    //       },
+    //       first_name: {
+    //         contains: searchLower,
+    //       },
+    //       last_name: {
+    //         contains: searchLower,
+    //       },
+    //     }
+    //   : {};
+    const filters: any = {};
+
+    // Add search filters using OR condition
+    if (searchLower) {
+      filters.OR = [
+        {
+          username: {
+            contains: searchLower,
+            // mode: "insensitive",
+          },
+        },
+        {
+          email: {
+            contains: searchLower,
+            // mode: "insensitive",
+          },
+        },
+        {
+          first_name: {
+            contains: searchLower,
+            // mode: "insensitive",
+          },
+        },
+        {
+          last_name: {
+            contains: searchLower,
+            // mode: "insensitive",
+          },
+        },
+      ];
+    }
+
+    if (role_id) filters.role_id = Number(role_id);
+    if (department_id) filters.department_id = Number(department_id);
+
+    const total_count = await prisma.users.count({ where: filters });
+
+    const users = await prisma.users.findMany({
+      where: filters,
+      skip: (page_num - 1) * limit_num,
+      take: limit_num,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        phone: true,
+        avatar: true,
+      },
+      // include: {
+      //   user_role: { select: { id: true, name: true } }, // related role
+      //   user_department: { select: { id: true, department_name: true } }, // related department
+      //   tickets: true,
+      //   manager: {
+      //     select: {
+      //       id: true,
+      //       username: true,
+      //       email: true,
+      //       first_name: true,
+      //       last_name: true,
+      //       phone: true,
+      //       avatar: true,
+      //     },
+      //   },
+      // },
+      orderBy: { id: "desc" },
+    });
+
+    res.status(200).json({
+      message: "users retrieved successfully",
+      data: formatUserListAvatars(users),
+      pagination: {
+        current_page: page_num,
+        total_pages: Math.ceil(total_count / limit_num),
+        total_count,
+        has_next: page_num * limit_num < total_count,
+        has_previous: page_num > 1,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "internal server error" });
+  }
+}
 
 export async function getUser(req: Request, res: Response): Promise<void> {
   try {
@@ -175,7 +292,7 @@ export async function createUser(req: any, res: Response): Promise<void> {
       avatarUrl = await uploadFile(
         req.file.buffer,
         fileName,
-        req.file.mimetype
+        req.file.mimetype,
       );
     }
 
@@ -305,7 +422,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       if (existing_user.avatar) {
         const filePath = existing_user.avatar.replace(
           `${process.env.BACKBLAZE_BUCKET_URL}/`,
-          ""
+          "",
         );
         await deleteFile(filePath);
       }
@@ -313,7 +430,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       const avatarUrl = await uploadFile(
         req.file.buffer,
         fileName,
-        req.file.mimetype
+        req.file.mimetype,
       );
       update_data.avatar = avatarUrl;
     }
@@ -357,7 +474,7 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
       "ids ???????????????11111",
       ids,
       Array.isArray(ids) && ids.length > 0,
-      paramId
+      paramId,
     );
     if (paramId && !isNaN(paramId)) {
       const user = await prisma.users.findUnique({ where: { id: paramId } });
@@ -377,7 +494,7 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
     console.log(
       "ids ???????????????",
       ids,
-      Array.isArray(ids) && ids.length > 0
+      Array.isArray(ids) && ids.length > 0,
     );
 
     if (Array.isArray(ids) && ids.length > 0) {
@@ -401,7 +518,7 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
 
 export async function updateUserStatus(
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> {
   try {
     const id = parseInt(req.params.id, 10);

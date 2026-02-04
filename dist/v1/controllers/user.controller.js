@@ -24,6 +24,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getUsersList = getUsersList;
+exports.getUsersOption = getUsersOption;
 exports.getUser = getUser;
 exports.createUser = createUser;
 exports.updateUser = updateUser;
@@ -120,6 +121,113 @@ function getUsersList(req, res) {
                         },
                     },
                 },
+                orderBy: { id: "desc" },
+            });
+            res.status(200).json({
+                message: "users retrieved successfully",
+                data: formatUserListAvatars(users),
+                pagination: {
+                    current_page: page_num,
+                    total_pages: Math.ceil(total_count / limit_num),
+                    total_count,
+                    has_next: page_num * limit_num < total_count,
+                    has_previous: page_num > 1,
+                },
+            });
+        }
+        catch (error) {
+            console.log(error);
+            res.status(500).json({ error: "internal server error" });
+        }
+    });
+}
+function getUsersOption(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { page = "1", limit = "1000", search, role_id, department_id, } = req.query;
+            const page_num = parseInt(page, 10);
+            const limit_num = parseInt(limit, 10);
+            const searchLower = (search || "").toLowerCase();
+            // const filters: any = search
+            //   ? {
+            //       username: {
+            //         contains: searchLower,
+            //       },
+            //       email: {
+            //         contains: searchLower,
+            //       },
+            //       first_name: {
+            //         contains: searchLower,
+            //       },
+            //       last_name: {
+            //         contains: searchLower,
+            //       },
+            //     }
+            //   : {};
+            const filters = {};
+            // Add search filters using OR condition
+            if (searchLower) {
+                filters.OR = [
+                    {
+                        username: {
+                            contains: searchLower,
+                            // mode: "insensitive",
+                        },
+                    },
+                    {
+                        email: {
+                            contains: searchLower,
+                            // mode: "insensitive",
+                        },
+                    },
+                    {
+                        first_name: {
+                            contains: searchLower,
+                            // mode: "insensitive",
+                        },
+                    },
+                    {
+                        last_name: {
+                            contains: searchLower,
+                            // mode: "insensitive",
+                        },
+                    },
+                ];
+            }
+            if (role_id)
+                filters.role_id = Number(role_id);
+            if (department_id)
+                filters.department_id = Number(department_id);
+            const total_count = yield prisma_config_1.default.users.count({ where: filters });
+            const users = yield prisma_config_1.default.users.findMany({
+                where: filters,
+                skip: (page_num - 1) * limit_num,
+                take: limit_num,
+                select: {
+                    id: true,
+                    username: true,
+                    email: true,
+                    first_name: true,
+                    last_name: true,
+                    phone: true,
+                    avatar: true,
+                },
+                // include: {
+                //   user_role: { select: { id: true, name: true } }, // related role
+                //   user_department: { select: { id: true, department_name: true } }, // related department
+                //   tickets: true,
+                //   manager: {
+                //     select: {
+                //       id: true,
+                //       username: true,
+                //       email: true,
+                //       first_name: true,
+                //       last_name: true,
+                //       phone: true,
+                //       avatar: true,
+                //     },
+                //   },
+                // },
                 orderBy: { id: "desc" },
             });
             res.status(200).json({

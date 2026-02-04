@@ -155,7 +155,7 @@ class EmailService {
                 const agentName = (comment === null || comment === void 0 ? void 0 : comment.users)
                     ? `${comment.users.first_name} ${comment.users.last_name}`
                     : "Support Team";
-                let Emails = (comment === null || comment === void 0 ? void 0 : comment.mailCustomer) || isSeparatedEmail
+                let Emails = (comment === null || comment === void 0 ? void 0 : comment.mailInternal) == "false" || isSeparatedEmail
                     ? assignedEmail
                     : [...customerEmail, assignedEmail];
                 if (additionalEmails.length > 0) {
@@ -400,11 +400,11 @@ class EmailService {
                  <span style="color: #666; font-size: 14px;">Subject: ${ticket.subject}</span>
                </td>
                <td style="text-align: right; vertical-align: center;">
-                 ${(comment === null || comment === void 0 ? void 0 : comment.mailCustomer) ||
-                    (isSeparatedEmail &&
-                        `<span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
+                 ${(comment === null || comment === void 0 ? void 0 : comment.mailInternal) == "false" || isSeparatedEmail
+                    ? `<span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
                    ${ticket.status.toUpperCase()}
-                 </span>`)}
+                 </span>`
+                    : ""}
                </td>
              </tr>
            </table>

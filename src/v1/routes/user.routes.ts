@@ -4,6 +4,7 @@ import {
   deleteUser,
   getUser,
   getUsersList,
+  getUsersOption,
   updateUser,
   updateUserStatus,
 } from "../controllers/user.controller";
@@ -23,18 +24,22 @@ routes.post("/users", authenticateToken, upload.single("avatar"), createUser);
 
 routes.get("/users", authenticateToken, (req, res) => getUsersList(req, res));
 
+routes.get("/users-option", authenticateToken, (req, res) =>
+  getUsersOption(req, res),
+);
+
 routes.get("/users/:id", authenticateToken, (req, res) => getUser(req, res));
 
 routes.put(
   "/users/:id",
   authenticateToken,
   upload.single("avatar"),
-  updateUser
+  updateUser,
 );
 
 routes.delete("/users", authenticateToken, deleteUser);
 routes.patch("/users/status/:id", authenticateToken, (req, res) =>
-  updateUserStatus(req, res)
+  updateUserStatus(req, res),
 );
 
 routes.post("/forgot-password", body("email").isEmail(), forgotPassword);
@@ -42,19 +47,19 @@ routes.post("/forgot-password", body("email").isEmail(), forgotPassword);
 routes.post(
   "/reset-password/:token",
   body("password").isLength({ min: 8 }),
-  resetPassword
+  resetPassword,
 );
 
 // OTP flow
 routes.post(
   "/forgot-password/verify-otp",
   body("email").isEmail(),
-  verifyResetOtp
+  verifyResetOtp,
 );
 routes.post(
   "/forgot-password/reset-with-otp",
   body("email").isEmail(),
-  resetPasswordWithOtp
+  resetPasswordWithOtp,
 );
 
 export default routes;

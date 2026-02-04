@@ -1,3 +1,4 @@
+import { updateAgentValidator } from "./../validators/agent.validator";
 import { customers } from "./../../../node_modules/.prisma/client/index.d";
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
@@ -618,7 +619,7 @@ export const ticketController = {
   //         if (systemComment) {
   //           await EmailService.sendCommentEmailToCustomer(
   //             updatedTicket,
-  //             { ...systemComment, mailCustomer: true },
+  //             { ...systemComment, mailInternal: true },
   //             []
   //           );
   //         }
@@ -818,7 +819,7 @@ export const ticketController = {
 
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
-          { ...comment, mailCustomer: false },
+          { ...comment, mailInternal: false },
           [],
         );
         ticket = updatedTicket;
@@ -1039,6 +1040,7 @@ export const ticketController = {
       dataToUpdate.is_merged = true;
       dataToUpdate.merged_into_ticket_id = parentId;
       dataToUpdate.status = "Merged";
+      dataToUpdate.updated_at = new Date();
     }
     try {
       // Execute update and comment creation atomically
@@ -1094,13 +1096,13 @@ export const ticketController = {
         );
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
-          { ...comment, mailCustomer: true },
+          { ...comment, mailInternal: true },
           [agentDetails?.email],
         );
       } else {
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
-          { ...comment, mailCustomer: true },
+          { ...comment, mailInternal: true },
           [],
         );
       }
@@ -1300,6 +1302,13 @@ export const ticketController = {
       // Run all operations in one transaction
       await prisma.$transaction(txOps);
 
+      await prisma.tickets.update({
+        where: { id: ticketId },
+        data: {
+          updated_at: new Date(),
+        },
+      });
+
       // Reload ticket
       const finalTicket = await prisma.tickets.findUnique({
         where: { id: ticketId },
@@ -1323,7 +1332,7 @@ export const ticketController = {
       // Notify customers
       await EmailService.sendCommentEmailToCustomer(
         finalTicket,
-        { mailCustomer: true },
+        { mailInternal: true },
         [],
       );
 
@@ -1496,6 +1505,7 @@ export const ticketController = {
         status = "",
         priority = "",
         assigned_agent_id = "",
+        customer_id = "",
       } = req.query;
       const page_num = parseInt(page as string, 10);
       const limit_num = parseInt(limit as string, 10);
@@ -1610,6 +1620,11 @@ export const ticketController = {
           equals: Number(assigned_agent_id),
         };
       }
+      if (customer_id) {
+        filters.customer_id = {
+          equals: Number(customer_id),
+        };
+      }
       if (priorityFilter) {
         filters.sla_priority = {
           priority: {
@@ -1658,6 +1673,7 @@ export const ticketController = {
           start_timer_at: true,
           created_at: true,
           updated_at: true,
+          support_level_id: true,
 
           // Relations with nested select
           users: {
@@ -2128,6 +2144,7 @@ export const ticketController = {
       //     imageUrls.push(imageUrl);
       //   }
       // }
+      console.log("Getting File s : ", req.files, req.file);
       const imageUrls = await Promise.all(
         (req.files || []).map((file: any) => {
           const fileName = `ticket-${ticket_id}-comment/${Date.now()}_${
@@ -2136,6 +2153,7 @@ export const ticketController = {
           return uploadFile(file.buffer, fileName, file.mimetype);
         }),
       );
+      console.log("Image Urls : ", imageUrls);
 
       // Validate ticket exists
       const ticket = await prisma.tickets.findUnique({
@@ -2262,7 +2280,7 @@ export const ticketController = {
             {
               ...comment,
               imageUrls,
-              mailCustomer: is_internal,
+              mailInternal: is_internal,
             },
             additionalEmails,
           ).catch(console.error);
@@ -2309,6 +2327,7 @@ export const ticketController = {
               where: { id: ticket.id },
               data: {
                 first_response_at: new Date(comment.created_at),
+                updated_at: new Date(),
                 sort_comment: (() => {
                   const words = new_comment_text.trim().split(/\s+/);
                   return words.length > 30
@@ -2321,6 +2340,7 @@ export const ticketController = {
             await prisma.tickets.update({
               where: { id: ticket.id },
               data: {
+                updated_at: new Date(),
                 sort_comment: (() => {
                   const words = new_comment_text.trim().split(/\s+/);
                   return words.length > 30

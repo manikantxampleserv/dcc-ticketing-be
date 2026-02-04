@@ -76,9 +76,9 @@ export async function getFeedback(req: any, res: any): Promise<void> {
         // Someone already used the link (status no longer 'Resolved')
         throw Object.assign(
           new Error(
-            "This feedback link has already been used or is no longer valid."
+            "This feedback link has already been used or is no longer valid.",
           ),
-          { status: 410 }
+          { status: 410 },
         );
       }
 
@@ -130,10 +130,10 @@ The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket
         });
         const emailRs = emailService.sendCommentEmailToCustomer(
           ticket,
-          { ...comments, mailCustomer: false },
+          { ...comments, mailInternal: true },
           //           `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution.
           // The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}.`,
-          [ticket?.agents_user?.manager?.email]
+          [ticket?.agents_user?.manager?.email],
         );
       }
 

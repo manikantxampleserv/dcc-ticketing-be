@@ -126,7 +126,7 @@ The ticket remains assigned to Agent ${(_h = ticket === null || ticket === void 
                             sent_via: "in_app",
                         },
                     });
-                    const emailRs = sendEmailComment_1.default.sendCommentEmailToCustomer(ticket, Object.assign(Object.assign({}, comments), { mailCustomer: false }), 
+                    const emailRs = sendEmailComment_1.default.sendCommentEmailToCustomer(ticket, Object.assign(Object.assign({}, comments), { mailInternal: true }), 
                     //           `Ticket ${ticket.ticket_number} was reopened by the customer due to dissatisfaction with the resolution.
                     // The ticket remains assigned to Agent ${ticket?.agents_user?.first_name} ${ticket?.agents_user?.last_name}.`,
                     [(_l = (_k = ticket === null || ticket === void 0 ? void 0 : ticket.agents_user) === null || _k === void 0 ? void 0 : _k.manager) === null || _l === void 0 ? void 0 : _l.email]);
