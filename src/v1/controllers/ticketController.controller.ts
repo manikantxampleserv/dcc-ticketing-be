@@ -726,6 +726,10 @@ export const ticketController = {
       }
       // Always update updated_at
       dataToUpdate.updated_at = new Date();
+      dataToUpdate.reopen_count =
+        newStatus == "ReOpen"
+          ? Number(existing?.reopen_count) + 1
+          : existing?.reopen_count;
       const commentText =
         newStatus === "Closed"
           ? `Ticket is closed , Remarks : "${reason}".`
