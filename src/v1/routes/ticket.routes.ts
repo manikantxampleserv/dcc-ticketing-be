@@ -10,13 +10,13 @@ import { ticketController } from "../controllers/ticketController.controller";
 
 const router = Router();
 
-uploadSingleFile("attachment"),
+(uploadSingleFile("attachment"),
   router.post(
     "/ticket",
     authenticateToken,
     uploadSingleFile("attachment_urls"),
-    ticketController.createTicket
-  );
+    ticketController.createTicket,
+  ));
 router.post(
   "/ticket-comment",
   authenticateToken,
@@ -24,30 +24,35 @@ router.post(
   handleUploadErrors, // 👈 IMPORTANT
   // uploadSingleFile("attachment"),
   //   upload.single("attachment"),
-  ticketController.createComment
+  ticketController.createComment,
 );
 
 router.put("/ticket/:id", authenticateToken, ticketController.updateTicket);
 router.put(
   "/ticket-action/:id",
   authenticateToken,
-  ticketController.actionsTicket
+  ticketController.actionsTicket,
 );
 
 router.put(
   "/ticket-merge/:id",
   authenticateToken,
-  ticketController.mergeTicket
+  ticketController.mergeTicket,
 );
 router.put(
   "/ticket-cc-add/:id",
   authenticateToken,
-  ticketController.addCCTicket
+  ticketController.addCCTicket,
 );
 
 router.get("/ticket/:id", authenticateToken, ticketController.getTicketById);
 
 router.get("/ticket", authenticateToken, ticketController.getAllTicket);
+router.get(
+  "/ticket-for-customer",
+  authenticateToken,
+  ticketController.getAllTicketForCutomer,
+);
 router.get("/ticket-list", authenticateToken, ticketController.getListTicket);
 
 router.delete("/ticket", validate, ticketController.deleteTicket);

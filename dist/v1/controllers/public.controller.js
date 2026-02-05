@@ -74,6 +74,9 @@ function getFeedback(req, res) {
                     where: { id: ticketId, status: "Resolved" }, // only update if still unresolved feedback
                     data: {
                         status: nextStatus,
+                        reopen_count: nextStatus === "ReOpen"
+                            ? Number(ticket === null || ticket === void 0 ? void 0 : ticket.reopen_count) + 1
+                            : ticket === null || ticket === void 0 ? void 0 : ticket.reopen_count,
                         updated_at: new Date(),
                     },
                 });

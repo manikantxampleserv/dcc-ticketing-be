@@ -68,6 +68,10 @@ export async function getFeedback(req: any, res: any): Promise<void> {
         where: { id: ticketId, status: "Resolved" }, // only update if still unresolved feedback
         data: {
           status: nextStatus,
+          reopen_count:
+            nextStatus === "ReOpen"
+              ? Number(ticket?.reopen_count) + 1
+              : ticket?.reopen_count,
           updated_at: new Date(),
         },
       });
