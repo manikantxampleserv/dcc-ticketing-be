@@ -1507,6 +1507,7 @@ export const ticketController = {
         limit = "10",
         search = "",
         status = "",
+        reopen_count = "",
         priority = "",
         assigned_agent_id = "",
         customer_id = "",
@@ -1611,6 +1612,12 @@ export const ticketController = {
         filters.status = {
           equals: statusFilter,
           // mode: "insensitive",
+        };
+      }
+      if (reopen_count) {
+        filters.reopen_count = {
+          not: null,
+          gt: 0,
         };
       }
       if (statusFilter === "SLA Breached") {
@@ -1846,6 +1853,7 @@ export const ticketController = {
         limit = "10",
         search = "",
         status = "",
+        reopen_count = "",
         priority = "",
         assigned_agent_id = "",
         customer_id = "",
@@ -1950,6 +1958,12 @@ export const ticketController = {
         filters.status = {
           equals: statusFilter,
           // mode: "insensitive",
+        };
+      }
+      if (reopen_count) {
+        filters.reopen_count = {
+          not: null,
+          gt: 0,
         };
       }
       if (statusFilter === "SLA Breached") {

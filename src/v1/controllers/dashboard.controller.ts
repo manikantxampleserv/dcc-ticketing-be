@@ -38,7 +38,7 @@ type IntervalKey = "day" | "week" | "month";
 
 function startOfUTCDay(d: Date) {
   return new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
   );
 }
 
@@ -55,7 +55,7 @@ function isoDateKey(d: Date, interval: IntervalKey) {
   if (interval === "month")
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(
       2,
-      "0"
+      "0",
     )}`;
   if (interval === "week") {
     const start = startOfUTCDay(d);
@@ -147,6 +147,15 @@ export const dashboardController = {
       const breachedTickets = await prisma.tickets.count({
         where: { ...filter, sla_status: "Breached" },
       });
+      const reOpenedTickets = await prisma.tickets.count({
+        where: {
+          ...filter,
+          reopen_count: {
+            not: null,
+            gt: 0,
+          },
+        },
+      });
 
       const today = new Date();
       today.setUTCHours(0, 0, 0, 0);
@@ -187,6 +196,7 @@ export const dashboardController = {
         totalUnAssigned,
         progressTickets,
         breachedTickets,
+        totalReOpenTicket: reOpenedTickets,
       });
     } catch (error: any) {
       res.error(error.message);
@@ -344,7 +354,7 @@ export const dashboardController = {
   async trendsData(req: Request, res: Response): Promise<void> {
     try {
       const metric = String(
-        req.query.metric || "first_response_time"
+        req.query.metric || "first_response_time",
       ) as MetricKey;
       const interval = String(req.query.interval || "day") as IntervalKey;
       const { from, to } = parseDateRange(req.query); // should return Date objects

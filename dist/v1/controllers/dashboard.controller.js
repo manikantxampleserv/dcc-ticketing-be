@@ -145,6 +145,12 @@ exports.dashboardController = {
                 const breachedTickets = yield prisma.tickets.count({
                     where: Object.assign(Object.assign({}, filter), { sla_status: "Breached" }),
                 });
+                const reOpenedTickets = yield prisma.tickets.count({
+                    where: Object.assign(Object.assign({}, filter), { reopen_count: {
+                            not: null,
+                            gt: 0,
+                        } }),
+                });
                 const today = new Date();
                 today.setUTCHours(0, 0, 0, 0);
                 const tomorrow = new Date(today);
@@ -170,6 +176,7 @@ exports.dashboardController = {
                     totalUnAssigned,
                     progressTickets,
                     breachedTickets,
+                    totalReOpenTicket: reOpenedTickets,
                 });
             }
             catch (error) {

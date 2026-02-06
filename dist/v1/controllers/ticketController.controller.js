@@ -1268,7 +1268,7 @@ exports.ticketController = {
     getAllTicket(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const { page = "1", limit = "10", search = "", status = "", priority = "", assigned_agent_id = "", customer_id = "", end_date = "", start_date = "", } = req.query;
+                const { page = "1", limit = "10", search = "", status = "", reopen_count = "", priority = "", assigned_agent_id = "", customer_id = "", end_date = "", start_date = "", } = req.query;
                 const page_num = parseInt(page, 10);
                 const limit_num = parseInt(limit, 10);
                 const searchTerm = search.toLowerCase().trim();
@@ -1363,6 +1363,12 @@ exports.ticketController = {
                     filters.status = {
                         equals: statusFilter,
                         // mode: "insensitive",
+                    };
+                }
+                if (reopen_count) {
+                    filters.reopen_count = {
+                        not: null,
+                        gt: 0,
                     };
                 }
                 if (statusFilter === "SLA Breached") {
@@ -1576,7 +1582,7 @@ exports.ticketController = {
     getAllTicketForCutomer(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const { page = "1", limit = "10", search = "", status = "", priority = "", assigned_agent_id = "", customer_id = "", end_date = "", start_date = "", } = req.query;
+                const { page = "1", limit = "10", search = "", status = "", reopen_count = "", priority = "", assigned_agent_id = "", customer_id = "", end_date = "", start_date = "", } = req.query;
                 const page_num = parseInt(page, 10);
                 const limit_num = parseInt(limit, 10);
                 const searchTerm = search.toLowerCase().trim();
@@ -1671,6 +1677,12 @@ exports.ticketController = {
                     filters.status = {
                         equals: statusFilter,
                         // mode: "insensitive",
+                    };
+                }
+                if (reopen_count) {
+                    filters.reopen_count = {
+                        not: null,
+                        gt: 0,
                     };
                 }
                 if (statusFilter === "SLA Breached") {
