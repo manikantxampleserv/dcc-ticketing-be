@@ -198,8 +198,8 @@ model customers {
   id                       Int                        @id @default(autoincrement())
   company_id               Int
   first_name               String                     @db.NVarChar(100)
-  last_name                String                     @db.NVarChar(100)
-  email                    String                     @unique @db.NVarChar(255)
+  last_name                String?                    @db.NVarChar(100)
+  email                    String?
   phone                    String?                    @db.NVarChar(50)
   job_title                String?                    @db.NVarChar(100)
   is_active                Boolean?                   @default(true)
