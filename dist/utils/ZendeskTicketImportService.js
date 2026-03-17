@@ -89,7 +89,7 @@ class ZendeskTicketImportService {
             var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
             try {
                 console.log("Starting Zendesk Ticket Import...");
-                let url = `${ZENDESK_DOMAIN}/api/v2/incremental/tickets.json?start_time=1771545600&include=users`;
+                let url = `${ZENDESK_DOMAIN}/api/v2/incremental/tickets.json?start_time=1773705600&include=users`;
                 const slaPriorities = yield prisma.sla_configurations.findMany({
                     where: { is_active: true },
                 });
@@ -133,7 +133,7 @@ class ZendeskTicketImportService {
                             name: u.name,
                         };
                     });
-                    for (const t of tickets.slice(8)) {
+                    for (const t of tickets.slice(22)) {
                         const ticketNumber = `TCKT-${t.id}`;
                         const email = (_f = (_e = (_d = (_c = t === null || t === void 0 ? void 0 : t.via) === null || _c === void 0 ? void 0 : _c.source) === null || _d === void 0 ? void 0 : _d.from) === null || _e === void 0 ? void 0 : _e.address) === null || _f === void 0 ? void 0 : _f.toLowerCase();
                         const name = (_k = (_j = (_h = (_g = t === null || t === void 0 ? void 0 : t.via) === null || _g === void 0 ? void 0 : _g.source) === null || _h === void 0 ? void 0 : _h.from) === null || _j === void 0 ? void 0 : _j.name) === null || _k === void 0 ? void 0 : _k.toLowerCase();

@@ -57,7 +57,6 @@ const GenerateTicket_1 = require("../utils/GenerateTicket");
 const blackbaze_1 = require("../utils/blackbaze");
 const slaMonitorService_1 = __importDefault(require("./slaMonitorService"));
 const ticketController_controller_1 = require("../v1/controllers/ticketController.controller");
-const sendSatisfactionEmail_1 = require("./sendSatisfactionEmail");
 const emailImageExtractor_1 = require("./emailImageExtractor");
 dotenv.config();
 const prisma = new client_1.PrismaClient();
@@ -638,16 +637,16 @@ class SimpleEmailTicketSystem {
             //   this.cleanPlainEmailText(bodyText.trim()),
             //   JSON.stringify(aiResponse)
             // );
-            if ((aiResponse === null || aiResponse === void 0 ? void 0 : aiResponse.success) && customer) {
-                yield (0, sendSatisfactionEmail_1.sendSatisfactionEmail)({
-                    body: aiResponse.answer,
-                    ticketId: tickets.id,
-                    requesterEmail: customer === null || customer === void 0 ? void 0 : customer.email,
-                    // requesterEmail:  senderEmail,
-                    ticketNumber: updatedTicket.ticket_number,
-                    requesterName: senderNames || "",
-                });
-            }
+            // if (aiResponse?.success && customer) {
+            //   await sendSatisfactionEmail({
+            //     body: aiResponse.answer,
+            //     ticketId: tickets.id,
+            //     requesterEmail: customer?.email,
+            //     // requesterEmail:  senderEmail,
+            //     ticketNumber: updatedTicket.ticket_number,
+            //     requesterName: senderNames || "",
+            //   });
+            // }
             try {
                 yield (0, ticketController_controller_1.generateSLAHistory)(tickets.id, slaConfig ? slaConfig.id : 0, tickets.created_at || new Date());
             }

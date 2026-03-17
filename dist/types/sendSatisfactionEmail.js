@@ -59,7 +59,7 @@ const sendSatisfactionEmail = (_a) => __awaiter(void 0, [_a], void 0, function* 
     yield transporter.sendMail({
         to: requesterEmail,
         from: process.env.MAIL_FROM,
-        cc: ["shreyansh.tripathi@ampleserv.com", "anil.kumar@ampleserv.com"],
+        // cc: ["shreyansh.tripathi@ampleserv.com", "anil.kumar@ampleserv.com"],
         subject: `Ticket #${ticketNumber} resolved — quick feedback`,
         html,
     });

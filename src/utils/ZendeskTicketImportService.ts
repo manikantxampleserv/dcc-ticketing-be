@@ -92,7 +92,7 @@ export class ZendeskTicketImportService {
     try {
       console.log("Starting Zendesk Ticket Import...");
 
-      let url = `${ZENDESK_DOMAIN}/api/v2/incremental/tickets.json?start_time=1771545600&include=users`;
+      let url = `${ZENDESK_DOMAIN}/api/v2/incremental/tickets.json?start_time=1773705600&include=users`;
 
       const slaPriorities = await prisma.sla_configurations.findMany({
         where: { is_active: true },
@@ -142,7 +142,7 @@ export class ZendeskTicketImportService {
           };
         });
 
-        for (const t of tickets.slice(8)) {
+        for (const t of tickets.slice(22)) {
           const ticketNumber = `TCKT-${t.id}`;
           const email = t?.via?.source?.from?.address?.toLowerCase();
           const name = t?.via?.source?.from?.name?.toLowerCase();

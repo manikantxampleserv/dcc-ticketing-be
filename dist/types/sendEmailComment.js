@@ -133,7 +133,7 @@ class EmailService {
     }
     sendCommentEmailToCustomer(ticket, comment, additionalEmails) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d;
+            var _a, _b, _c;
             try {
                 // ✅ Ensure transporter is initialized
                 yield this.ensureTransporter();
@@ -145,13 +145,13 @@ class EmailService {
                 const subject = (additionalEmails === null || additionalEmails === void 0 ? void 0 : additionalEmails.length) && isSeparatedEmail
                     ? `${comment}`
                     : `Re: ${ticket.subject}`;
-                const customerEmail = ((_a = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _a === void 0 ? void 0 : _a.email)
-                    ? [(_b = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _b === void 0 ? void 0 : _b.email]
-                    : [];
-                // const customerEmail = ticket.customers?.email
-                //   ? [ticket.customer_email, ticket.customers.email]
-                //   : [ticket.customer_email];
-                const assignedEmail = (_c = ticket.agents_user) === null || _c === void 0 ? void 0 : _c.email;
+                // const customerEmail = ticket?.customers?.email
+                //   ? [ticket?.customers?.email]
+                //   : [];
+                const customerEmail = ((_a = ticket.customers) === null || _a === void 0 ? void 0 : _a.email)
+                    ? [ticket.customer_email, ticket.customers.email]
+                    : [ticket.customer_email];
+                const assignedEmail = (_b = ticket.agents_user) === null || _b === void 0 ? void 0 : _b.email;
                 const agentName = (comment === null || comment === void 0 ? void 0 : comment.users)
                     ? `${comment.users.first_name} ${comment.users.last_name}`
                     : "Support Team";
@@ -289,9 +289,9 @@ class EmailService {
                     to: Emails,
                     // to: customerEmail,
                     cc: [
-                        "shreyansh.tripathi@ampleserv.com",
-                        "anil.kumar@ampleserv.com",
-                        ...(((_d = ticket === null || ticket === void 0 ? void 0 : ticket.cc_of_ticket) === null || _d === void 0 ? void 0 : _d.length)
+                        // "shreyansh.tripathi@ampleserv.com",
+                        // "anil.kumar@ampleserv.com",
+                        ...(((_c = ticket === null || ticket === void 0 ? void 0 : ticket.cc_of_ticket) === null || _c === void 0 ? void 0 : _c.length)
                             ? ticket.cc_of_ticket.map((cc) => cc.email)
                             : []),
                     ],

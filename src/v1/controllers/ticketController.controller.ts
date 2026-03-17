@@ -806,20 +806,20 @@ export const ticketController = {
             },
           }),
         ]);
-        await sendSatisfactionEmail({
-          body: "Resolved",
-          ticketId: updatedTicket.id,
-          requesterEmail:
-            // updatedTicket?.customer_email ||
-            updatedTicket?.customers?.email || "",
-          ticketNumber: updatedTicket.ticket_number,
-          requesterName:
-            updatedTicket?.customer_name ||
-            updatedTicket?.customers?.first_name +
-              " " +
-              updatedTicket?.customers?.last_name ||
-            "",
-        });
+        // await sendSatisfactionEmail({
+        //   body: "Resolved",
+        //   ticketId: updatedTicket.id,
+        //   requesterEmail:
+        //     // updatedTicket?.customer_email ||
+        //     updatedTicket?.customers?.email || "",
+        //   ticketNumber: updatedTicket.ticket_number,
+        //   requesterName:
+        //     updatedTicket?.customer_name ||
+        //     updatedTicket?.customers?.first_name +
+        //       " " +
+        //       updatedTicket?.customers?.last_name ||
+        //     "",
+        // });
         // Mark resolution SLA as completed (monitoring service will determine if breached)
         await ticketController.handleSLACompletion(id, req.body.status);
 

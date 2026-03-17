@@ -166,12 +166,12 @@ class EmailService {
           ? `${comment}`
           : `Re: ${ticket.subject}`;
 
-      const customerEmail = ticket?.customers?.email
-        ? [ticket?.customers?.email]
-        : [];
-      // const customerEmail = ticket.customers?.email
-      //   ? [ticket.customer_email, ticket.customers.email]
-      //   : [ticket.customer_email];
+      // const customerEmail = ticket?.customers?.email
+      //   ? [ticket?.customers?.email]
+      //   : [];
+      const customerEmail = ticket.customers?.email
+        ? [ticket.customer_email, ticket.customers.email]
+        : [ticket.customer_email];
       const assignedEmail = ticket.agents_user?.email;
       const agentName = comment?.users
         ? `${comment.users.first_name} ${comment.users.last_name}`
@@ -337,8 +337,8 @@ class EmailService {
         to: Emails,
         // to: customerEmail,
         cc: [
-          "shreyansh.tripathi@ampleserv.com",
-          "anil.kumar@ampleserv.com",
+          // "shreyansh.tripathi@ampleserv.com",
+          // "anil.kumar@ampleserv.com",
           ...(ticket?.cc_of_ticket?.length
             ? ticket.cc_of_ticket.map((cc: any) => cc.email)
             : []),

@@ -798,16 +798,16 @@ class SimpleEmailTicketSystem {
     //   this.cleanPlainEmailText(bodyText.trim()),
     //   JSON.stringify(aiResponse)
     // );
-    if (aiResponse?.success && customer) {
-      await sendSatisfactionEmail({
-        body: aiResponse.answer,
-        ticketId: tickets.id,
-        requesterEmail: customer?.email,
-        // requesterEmail:  senderEmail,
-        ticketNumber: updatedTicket.ticket_number,
-        requesterName: senderNames || "",
-      });
-    }
+    // if (aiResponse?.success && customer) {
+    //   await sendSatisfactionEmail({
+    //     body: aiResponse.answer,
+    //     ticketId: tickets.id,
+    //     requesterEmail: customer?.email,
+    //     // requesterEmail:  senderEmail,
+    //     ticketNumber: updatedTicket.ticket_number,
+    //     requesterName: senderNames || "",
+    //   });
+    // }
     try {
       await generateSLAHistory(
         tickets.id,
