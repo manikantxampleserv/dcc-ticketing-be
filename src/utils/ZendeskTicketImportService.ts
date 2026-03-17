@@ -4,6 +4,9 @@ import { PrismaClient } from "@prisma/client";
 // import { uploadToBackblaze } from "types/uploadBackblaze";
 import { uploadFile } from "./blackbaze";
 import { generateTicketNumber } from "./GenerateTicket";
+import pLimit from "p-limit";
+
+const limit = pLimit(2); // max 2 parallel requests
 
 const prisma = new PrismaClient();
 
@@ -22,6 +25,28 @@ const zendeskToSLAPriority: any = {
   low: "Low",
 };
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const safeAxios = async (url: string, options: any = {}) => {
+  while (true) {
+    try {
+      return await axios.get(url, {
+        auth: AUTH,
+        ...options,
+      });
+    } catch (err: any) {
+      if (err.response?.status === 429) {
+        const retryAfter = err.response.headers["retry-after"];
+        const wait = retryAfter ? Number(retryAfter) * 1000 : 10000;
+
+        console.log(`429 hit → waiting ${wait / 1000}s`);
+        await new Promise((r) => setTimeout(r, wait));
+      } else {
+        throw err;
+      }
+    }
+  }
+};
 export class ZendeskTicketImportService {
   // static async importTickets() {
   //   try {
@@ -92,7 +117,7 @@ export class ZendeskTicketImportService {
     try {
       console.log("Starting Zendesk Ticket Import...");
 
-      let url = `${ZENDESK_DOMAIN}/api/v2/incremental/tickets.json?start_time=1773705600&include=users`;
+      let url = `${ZENDESK_DOMAIN}/api/v2/incremental/tickets.json?start_time=1767100000&include=users`;
 
       const slaPriorities = await prisma.sla_configurations.findMany({
         where: { is_active: true },
@@ -120,18 +145,18 @@ export class ZendeskTicketImportService {
       });
 
       while (url) {
-        let response;
-
-        try {
-          response = await axios.get(url, { auth: AUTH });
-        } catch (err: any) {
-          if (err.response?.status === 429) {
-            console.log("Rate limit hit, waiting 10 seconds...");
-            await new Promise((r) => setTimeout(r, 10000));
-            continue;
-          }
-          throw err;
-        }
+        // let response;
+        const response = await safeAxios(url);
+        // try {
+        //   response = await axios.get(url, { auth: AUTH });
+        // } catch (err: any) {
+        //   if (err.response?.status === 429) {
+        //     console.log("Rate limit hit, waiting 10 seconds...");
+        //     await new Promise((r) => setTimeout(r, 10000));
+        //     continue;
+        //   }
+        //   throw err;
+        // }
         const tickets = response.data.tickets;
 
         const userMap: any = {};
@@ -142,7 +167,7 @@ export class ZendeskTicketImportService {
           };
         });
 
-        for (const t of tickets.slice(22)) {
+        for (const t of tickets) {
           const ticketNumber = `TCKT-${t.id}`;
           const email = t?.via?.source?.from?.address?.toLowerCase();
           const name = t?.via?.source?.from?.name?.toLowerCase();
@@ -183,6 +208,7 @@ export class ZendeskTicketImportService {
             data: {
               ticket_number: ticketNumber,
               subject: t.subject || "No Subject",
+              zendesk_ticket_id: t.id,
               description: t.description || "",
               email_body_text: t.description || "",
               priority: slaPriorityId,
@@ -209,12 +235,21 @@ export class ZendeskTicketImportService {
 
           console.log("Ticket Imported:", ticket.ticket_number);
 
-          await this.importComments(
-            t.id,
-            ticket.id,
-            userMap,
-            customerDomainMap,
-            userEmailMap,
+          //   await this.importComments(
+          //     t.id,
+          //     ticket.id,
+          //     userMap,
+          //     customerDomainMap,
+          //     userEmailMap,
+          //   );
+          await limit(() =>
+            this.importComments(
+              t.id,
+              ticket.id,
+              userMap,
+              customerDomainMap,
+              userEmailMap,
+            ),
           );
         }
 
@@ -591,11 +626,22 @@ export class ZendeskTicketImportService {
     try {
       const url = `${ZENDESK_DOMAIN}/api/v2/tickets/${zendeskTicketId}/comments.json`;
 
-      const response = await axios.get(url, { auth: AUTH });
+      // const response = await axios.get(url, { auth: AUTH });
+      const response = await safeAxios(url);
 
       const comments = response.data.comments;
-
       for (const c of comments) {
+        await new Promise((r) => setTimeout(r, 400));
+
+        // ✅ prevent duplicate comments
+        const existsComment = await prisma.ticket_comments.findFirst({
+          where: {
+            email_message_id: c.metadata?.system?.message_id,
+          },
+        });
+
+        if (existsComment) continue;
+
         let userId = null;
         let customerId = null;
         let attachmentUrls: string[] = [];
@@ -612,85 +658,59 @@ export class ZendeskTicketImportService {
           }
         }
 
+        /* -------- CC HANDLING (OPTIMIZED) -------- */
+
         const recipients = c?.via?.source?.from?.original_recipients || [];
+
+        const ccData: any[] = [];
 
         for (const recipient of recipients) {
           const email = recipient.toLowerCase();
 
-          /* skip zendesk system emails if needed */
           if (email.includes("@dcctz.zendesk.com")) continue;
 
           const userId = userEmailMap[email] || null;
 
           if (userId) {
-            const exists = await prisma.cc_of_ticket.findFirst({
-              where: {
-                ticket_id: localTicketId,
-                user_id: userId,
-              },
-            });
-
-            if (!exists) {
-              await prisma.cc_of_ticket.create({
-                data: {
-                  ticket_id: localTicketId,
-                  user_id: userId,
-                },
-              });
-            }
+            ccData.push({ ticket_id: localTicketId, user_id: userId });
           } else {
-            const exists = await prisma.cc_of_ticket.findFirst({
-              where: {
-                ticket_id: localTicketId,
-                others_of_ticket_cc: email,
-              },
+            ccData.push({
+              ticket_id: localTicketId,
+              others_of_ticket_cc: email,
             });
-
-            if (!exists) {
-              await prisma.cc_of_ticket.create({
-                data: {
-                  ticket_id: localTicketId,
-                  others_of_ticket_cc: email,
-                },
-              });
-            }
           }
         }
+
+        if (ccData.length) {
+          await prisma.cc_of_ticket.createMany({
+            data: ccData,
+            // skipDuplicates: true,
+          });
+        }
+
         /* -------- ATTACHMENTS -------- */
 
-        // if (c.attachments?.length) {
-        //   attachmentUrls = await Promise.all(
-        //     c.attachments.map(async (a: any) => {
-        //       const fileResponse = await axios.get(a.content_url, {
-        //         responseType: "arraybuffer",
-        //         auth: AUTH,
-        //       });
-
-        //       const buffer = Buffer.from(fileResponse.data);
-
-        //       return uploadToBackblaze(buffer, a.file_name, a.content_type, {
-        //         folder: `ticket-attachments/ZD-${zendeskTicketId}`,
-        //         processImage: false,
-        //       });
-        //     }),
-        //   );
-        // }
         if (c.attachments?.length) {
+          const attachmentLimit = pLimit(2);
+
           attachmentUrls = await Promise.all(
-            c.attachments.map(async (a: any) => {
-              const fileResponse = await axios.get(a.content_url, {
-                responseType: "arraybuffer",
-                auth: AUTH,
-              });
+            c.attachments.map((a: any) =>
+              attachmentLimit(async () => {
+                const fileResponse = await safeAxios(a.content_url, {
+                  responseType: "arraybuffer",
+                });
 
-              const buffer = Buffer.from(fileResponse.data);
+                const buffer = Buffer.from(fileResponse.data);
 
-              const fileName = `ticket-comment-attachments/ZD-${zendeskTicketId}/${Date.now()}-${a.file_name}`;
+                const fileName = `ticket-comment-attachments/ZD-${zendeskTicketId}/${Date.now()}-${a.file_name}`;
 
-              return uploadFile(buffer, fileName, a.content_type);
-            }),
+                return uploadFile(buffer, fileName, a.content_type);
+              }),
+            ),
           );
         }
+
+        /* -------- SAVE COMMENT -------- */
 
         await prisma.ticket_comments.create({
           data: {
@@ -709,6 +729,143 @@ export class ZendeskTicketImportService {
           },
         });
       }
+      // for (const c of comments) {
+      //   await new Promise((r) => setTimeout(r, 200));
+      //   let userId = null;
+      //   let customerId = null;
+      //   let attachmentUrls: string[] = [];
+
+      //   const zendeskAuthor = userMap[c.author_id];
+      //   const authorEmail = zendeskAuthor?.email?.toLowerCase();
+
+      //   if (authorEmail) {
+      //     userId = userEmailMap[authorEmail] || null;
+
+      //     if (!userId) {
+      //       const domain = authorEmail.split("@")[1];
+      //       customerId = customerDomainMap[domain] || null;
+      //     }
+      //   }
+
+      //   const recipients = c?.via?.source?.from?.original_recipients || [];
+
+      //   for (const recipient of recipients) {
+      //     const email = recipient.toLowerCase();
+
+      //     /* skip zendesk system emails if needed */
+      //     if (email.includes("@dcctz.zendesk.com")) continue;
+
+      //     const userId = userEmailMap[email] || null;
+
+      //     if (userId) {
+      //       const exists = await prisma.cc_of_ticket.findFirst({
+      //         where: {
+      //           ticket_id: localTicketId,
+      //           user_id: userId,
+      //         },
+      //       });
+
+      //       if (!exists) {
+      //         await prisma.cc_of_ticket.create({
+      //           data: {
+      //             ticket_id: localTicketId,
+      //             user_id: userId,
+      //           },
+      //         });
+      //       }
+      //     } else {
+      //       const exists = await prisma.cc_of_ticket.findFirst({
+      //         where: {
+      //           ticket_id: localTicketId,
+      //           others_of_ticket_cc: email,
+      //         },
+      //       });
+
+      //       if (!exists) {
+      //         await prisma.cc_of_ticket.create({
+      //           data: {
+      //             ticket_id: localTicketId,
+      //             others_of_ticket_cc: email,
+      //           },
+      //         });
+      //       }
+      //     }
+      //   }
+      //   /* -------- ATTACHMENTS -------- */
+
+      //   // if (c.attachments?.length) {
+      //   //   attachmentUrls = await Promise.all(
+      //   //     c.attachments.map(async (a: any) => {
+      //   //       const fileResponse = await axios.get(a.content_url, {
+      //   //         responseType: "arraybuffer",
+      //   //         auth: AUTH,
+      //   //       });
+
+      //   //       const buffer = Buffer.from(fileResponse.data);
+
+      //   //       return uploadToBackblaze(buffer, a.file_name, a.content_type, {
+      //   //         folder: `ticket-attachments/ZD-${zendeskTicketId}`,
+      //   //         processImage: false,
+      //   //       });
+      //   //     }),
+      //   //   );
+      //   // }
+      //   if (c.attachments?.length) {
+      //     const attachmentLimit = pLimit(2);
+
+      //     attachmentUrls = await Promise.all(
+      //       c.attachments.map((a: any) =>
+      //         attachmentLimit(async () => {
+      //           const fileResponse = await safeAxios(a.content_url, {
+      //             responseType: "arraybuffer",
+      //           });
+
+      //           const buffer = Buffer.from(fileResponse.data);
+
+      //           const fileName = `ticket-comment-attachments/ZD-${zendeskTicketId}/${Date.now()}-${a.file_name}`;
+
+      //           return uploadFile(buffer, fileName, a.content_type);
+      //         }),
+      //       ),
+      //     );
+      //   }
+      //   // if (c.attachments?.length) {
+      //   //   attachmentUrls = await Promise.all(
+      //   //     c.attachments.map(async (a: any) => {
+      //   //       const fileResponse = await safeAxios(a.content_url, {
+      //   //         responseType: "arraybuffer",
+      //   //       });
+      //   //       // const fileResponse = await axios.get(a.content_url, {
+      //   //       //   responseType: "arraybuffer",
+      //   //       //   auth: AUTH,
+      //   //       // });
+
+      //   //       const buffer = Buffer.from(fileResponse.data);
+
+      //   //       const fileName = `ticket-comment-attachments/ZD-${zendeskTicketId}/${Date.now()}-${a.file_name}`;
+
+      //   //       return uploadFile(buffer, fileName, a.content_type);
+      //   //     }),
+      //   //   );
+      //   // }
+
+      //   await prisma.ticket_comments.create({
+      //     data: {
+      //       ticket_id: localTicketId,
+      //       comment_text: c.html_body || c.body,
+      //       email_body_text: c.plain_body,
+      //       comment_type: c.public ? "public" : "internal",
+      //       is_internal: !c.public,
+      //       email_message_id: c.metadata?.system?.message_id || null,
+      //       created_at: new Date(c.created_at),
+      //       user_id: userId,
+      //       customer_id: customerId,
+      //       attachment_urls: attachmentUrls.length
+      //         ? attachmentUrls.join(",")
+      //         : null,
+      //     },
+      //   });
+      // }
 
       console.log(`Comments Imported for ticket ${zendeskTicketId}`);
     } catch (error: any) {

@@ -19,6 +19,8 @@ const client_1 = require("@prisma/client");
 // import { uploadToBackblaze } from "../types/uploadBackblaze.js";
 const blackbaze_1 = require("./blackbaze");
 const GenerateTicket_1 = require("./GenerateTicket");
+const p_limit_1 = __importDefault(require("p-limit"));
+const limit = (0, p_limit_1.default)(2); // max 2 parallel requests
 const prisma = new client_1.PrismaClient();
 const ZENDESK_DOMAIN = "https://dcctz.zendesk.com";
 const AUTH = {
@@ -32,6 +34,26 @@ const zendeskToSLAPriority = {
     normal: "Medium",
     low: "Low",
 };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const safeAxios = (url_1, ...args_1) => __awaiter(void 0, [url_1, ...args_1], void 0, function* (url, options = {}) {
+    var _a;
+    while (true) {
+        try {
+            return yield axios_1.default.get(url, Object.assign({ auth: AUTH }, options));
+        }
+        catch (err) {
+            if (((_a = err.response) === null || _a === void 0 ? void 0 : _a.status) === 429) {
+                const retryAfter = err.response.headers["retry-after"];
+                const wait = retryAfter ? Number(retryAfter) * 1000 : 10000;
+                console.log(`429 hit → waiting ${wait / 1000}s`);
+                yield new Promise((r) => setTimeout(r, wait));
+            }
+            else {
+                throw err;
+            }
+        }
+    }
+});
 class ZendeskTicketImportService {
     // static async importTickets() {
     //   try {
@@ -86,10 +108,10 @@ class ZendeskTicketImportService {
     /*********** Final Data *******/
     static importTickets() {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
             try {
                 console.log("Starting Zendesk Ticket Import...");
-                let url = `${ZENDESK_DOMAIN}/api/v2/incremental/tickets.json?start_time=1773705600&include=users`;
+                let url = `${ZENDESK_DOMAIN}/api/v2/incremental/tickets.json?start_time=1767100000&include=users`;
                 const slaPriorities = yield prisma.sla_configurations.findMany({
                     where: { is_active: true },
                 });
@@ -112,31 +134,31 @@ class ZendeskTicketImportService {
                         customerDomainMap[domain] = c.id;
                 });
                 while (url) {
-                    let response;
-                    try {
-                        response = yield axios_1.default.get(url, { auth: AUTH });
-                    }
-                    catch (err) {
-                        if (((_a = err.response) === null || _a === void 0 ? void 0 : _a.status) === 429) {
-                            console.log("Rate limit hit, waiting 10 seconds...");
-                            yield new Promise((r) => setTimeout(r, 10000));
-                            continue;
-                        }
-                        throw err;
-                    }
+                    // let response;
+                    const response = yield safeAxios(url);
+                    // try {
+                    //   response = await axios.get(url, { auth: AUTH });
+                    // } catch (err: any) {
+                    //   if (err.response?.status === 429) {
+                    //     console.log("Rate limit hit, waiting 10 seconds...");
+                    //     await new Promise((r) => setTimeout(r, 10000));
+                    //     continue;
+                    //   }
+                    //   throw err;
+                    // }
                     const tickets = response.data.tickets;
                     const userMap = {};
-                    (_b = (response.data.users || [])) === null || _b === void 0 ? void 0 : _b.forEach((u) => {
+                    (_a = (response.data.users || [])) === null || _a === void 0 ? void 0 : _a.forEach((u) => {
                         var _a;
                         userMap[u.id] = {
                             email: (_a = u.email) === null || _a === void 0 ? void 0 : _a.toLowerCase(),
                             name: u.name,
                         };
                     });
-                    for (const t of tickets.slice(22)) {
+                    for (const t of tickets) {
                         const ticketNumber = `TCKT-${t.id}`;
-                        const email = (_f = (_e = (_d = (_c = t === null || t === void 0 ? void 0 : t.via) === null || _c === void 0 ? void 0 : _c.source) === null || _d === void 0 ? void 0 : _d.from) === null || _e === void 0 ? void 0 : _e.address) === null || _f === void 0 ? void 0 : _f.toLowerCase();
-                        const name = (_k = (_j = (_h = (_g = t === null || t === void 0 ? void 0 : t.via) === null || _g === void 0 ? void 0 : _g.source) === null || _h === void 0 ? void 0 : _h.from) === null || _j === void 0 ? void 0 : _j.name) === null || _k === void 0 ? void 0 : _k.toLowerCase();
+                        const email = (_e = (_d = (_c = (_b = t === null || t === void 0 ? void 0 : t.via) === null || _b === void 0 ? void 0 : _b.source) === null || _c === void 0 ? void 0 : _c.from) === null || _d === void 0 ? void 0 : _d.address) === null || _e === void 0 ? void 0 : _e.toLowerCase();
+                        const name = (_j = (_h = (_g = (_f = t === null || t === void 0 ? void 0 : t.via) === null || _f === void 0 ? void 0 : _f.source) === null || _g === void 0 ? void 0 : _g.from) === null || _h === void 0 ? void 0 : _h.name) === null || _j === void 0 ? void 0 : _j.toLowerCase();
                         const exists = yield prisma.tickets.findUnique({
                             where: { ticket_number: ticketNumber },
                         });
@@ -163,12 +185,13 @@ class ZendeskTicketImportService {
                             data: {
                                 ticket_number: ticketNumber,
                                 subject: t.subject || "No Subject",
+                                zendesk_ticket_id: t.id,
                                 description: t.description || "",
                                 email_body_text: t.description || "",
                                 priority: slaPriorityId,
                                 status: formattedStatus,
-                                source: ((_l = t.via) === null || _l === void 0 ? void 0 : _l.channel) || "Email",
-                                tags: (_m = t.tags) === null || _m === void 0 ? void 0 : _m.join(","),
+                                source: ((_k = t.via) === null || _k === void 0 ? void 0 : _k.channel) || "Email",
+                                tags: (_l = t.tags) === null || _l === void 0 ? void 0 : _l.join(","),
                                 customer_id: customerId,
                                 assigned_agent_id: assigneeId,
                                 created_at: new Date(t.created_at),
@@ -186,7 +209,14 @@ class ZendeskTicketImportService {
                             },
                         });
                         console.log("Ticket Imported:", ticket.ticket_number);
-                        yield this.importComments(t.id, ticket.id, userMap, customerDomainMap, userEmailMap);
+                        //   await this.importComments(
+                        //     t.id,
+                        //     ticket.id,
+                        //     userMap,
+                        //     customerDomainMap,
+                        //     userEmailMap,
+                        //   );
+                        yield limit(() => this.importComments(t.id, ticket.id, userMap, customerDomainMap, userEmailMap));
                     }
                     url = response.data.next_page;
                 }
@@ -477,17 +507,27 @@ class ZendeskTicketImportService {
     // }
     static importComments(zendeskTicketId, localTicketId, userMap, customerDomainMap, userEmailMap) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d, _e, _f, _g;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
             try {
                 const url = `${ZENDESK_DOMAIN}/api/v2/tickets/${zendeskTicketId}/comments.json`;
-                const response = yield axios_1.default.get(url, { auth: AUTH });
+                // const response = await axios.get(url, { auth: AUTH });
+                const response = yield safeAxios(url);
                 const comments = response.data.comments;
                 for (const c of comments) {
+                    yield new Promise((r) => setTimeout(r, 400));
+                    // ✅ prevent duplicate comments
+                    const existsComment = yield prisma.ticket_comments.findFirst({
+                        where: {
+                            email_message_id: (_b = (_a = c.metadata) === null || _a === void 0 ? void 0 : _a.system) === null || _b === void 0 ? void 0 : _b.message_id,
+                        },
+                    });
+                    if (existsComment)
+                        continue;
                     let userId = null;
                     let customerId = null;
                     let attachmentUrls = [];
                     const zendeskAuthor = userMap[c.author_id];
-                    const authorEmail = (_a = zendeskAuthor === null || zendeskAuthor === void 0 ? void 0 : zendeskAuthor.email) === null || _a === void 0 ? void 0 : _a.toLowerCase();
+                    const authorEmail = (_c = zendeskAuthor === null || zendeskAuthor === void 0 ? void 0 : zendeskAuthor.email) === null || _c === void 0 ? void 0 : _c.toLowerCase();
                     if (authorEmail) {
                         userId = userEmailMap[authorEmail] || null;
                         if (!userId) {
@@ -495,73 +535,43 @@ class ZendeskTicketImportService {
                             customerId = customerDomainMap[domain] || null;
                         }
                     }
-                    const recipients = ((_d = (_c = (_b = c === null || c === void 0 ? void 0 : c.via) === null || _b === void 0 ? void 0 : _b.source) === null || _c === void 0 ? void 0 : _c.from) === null || _d === void 0 ? void 0 : _d.original_recipients) || [];
+                    /* -------- CC HANDLING (OPTIMIZED) -------- */
+                    const recipients = ((_f = (_e = (_d = c === null || c === void 0 ? void 0 : c.via) === null || _d === void 0 ? void 0 : _d.source) === null || _e === void 0 ? void 0 : _e.from) === null || _f === void 0 ? void 0 : _f.original_recipients) || [];
+                    const ccData = [];
                     for (const recipient of recipients) {
                         const email = recipient.toLowerCase();
-                        /* skip zendesk system emails if needed */
                         if (email.includes("@dcctz.zendesk.com"))
                             continue;
                         const userId = userEmailMap[email] || null;
                         if (userId) {
-                            const exists = yield prisma.cc_of_ticket.findFirst({
-                                where: {
-                                    ticket_id: localTicketId,
-                                    user_id: userId,
-                                },
-                            });
-                            if (!exists) {
-                                yield prisma.cc_of_ticket.create({
-                                    data: {
-                                        ticket_id: localTicketId,
-                                        user_id: userId,
-                                    },
-                                });
-                            }
+                            ccData.push({ ticket_id: localTicketId, user_id: userId });
                         }
                         else {
-                            const exists = yield prisma.cc_of_ticket.findFirst({
-                                where: {
-                                    ticket_id: localTicketId,
-                                    others_of_ticket_cc: email,
-                                },
+                            ccData.push({
+                                ticket_id: localTicketId,
+                                others_of_ticket_cc: email,
                             });
-                            if (!exists) {
-                                yield prisma.cc_of_ticket.create({
-                                    data: {
-                                        ticket_id: localTicketId,
-                                        others_of_ticket_cc: email,
-                                    },
-                                });
-                            }
                         }
                     }
+                    if (ccData.length) {
+                        yield prisma.cc_of_ticket.createMany({
+                            data: ccData,
+                            // skipDuplicates: true,
+                        });
+                    }
                     /* -------- ATTACHMENTS -------- */
-                    // if (c.attachments?.length) {
-                    //   attachmentUrls = await Promise.all(
-                    //     c.attachments.map(async (a: any) => {
-                    //       const fileResponse = await axios.get(a.content_url, {
-                    //         responseType: "arraybuffer",
-                    //         auth: AUTH,
-                    //       });
-                    //       const buffer = Buffer.from(fileResponse.data);
-                    //       return uploadToBackblaze(buffer, a.file_name, a.content_type, {
-                    //         folder: `ticket-attachments/ZD-${zendeskTicketId}`,
-                    //         processImage: false,
-                    //       });
-                    //     }),
-                    //   );
-                    // }
-                    if ((_e = c.attachments) === null || _e === void 0 ? void 0 : _e.length) {
-                        attachmentUrls = yield Promise.all(c.attachments.map((a) => __awaiter(this, void 0, void 0, function* () {
-                            const fileResponse = yield axios_1.default.get(a.content_url, {
+                    if ((_g = c.attachments) === null || _g === void 0 ? void 0 : _g.length) {
+                        const attachmentLimit = (0, p_limit_1.default)(2);
+                        attachmentUrls = yield Promise.all(c.attachments.map((a) => attachmentLimit(() => __awaiter(this, void 0, void 0, function* () {
+                            const fileResponse = yield safeAxios(a.content_url, {
                                 responseType: "arraybuffer",
-                                auth: AUTH,
                             });
                             const buffer = Buffer.from(fileResponse.data);
                             const fileName = `ticket-comment-attachments/ZD-${zendeskTicketId}/${Date.now()}-${a.file_name}`;
                             return (0, blackbaze_1.uploadFile)(buffer, fileName, a.content_type);
-                        })));
+                        }))));
                     }
+                    /* -------- SAVE COMMENT -------- */
                     yield prisma.ticket_comments.create({
                         data: {
                             ticket_id: localTicketId,
@@ -569,7 +579,7 @@ class ZendeskTicketImportService {
                             email_body_text: c.plain_body,
                             comment_type: c.public ? "public" : "internal",
                             is_internal: !c.public,
-                            email_message_id: ((_g = (_f = c.metadata) === null || _f === void 0 ? void 0 : _f.system) === null || _g === void 0 ? void 0 : _g.message_id) || null,
+                            email_message_id: ((_j = (_h = c.metadata) === null || _h === void 0 ? void 0 : _h.system) === null || _j === void 0 ? void 0 : _j.message_id) || null,
                             created_at: new Date(c.created_at),
                             user_id: userId,
                             customer_id: customerId,
@@ -579,6 +589,122 @@ class ZendeskTicketImportService {
                         },
                     });
                 }
+                // for (const c of comments) {
+                //   await new Promise((r) => setTimeout(r, 200));
+                //   let userId = null;
+                //   let customerId = null;
+                //   let attachmentUrls: string[] = [];
+                //   const zendeskAuthor = userMap[c.author_id];
+                //   const authorEmail = zendeskAuthor?.email?.toLowerCase();
+                //   if (authorEmail) {
+                //     userId = userEmailMap[authorEmail] || null;
+                //     if (!userId) {
+                //       const domain = authorEmail.split("@")[1];
+                //       customerId = customerDomainMap[domain] || null;
+                //     }
+                //   }
+                //   const recipients = c?.via?.source?.from?.original_recipients || [];
+                //   for (const recipient of recipients) {
+                //     const email = recipient.toLowerCase();
+                //     /* skip zendesk system emails if needed */
+                //     if (email.includes("@dcctz.zendesk.com")) continue;
+                //     const userId = userEmailMap[email] || null;
+                //     if (userId) {
+                //       const exists = await prisma.cc_of_ticket.findFirst({
+                //         where: {
+                //           ticket_id: localTicketId,
+                //           user_id: userId,
+                //         },
+                //       });
+                //       if (!exists) {
+                //         await prisma.cc_of_ticket.create({
+                //           data: {
+                //             ticket_id: localTicketId,
+                //             user_id: userId,
+                //           },
+                //         });
+                //       }
+                //     } else {
+                //       const exists = await prisma.cc_of_ticket.findFirst({
+                //         where: {
+                //           ticket_id: localTicketId,
+                //           others_of_ticket_cc: email,
+                //         },
+                //       });
+                //       if (!exists) {
+                //         await prisma.cc_of_ticket.create({
+                //           data: {
+                //             ticket_id: localTicketId,
+                //             others_of_ticket_cc: email,
+                //           },
+                //         });
+                //       }
+                //     }
+                //   }
+                //   /* -------- ATTACHMENTS -------- */
+                //   // if (c.attachments?.length) {
+                //   //   attachmentUrls = await Promise.all(
+                //   //     c.attachments.map(async (a: any) => {
+                //   //       const fileResponse = await axios.get(a.content_url, {
+                //   //         responseType: "arraybuffer",
+                //   //         auth: AUTH,
+                //   //       });
+                //   //       const buffer = Buffer.from(fileResponse.data);
+                //   //       return uploadToBackblaze(buffer, a.file_name, a.content_type, {
+                //   //         folder: `ticket-attachments/ZD-${zendeskTicketId}`,
+                //   //         processImage: false,
+                //   //       });
+                //   //     }),
+                //   //   );
+                //   // }
+                //   if (c.attachments?.length) {
+                //     const attachmentLimit = pLimit(2);
+                //     attachmentUrls = await Promise.all(
+                //       c.attachments.map((a: any) =>
+                //         attachmentLimit(async () => {
+                //           const fileResponse = await safeAxios(a.content_url, {
+                //             responseType: "arraybuffer",
+                //           });
+                //           const buffer = Buffer.from(fileResponse.data);
+                //           const fileName = `ticket-comment-attachments/ZD-${zendeskTicketId}/${Date.now()}-${a.file_name}`;
+                //           return uploadFile(buffer, fileName, a.content_type);
+                //         }),
+                //       ),
+                //     );
+                //   }
+                //   // if (c.attachments?.length) {
+                //   //   attachmentUrls = await Promise.all(
+                //   //     c.attachments.map(async (a: any) => {
+                //   //       const fileResponse = await safeAxios(a.content_url, {
+                //   //         responseType: "arraybuffer",
+                //   //       });
+                //   //       // const fileResponse = await axios.get(a.content_url, {
+                //   //       //   responseType: "arraybuffer",
+                //   //       //   auth: AUTH,
+                //   //       // });
+                //   //       const buffer = Buffer.from(fileResponse.data);
+                //   //       const fileName = `ticket-comment-attachments/ZD-${zendeskTicketId}/${Date.now()}-${a.file_name}`;
+                //   //       return uploadFile(buffer, fileName, a.content_type);
+                //   //     }),
+                //   //   );
+                //   // }
+                //   await prisma.ticket_comments.create({
+                //     data: {
+                //       ticket_id: localTicketId,
+                //       comment_text: c.html_body || c.body,
+                //       email_body_text: c.plain_body,
+                //       comment_type: c.public ? "public" : "internal",
+                //       is_internal: !c.public,
+                //       email_message_id: c.metadata?.system?.message_id || null,
+                //       created_at: new Date(c.created_at),
+                //       user_id: userId,
+                //       customer_id: customerId,
+                //       attachment_urls: attachmentUrls.length
+                //         ? attachmentUrls.join(",")
+                //         : null,
+                //     },
+                //   });
+                // }
                 console.log(`Comments Imported for ticket ${zendeskTicketId}`);
             }
             catch (error) {
