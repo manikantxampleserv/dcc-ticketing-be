@@ -105,7 +105,8 @@ export async function getUsersList(req: Request, res: Response): Promise<void> {
           },
         },
       },
-      orderBy: { id: "desc" },
+      // orderBy: { id: "desc" },
+      orderBy: { first_name: "asc" },
     });
 
     res.status(200).json({
@@ -222,7 +223,8 @@ export async function getUsersOption(
       //     },
       //   },
       // },
-      orderBy: { id: "desc" },
+      // orderBy: { id: "desc" },
+      orderBy: { first_name: "asc" },
     });
 
     res.status(200).json({

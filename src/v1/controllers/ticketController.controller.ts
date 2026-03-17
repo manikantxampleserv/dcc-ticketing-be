@@ -97,12 +97,14 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
     : undefined,
   cc_of_ticket: ticket.cc_of_ticket
     ? ticket.cc_of_ticket?.map((val: any) => ({
-        id: val.user_of_ticket_cc.id,
-        first_name: val.user_of_ticket_cc.first_name,
-        last_name: val.user_of_ticket_cc.last_name,
-        email: val.user_of_ticket_cc.email,
-        phone: val.user_of_ticket_cc.phone,
-        avatar: val.user_of_ticket_cc.avatar,
+        id: val?.user_of_ticket_cc && val?.user_of_ticket_cc?.id,
+        first_name:
+          val?.user_of_ticket_cc && val?.user_of_ticket_cc?.first_name,
+        last_name: val?.user_of_ticket_cc && val?.user_of_ticket_cc?.last_name,
+        email: val?.user_of_ticket_cc && val?.user_of_ticket_cc.email,
+        phone: val?.user_of_ticket_cc && val?.user_of_ticket_cc.phone,
+        avatar: val?.user_of_ticket_cc && val?.user_of_ticket_cc.avatar,
+        other_emails: val?.others_of_ticket_cc && val?.others_of_ticket_cc,
       }))
     : undefined,
   customers: ticket.customers
@@ -1216,10 +1218,18 @@ export const ticketController = {
       const ticketId = Number(req.params.id);
       const currentUserId = Number(req.user?.id);
       const toAdd: number[] = req.body.add_user_id || [];
-      const toDelete: number[] = req.body.delete_user_ids || [];
+      // const toDelete: number[] = req.body.delete_user_ids || [];
+      const otherEmails: string[] = req.body.other_emails || [];
 
-      if (!Array.isArray(toAdd) && !Array.isArray(toDelete)) {
-        return res.error("add_user_id or delete_user_ids must be arrays.", 400);
+      if (
+        !Array.isArray(toAdd) ||
+        !Array.isArray(req.body.delete_user_ids) ||
+        !Array.isArray(otherEmails)
+      ) {
+        return res.error(
+          "add_user_id, delete_user_ids and other_emails must be arrays.",
+          400,
+        );
       }
 
       const existing = await prisma.tickets.findUnique({
@@ -1233,36 +1243,109 @@ export const ticketController = {
       const txOps: any[] = [];
 
       // Deletions
-      if (toDelete.length > 0) {
-        txOps.push(
-          prisma.cc_of_ticket.deleteMany({
-            where: {
-              ticket_id: ticketId,
-              user_id: { in: toDelete },
-            },
-          }),
-        );
-        // Add comments for each removal
-        for (const uid of toDelete) {
-          const user = await prisma.users.findUnique({
-            where: { id: uid },
-          });
+      // Delete CC users
+      if (req.body.delete_user_ids.length > 0) {
+        const userIdsToDelete: number[] = [];
+        const emailsToDelete: string[] = [];
 
+        for (const item of req.body.delete_user_ids) {
+          if (typeof item === "number") {
+            userIdsToDelete.push(item);
+          } else if (typeof item === "string") {
+            emailsToDelete.push(item);
+          }
+        }
+        if (userIdsToDelete.length > 0) {
           txOps.push(
-            prisma.ticket_comments.create({
-              data: {
+            prisma.cc_of_ticket.deleteMany({
+              where: {
                 ticket_id: ticketId,
-                user_id: currentUserId,
-                comment_text: `User <strong>${
-                  user?.first_name + " " + user?.last_name
-                }</strong> removed from CC of this ticket.`,
-                comment_type: "System",
-                is_internal: true,
+                user_id: { in: userIdsToDelete },
               },
             }),
           );
+
+          for (const uid of userIdsToDelete) {
+            const user = await prisma.users.findUnique({
+              where: { id: uid },
+            });
+
+            txOps.push(
+              prisma.ticket_comments.create({
+                data: {
+                  ticket_id: ticketId,
+                  user_id: currentUserId,
+                  comment_text: `User <strong>${user?.first_name + " " + user?.last_name}</strong> removed from CC of this ticket.`,
+                  comment_type: "System",
+                  is_internal: true,
+                },
+              }),
+            );
+          }
+        }
+        console.log("user Email ; ", emailsToDelete, req.body.delete_user_ids);
+        // Delete external email CC
+        if (emailsToDelete.length > 0) {
+          txOps.push(
+            prisma.cc_of_ticket.deleteMany({
+              where: {
+                ticket_id: ticketId,
+                others_of_ticket_cc: { in: emailsToDelete },
+              },
+            }),
+          );
+          console.log(
+            "user Email ; ",
+            txOps,
+            emailsToDelete,
+            req.body.delete_user_ids,
+          );
+
+          for (const email of emailsToDelete) {
+            txOps.push(
+              prisma.ticket_comments.create({
+                data: {
+                  ticket_id: ticketId,
+                  user_id: currentUserId,
+                  comment_text: `External email <strong>${email}</strong> removed from CC of this ticket.`,
+                  comment_type: "System",
+                  is_internal: true,
+                },
+              }),
+            );
+          }
         }
       }
+      // if (toDelete.length > 0) {
+      //   txOps.push(
+      //     prisma.cc_of_ticket.deleteMany({
+      //       where: {
+      //         ticket_id: ticketId,
+      //         user_id: { in: toDelete },
+      //       },
+      //     }),
+      //   );
+      //   // Add comments for each removal
+      //   for (const uid of toDelete) {
+      //     const user = await prisma.users.findUnique({
+      //       where: { id: uid },
+      //     });
+
+      //     txOps.push(
+      //       prisma.ticket_comments.create({
+      //         data: {
+      //           ticket_id: ticketId,
+      //           user_id: currentUserId,
+      //           comment_text: `User <strong>${
+      //             user?.first_name + " " + user?.last_name
+      //           }</strong> removed from CC of this ticket.`,
+      //           comment_type: "System",
+      //           is_internal: true,
+      //         },
+      //       }),
+      //     );
+      //   }
+      // }
 
       // Additions
       if (toAdd.length > 0) {
@@ -1295,6 +1378,44 @@ export const ticketController = {
                 comment_text: `User <strong>${
                   user?.first_name + " " + user?.last_name
                 }</strong> added to CC of this ticket.`,
+                comment_type: "System",
+                is_internal: true,
+              },
+            }),
+          );
+        }
+      }
+      // Add external email CC
+      if (otherEmails?.length > 0) {
+        // Get existing external emails
+        const existingEmails = existing.cc_of_ticket
+          .map((cc: any) => cc.others_of_ticket_cc)
+          .filter(Boolean);
+
+        // Remove duplicates from incoming list
+        const uniqueEmails = [...new Set(otherEmails)];
+
+        // Only add emails not already present
+        const newEmails = uniqueEmails.filter(
+          (email) => !existingEmails.includes(email),
+        );
+        for (const email of newEmails) {
+          txOps.push(
+            prisma.cc_of_ticket.create({
+              data: {
+                ticket_id: ticketId,
+                others_of_ticket_cc: email,
+                created_by: currentUserId,
+              },
+            }),
+          );
+
+          txOps.push(
+            prisma.ticket_comments.create({
+              data: {
+                ticket_id: ticketId,
+                user_id: currentUserId,
+                comment_text: `External email <strong>${email}</strong> added to CC of this ticket.`,
                 comment_type: "System",
                 is_internal: true,
               },

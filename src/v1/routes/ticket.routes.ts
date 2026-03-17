@@ -7,6 +7,7 @@ import {
   uploadSingleFile,
 } from "../../utils/fileUpload";
 import { ticketController } from "../controllers/ticketController.controller";
+import { ZendeskTicketImportService } from "utils/ZendeskTicketImportService";
 
 const router = Router();
 
@@ -56,5 +57,28 @@ router.get(
 router.get("/ticket-list", authenticateToken, ticketController.getListTicket);
 
 router.delete("/ticket", validate, ticketController.deleteTicket);
-
+router.delete("/ticket", validate, ticketController.deleteTicket);
+router.get("/import-zendesk-tickets", async (req, res) => {
+  try {
+    await ZendeskTicketImportService.importTickets();
+    // res.setHeader(
+    //   "Content-Type",
+    //   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    // );
+    // res.setHeader(
+    //   "Content-Disposition",
+    //   "attachment; filename=all-ticket-email.xlsx",
+    // );
+    // res.send(buffer);
+    res.json({
+      success: true,
+      message: "Zendesk ticket import started",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Import failed",
+    });
+  }
+});
 export default router;

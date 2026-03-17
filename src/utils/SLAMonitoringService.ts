@@ -5,6 +5,7 @@ import { PrismaClient } from "@prisma/client";
 import { BusinessHoursSLACalculator } from "./BussinessHoursSLACalculation";
 import { title } from "process";
 import emailService from "types/sendEmailComment";
+import { ZendeskTicketImportService } from "./ZendeskTicketImportService";
 
 const prisma = new PrismaClient();
 
@@ -23,6 +24,10 @@ export class BusinessHoursAwareSLAMonitoringService {
         await this.monitorBusinessHoursSLAs();
       }
     });
+    //     cron.schedule("*/10 * * * *", async () => {
+    //   console.log("Running Zendesk Import Cron");
+    // await ZendeskTicketImportService.importTickets();
+    // });
 
     // Critical tickets every minute in business hours
     cron.schedule("* * * * *", async () => {
