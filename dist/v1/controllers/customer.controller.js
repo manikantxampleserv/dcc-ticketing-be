@@ -57,9 +57,9 @@ exports.customerController = {
                 const customer = yield prisma.customers.create({
                     data: {
                         company_id,
-                        first_name,
-                        last_name,
-                        email,
+                        first_name: first_name.trim(),
+                        last_name: last_name.trim(),
+                        email: email.trim(),
                         phone,
                         support_type: Number(support_type),
                         l1_support_hours: l1_support_hours === null || l1_support_hours === void 0 ? void 0 : l1_support_hours.toString(),
@@ -260,34 +260,46 @@ exports.customerController = {
                 // Base filter object
                 let filters = {};
                 if (searchTerm) {
-                    // If there’s a space, assume “first last”
-                    const parts = searchTerm.split(/\s+/);
-                    if (parts.length >= 2) {
-                        // Use first part for first_name and last part for last_name
-                        const [firstPart, ...rest] = parts;
-                        const lastPart = rest.join(" ");
-                        filters.AND = [
-                            { first_name: { contains: firstPart } },
-                            { last_name: { contains: lastPart } },
-                        ];
-                    }
-                    else {
-                        // Single term: OR across all fields
-                        filters.OR = [
-                            { email: { contains: searchTerm } },
-                            { first_name: { contains: searchTerm } },
-                            { last_name: { contains: searchTerm } },
-                            { job_title: { contains: searchTerm } },
-                            { phone: { contains: searchTerm } },
-                        ];
-                    }
+                    const words = searchTerm.split(/\s+/);
+                    filters.AND = words.map((word) => ({
+                        OR: [
+                            { first_name: { contains: word } },
+                            { last_name: { contains: word } },
+                            { email: { contains: word } },
+                            { job_title: { contains: word } },
+                            { phone: { contains: word } },
+                        ],
+                    }));
                 }
+                // if (searchTerm) {
+                //   // If there’s a space, assume “first last”
+                //   const parts = searchTerm.split(/\s+/);
+                //   if (parts.length >= 2) {
+                //     // Use first part for first_name and last part for last_name
+                //     const [firstPart, ...rest] = parts;
+                //     const lastPart = rest.join(" ");
+                //     filters.AND = [
+                //       { first_name: { contains: firstPart } },
+                //       { last_name: { contains: lastPart } },
+                //     ];
+                //   } else {
+                //     // Single term: OR across all fields
+                //     filters.OR = [
+                //       { email: { contains: searchTerm } },
+                //       { first_name: { contains: searchTerm } },
+                //       { last_name: { contains: searchTerm } },
+                //       { job_title: { contains: searchTerm } },
+                //       { phone: { contains: searchTerm } },
+                //     ];
+                //   }
+                // }
                 const { data, pagination } = yield (0, pagination_1.paginate)({
                     model: prisma.customers,
                     filters,
                     page: page_num,
                     limit: limit_num,
-                    orderBy: { id: "desc" },
+                    // orderBy: { id: "desc" },
+                    orderBy: { first_name: "asc" },
                     include: {
                         companies: true,
                         support_ticket_responses: true,
@@ -320,35 +332,47 @@ exports.customerController = {
                 const searchTerm = search.toLowerCase().trim();
                 // Base filter object
                 let filters = {};
+                // if (searchTerm) {
+                //   // If there’s a space, assume “first last”
+                //   const parts = searchTerm.split(/\s+/);
+                //   if (parts.length >= 2) {
+                //     // Use first part for first_name and last part for last_name
+                //     const [firstPart, ...rest] = parts;
+                //     const lastPart = rest.join(" ");
+                //     filters.AND = [
+                //       { first_name: { contains: firstPart } },
+                //       { last_name: { contains: lastPart } },
+                //     ];
+                //   } else {
+                //     // Single term: OR across all fields
+                //     filters.OR = [
+                //       { email: { contains: searchTerm } },
+                //       { first_name: { contains: searchTerm } },
+                //       { last_name: { contains: searchTerm } },
+                //       // { job_title: { contains: searchTerm } },
+                //       // { phone: { contains: searchTerm } },
+                //     ];
+                //   }
+                // }
                 if (searchTerm) {
-                    // If there’s a space, assume “first last”
-                    const parts = searchTerm.split(/\s+/);
-                    if (parts.length >= 2) {
-                        // Use first part for first_name and last part for last_name
-                        const [firstPart, ...rest] = parts;
-                        const lastPart = rest.join(" ");
-                        filters.AND = [
-                            { first_name: { contains: firstPart } },
-                            { last_name: { contains: lastPart } },
-                        ];
-                    }
-                    else {
-                        // Single term: OR across all fields
-                        filters.OR = [
-                            { email: { contains: searchTerm } },
-                            { first_name: { contains: searchTerm } },
-                            { last_name: { contains: searchTerm } },
-                            // { job_title: { contains: searchTerm } },
-                            // { phone: { contains: searchTerm } },
-                        ];
-                    }
+                    const words = searchTerm.split(/\s+/);
+                    filters.AND = words.map((word) => ({
+                        OR: [
+                            { first_name: { contains: word } },
+                            { last_name: { contains: word } },
+                            { email: { contains: word } },
+                            { job_title: { contains: word } },
+                            { phone: { contains: word } },
+                        ],
+                    }));
                 }
                 const { data, pagination } = yield (0, pagination_1.paginate)({
                     model: prisma.customers,
                     filters,
                     page: page_num,
                     limit: limit_num,
-                    orderBy: { id: "desc" },
+                    // orderBy: { id: "desc" },
+                    orderBy: { first_name: "asc" },
                     select: {
                         id: true,
                         company_id: true,

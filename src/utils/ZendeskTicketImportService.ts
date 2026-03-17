@@ -1,7 +1,7 @@
 import axios from "axios";
 import { PrismaClient } from "@prisma/client";
-import ExcelJS from "exceljs";
-import { uploadToBackblaze } from "types/uploadBackblaze";
+// import ExcelJS from "exceljs";
+// import { uploadToBackblaze } from "types/uploadBackblaze";
 import { uploadFile } from "./blackbaze";
 import { generateTicketNumber } from "./GenerateTicket";
 

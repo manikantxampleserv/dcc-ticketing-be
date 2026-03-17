@@ -515,7 +515,7 @@ class SimpleEmailTicketSystem {
                         user_id: isCustomer ? null : undefined,
                         comment_text: cleanedBody,
                         email_body_text: bodyText,
-                        comment_type: "email_reply",
+                        comment_type: "Email",
                         is_internal: false,
                         email_message_id: messageId,
                         attachment_urls,

@@ -121,7 +121,8 @@ function getUsersList(req, res) {
                         },
                     },
                 },
-                orderBy: { id: "desc" },
+                // orderBy: { id: "desc" },
+                orderBy: { first_name: "asc" },
             });
             res.status(200).json({
                 message: "users retrieved successfully",
@@ -228,7 +229,8 @@ function getUsersOption(req, res) {
                 //     },
                 //   },
                 // },
-                orderBy: { id: "desc" },
+                // orderBy: { id: "desc" },
+                orderBy: { first_name: "asc" },
             });
             res.status(200).json({
                 message: "users retrieved successfully",

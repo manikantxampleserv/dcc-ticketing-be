@@ -31,6 +31,10 @@ class BusinessHoursAwareSLAMonitoringService {
                 yield this.monitorBusinessHoursSLAs();
             }
         }));
+        //     cron.schedule("*/10 * * * *", async () => {
+        //   console.log("Running Zendesk Import Cron");
+        // await ZendeskTicketImportService.importTickets();
+        // });
         // Critical tickets every minute in business hours
         node_cron_1.default.schedule("* * * * *", () => __awaiter(this, void 0, void 0, function* () {
             if (yield this.isCurrentlyBusinessHours()) {
