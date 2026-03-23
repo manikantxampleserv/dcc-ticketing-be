@@ -177,12 +177,17 @@ class EmailService {
         ? `${comment.users.first_name} ${comment.users.last_name}`
         : "Support Team";
       let Emails =
-        comment?.mailInternal == "false" || isSeparatedEmail
+        comment?.mailInternal != "false" || isSeparatedEmail
           ? assignedEmail
           : [...customerEmail, assignedEmail];
       if (additionalEmails.length > 0) {
         Emails = [...Emails, ...additionalEmails];
       }
+      console.log(
+        "printing for debugg: ",
+        comment?.mailInternal,
+        customerEmail,
+      );
       console.log("Emails to send comment to:", Emails);
       //Generate unique message ID for THIS outgoing email
       const newMessageId = `<ticket-${ticket.id}-comment-${
@@ -333,7 +338,7 @@ class EmailService {
       );
       // ✅ FIXED: Create mail options object with all properties
       const mailOptions: any = {
-        from: `"Support Team" <${process.env.SMTP_USERNAME}>`,
+        from: `"Doubleclick Consulting Limited" <${process.env.SMTP_USERNAME}>`,
         to: Emails,
         // to: customerEmail,
         cc: [
@@ -468,7 +473,7 @@ class EmailService {
                </td>
                <td style="text-align: right; vertical-align: center;">
                  ${
-                   comment?.mailInternal == "false" || isSeparatedEmail
+                   comment?.mailInternal != "false" || isSeparatedEmail
                      ? `<span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
                    ${ticket.status.toUpperCase()}
                  </span>`

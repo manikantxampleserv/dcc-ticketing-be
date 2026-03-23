@@ -202,7 +202,8 @@ class SimpleEmailTicketSystem {
     body: string,
     senderEmail: string,
   ): Promise<any> {
-    const ticketNumber = `TCKT-${Date.now()}`;
+    // const ticketNumber = `TCKT-${Date.now()}`;
+    const ticketNumber = `${Date.now()}`;
 
     return await prisma.tickets.create({
       data: {

@@ -25,7 +25,7 @@ const emailImageExtractor_1 = require("../../types/emailImageExtractor");
 const prisma = new client_1.PrismaClient();
 const serializeTicket = (ticket, includeDates = false) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
-    return (Object.assign(Object.assign({ id: Number(ticket.id), ticket_number: ticket.ticket_number, customer_id: ticket.customer_id, customer_name: ticket.customer_name, customer_email: ticket.customer_email, assigned_agent_id: ticket.assigned_agent_id, category_id: ticket.category_id, subject: ticket.subject, description: ticket.description, priority: ticket.priority, status: ticket.status, source: ticket.source, sla_deadline: ticket.sla_deadline, sla_status: ticket.sla_status, first_response_at: ticket.first_response_at, resolved_at: ticket.resolved_at, closed_at: ticket.closed_at, assigned_by: ticket.assigned_by, is_merged: ticket.is_merged, reopen_count: ticket.reopen_count, sla_taken_time_sec: ticket.sla_taken_time_sec, sla_paused_at: ticket.sla_paused_at, time_spent_minutes: ticket.time_spent_minutes, last_reopened_at: ticket.last_reopened_at, customer_satisfaction_rating: ticket.customer_satisfaction_rating, customer_feedback: ticket.customer_feedback, tags: ticket.tags, email_thread_id: ticket.email_thread_id, original_email_message_id: ticket.original_email_message_id, merged_into_ticket_id: ticket.merged_into_ticket_id, attachment_urls: (ticket === null || ticket === void 0 ? void 0 : ticket.attachment_urls) || "", email_body_text: (ticket === null || ticket === void 0 ? void 0 : ticket.email_body_text) || "", support_level_id: (ticket === null || ticket === void 0 ? void 0 : ticket.support_level_id) || "", ticket_attachments: ticket.ticket_attachments
+    return (Object.assign(Object.assign({ id: Number(ticket.id), ticket_number: ticket.ticket_number, customer_id: ticket.customer_id, customer_name: ticket.customer_name, customer_email: ticket.customer_email, assigned_agent_id: ticket.assigned_agent_id, category_id: ticket.category_id, subject: ticket.subject, description: ticket.description, priority: ticket.priority, status: ticket.status, source: ticket.source, sla_deadline: ticket.sla_deadline, sla_status: ticket.sla_status, first_response_at: ticket.first_response_at, resolved_at: ticket.resolved_at, closed_at: ticket.closed_at, assigned_by: ticket.assigned_by, is_merged: ticket.is_merged, reopen_count: ticket.reopen_count, sla_taken_time_sec: ticket.sla_taken_time_sec, sla_paused_at: ticket.sla_paused_at, time_spent_minutes: ticket.time_spent_minutes, last_reopened_at: ticket.last_reopened_at, customer_satisfaction_rating: ticket.customer_satisfaction_rating, customer_feedback: ticket.customer_feedback, tags: ticket.tags, email_thread_id: ticket.email_thread_id, original_email_message_id: ticket.original_email_message_id, merged_into_ticket_id: ticket.merged_into_ticket_id, attachment_urls: (ticket === null || ticket === void 0 ? void 0 : ticket.attachment_urls) || "", email_body_text: (ticket === null || ticket === void 0 ? void 0 : ticket.email_body_text) || "", support_level_id: (ticket === null || ticket === void 0 ? void 0 : ticket.support_level_id) || "", zendesk_ticket_id: (ticket === null || ticket === void 0 ? void 0 : ticket.zendesk_ticket_id) || "", ticket_attachments: ticket.ticket_attachments
             ? ticket.ticket_attachments.map((att) => ({
                 id: att.id,
                 ticket_id: att.ticket_id,
@@ -229,7 +229,8 @@ exports.ticketController = {
             try {
                 const { customer_id, assigned_agent_id, category_id, subject, description, priority, status, source, sla_deadline, sla_status, first_response_at, resolved_at, closed_at, is_merged, reopen_count, time_spent_minutes, last_reopened_at, customer_satisfaction_rating, customer_feedback, tags, merged_into_ticket_id, support_level_id, } = req.body;
                 const assigned_by = Number((_a = req === null || req === void 0 ? void 0 : req.user) === null || _a === void 0 ? void 0 : _a.id);
-                const ticket_number = `TCKT-${Date.now()}`;
+                const ticket_number = `${Date.now()}`;
+                // const ticket_number = `TCKT-${Date.now()}`;
                 let avatarUrl = null;
                 if (req.file) {
                     const fileName = `${ticket_number}/${Date.now()}_${req.file.originalname}`;
@@ -689,7 +690,7 @@ exports.ticketController = {
                     // });
                     // Mark resolution SLA as completed (monitoring service will determine if breached)
                     yield exports.ticketController.handleSLACompletion(id, req.body.status);
-                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailInternal: false }), []);
+                    yield sendEmailComment_1.default.sendCommentEmailToCustomer(updatedTicket, Object.assign(Object.assign({}, comment), { mailInternal: true }), []);
                     ticket = updatedTicket;
                 }
                 console.log("dataToUpdate.time_spent_minutes", dataToUpdate.time_spent_minutes, ticket === null || ticket === void 0 ? void 0 : ticket.customers, Number(((_c = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _c === void 0 ? void 0 : _c.l1_support_used_hours) || 0), Number((_d = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _d === void 0 ? void 0 : _d.l1_support_used_hours), Number(((_e = ticket === null || ticket === void 0 ? void 0 : ticket.customers) === null || _e === void 0 ? void 0 : _e.l1_support_used_hours) || 0) +
@@ -2255,7 +2256,7 @@ exports.ticketController = {
         return __awaiter(this, void 0, void 0, function* () {
             var _a;
             try {
-                const { ticket_id, comment_text, comment_type, is_internal = false, mentioned_users, } = req.body;
+                const { ticket_id, comment_text, comment_type, is_internal = true, mentioned_users, } = req.body;
                 // const user_id = null;
                 const user_id = (_a = req === null || req === void 0 ? void 0 : req.user) === null || _a === void 0 ? void 0 : _a.id; // Assuming you have user auth middleware
                 let new_comment_text = comment_text;
@@ -2316,6 +2317,7 @@ exports.ticketController = {
                         created_at: true,
                         source: true,
                         agents_user: true,
+                        customer_email: true,
                         customers: {
                             select: {
                                 id: true,

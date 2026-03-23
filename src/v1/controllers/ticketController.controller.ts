@@ -48,6 +48,7 @@ const serializeTicket = (ticket: any, includeDates = false) => ({
   attachment_urls: ticket?.attachment_urls || "",
   email_body_text: ticket?.email_body_text || "",
   support_level_id: ticket?.support_level_id || "",
+  zendesk_ticket_id: ticket?.zendesk_ticket_id || "",
   ticket_attachments: ticket.ticket_attachments
     ? ticket.ticket_attachments.map((att: any) => ({
         id: att.id,
@@ -320,7 +321,8 @@ export const ticketController = {
       } = req.body;
 
       const assigned_by = Number(req?.user?.id);
-      const ticket_number = `TCKT-${Date.now()}`;
+      const ticket_number = `${Date.now()}`;
+      // const ticket_number = `TCKT-${Date.now()}`;
 
       let avatarUrl = null;
       if (req.file) {
@@ -825,7 +827,7 @@ export const ticketController = {
 
         await EmailService.sendCommentEmailToCustomer(
           updatedTicket,
-          { ...comment, mailInternal: false },
+          { ...comment, mailInternal: true },
           [],
         );
         ticket = updatedTicket;
@@ -2602,7 +2604,7 @@ export const ticketController = {
         ticket_id,
         comment_text,
         comment_type,
-        is_internal = false,
+        is_internal = true,
         mentioned_users,
       } = req.body;
       // const user_id = null;
@@ -2674,6 +2676,7 @@ export const ticketController = {
           created_at: true,
           source: true,
           agents_user: true,
+          customer_email: true,
           customers: {
             select: {
               id: true,

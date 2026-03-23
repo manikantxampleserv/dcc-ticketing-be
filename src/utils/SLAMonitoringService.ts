@@ -409,17 +409,45 @@ Immediate review and corrective action may be required..`,
   // 9. Email notification helper with business hours context
   static async sendNotification(emailData: any) {
     try {
-      const response = await prisma.notifications.create({
-        data: {
-          user_id: emailData.userId,
-          type: emailData.type,
-          title: emailData.title,
-          message: emailData.message,
-          ticket_id: emailData.ticket_id,
-          read: false,
-          sent_via: "in_app",
-        },
-      });
+      if (emailData.userId) {
+        await prisma.notifications.create({
+          data: {
+            user_id: emailData.userId,
+            type: emailData.type,
+            title: emailData.title,
+            message: emailData.message,
+            ticket_id: emailData.ticket_id,
+            read: false,
+            sent_via: "in_app",
+          },
+        });
+      } else {
+        const users = await prisma.users.findMany({
+          include: {
+            user_role: true,
+          },
+        });
+
+        const adminUser = users.find((user) =>
+          user.user_role?.name?.toLowerCase().includes("admin"),
+        );
+
+        if (!adminUser) {
+          console.warn("No admin found");
+          return;
+        }
+        await prisma.notifications.create({
+          data: {
+            user_id: emailData.userId || adminUser.id,
+            type: emailData.type,
+            title: emailData.title,
+            message: emailData.message,
+            ticket_id: emailData.ticket_id,
+            read: false,
+            sent_via: "in_app",
+          },
+        });
+      }
     } catch (error) {
       console.error("❌ Error sending email notification:", error);
     }

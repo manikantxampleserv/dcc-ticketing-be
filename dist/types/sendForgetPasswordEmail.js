@@ -44,7 +44,7 @@ function sendSystemEmail(_a) {
             },
         });
         yield transporter.sendMail({
-            from: `Ticketing System`,
+            from: `Doubleclick Consulting Limited <${process.env.SMTP_USERNAME}>`,
             to,
             subject,
             html,

@@ -195,7 +195,8 @@ class SimpleEmailTicketSystem {
     //  STEP 7: Create ticket from email
     createTicket(customer, subject, body, senderEmail) {
         return __awaiter(this, void 0, void 0, function* () {
-            const ticketNumber = `TCKT-${Date.now()}`;
+            // const ticketNumber = `TCKT-${Date.now()}`;
+            const ticketNumber = `${Date.now()}`;
             return yield prisma.tickets.create({
                 data: {
                     ticket_number: ticketNumber,

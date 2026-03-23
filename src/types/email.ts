@@ -11,6 +11,7 @@ import slaMonitor from "../types/slaMonitorService";
 import { generateSLAHistory } from "v1/controllers/ticketController.controller";
 import { sendSatisfactionEmail } from "./sendSatisfactionEmail";
 import { replaceBase64ImagesWithUrls } from "./emailImageExtractor";
+import { sendTicketCreatedEmail } from "./sendCreatedResponse";
 
 dotenv.config();
 
@@ -146,7 +147,7 @@ class SimpleEmailTicketSystem {
             this.fetchNewEmails();
 
             // ✅ FIX #4: Use 30-second polling as PRIMARY method only
-            this.startPolling(30000);
+            this.startPolling(3000);
 
             resolve();
           })
@@ -353,7 +354,7 @@ class SimpleEmailTicketSystem {
 
           if (currentUidNext > this.lastUid) {
             const uidRange = `${this.lastUid + 1}:${currentUidNext}`;
-            console.log(`⬇️ Fetching emails with UID range: ${uidRange}`);
+            // console.log(`⬇️ Fetching emails with UID range: ${uidRange}`);
 
             if (!this.imap) {
               reject(new Error("IMAP disconnected"));
@@ -368,16 +369,16 @@ class SimpleEmailTicketSystem {
             let totalMessages = 0;
 
             fetcher.on("message", (msg, seqno) => {
-              console.log(`📨 Processing email #${seqno}`);
+              // console.log(`📨 Processing email #${seqno}`);
               totalMessages++;
               this.processEmailMessage(msg, seqno).finally(() => {
                 processedCount++;
                 // If all messages processed, save UID and resolve
                 if (processedCount === totalMessages) {
                   this.saveLastUid(currentUidNext).then(() => {
-                    console.log(
-                      `✅ Finished fetching emails. Updated lastUid to ${currentUidNext}`,
-                    );
+                    // console.log(
+                    //   `✅ Finished fetching emails. Updated lastUid to ${currentUidNext}`,
+                    // );
                     this.isFetching = false;
                     resolve();
                   });
@@ -470,11 +471,12 @@ class SimpleEmailTicketSystem {
       const messageId = email.messageId;
       const references = email.references || [];
       const inReplyTo = email.inReplyTo;
+
       // console.log(
       //   `📧 Full email parsed:`,
       //   email.messageId,
       //   email.references,
-      //   email.inReplyTo
+      //   email.inReplyTo,
       // );
       const threadId: string | undefined = Array.isArray(references)
         ? references[0] // string | undefined
@@ -747,7 +749,8 @@ class SimpleEmailTicketSystem {
     senderNames?: string,
     attachments?: any[],
   ): Promise<any> {
-    const ticketNumber = `TCKT-${Date.now()}`;
+    const ticketNumber = `${Date.now()}`;
+    // const ticketNumber = `TCKT-${Date.now()}`;
 
     const slaConfig = await prisma.sla_configurations.findFirst({
       where: {
@@ -799,14 +802,28 @@ class SimpleEmailTicketSystem {
     //   JSON.stringify(aiResponse)
     // );
     // if (aiResponse?.success && customer) {
-    //   await sendSatisfactionEmail({
-    //     body: aiResponse.answer,
-    //     ticketId: tickets.id,
-    //     requesterEmail: customer?.email,
-    //     // requesterEmail:  senderEmail,
-    //     ticketNumber: updatedTicket.ticket_number,
-    //     requesterName: senderNames || "",
-    //   });
+    const systemMessageId = await sendTicketCreatedEmail({
+      ticketId: tickets.id,
+      requesterEmail: customer?.email || senderEmail,
+      ticketNumber: updatedTicket.ticket_number,
+      requesterName: senderNames || "",
+      subject: subject,
+    });
+    await prisma.tickets.update({
+      where: { id: tickets.id },
+      data: {
+        original_email_message_id: systemMessageId || emailMessageId,
+        email_thread_id: systemMessageId || emailMessageId,
+      },
+    });
+    // await sendSatisfactionEmail({
+    //   body: aiResponse.answer,
+    //   ticketId: tickets.id,
+    //   requesterEmail: customer?.email,
+    //   // requesterEmail:  senderEmail,
+    //   ticketNumber: updatedTicket.ticket_number,
+    //   requesterName: senderNames || "",
+    // });
     // }
     try {
       await generateSLAHistory(
@@ -823,6 +840,94 @@ class SimpleEmailTicketSystem {
 
     return updatedTicket;
   }
+  // private async createTicket(
+  //   customer: any,
+  //   subject: string,
+  //   body: string,
+  //   bodyText: string,
+  //   senderEmail: string,
+  //   emailMessageId?: string,
+  //   threadId?: string,
+  //   fullEmail?: ParsedEmail,
+  //   senderNames?: string,
+  //   attachments?: any[],
+  // ): Promise<any> {
+  //   const ticketNumber = `TCKT-${Date.now()}`;
+
+  //   // const slaConfig = await prisma.sla_configurations.findFirst({
+  //   //   where: {
+  //   //     priority: "Medium",
+  //   //   },
+  //   // });
+
+  //   // const cleanedBody = this.cleanBody(body);
+  //   // const attachment_urls = JSON.stringify(
+  //   //   attachments?.map((val: any) => val.fileUrl) || [],
+  //   // );
+
+  //   // const tickets = await prisma.tickets.create({
+  //   //   data: {
+  //   //     ticket_number: ticketNumber,
+  //   //     customer_id: customer?.id || null,
+  //   //     customer_name: senderNames || "",
+  //   //     customer_email: senderEmail,
+  //   //     subject: this.cleanSubject(subject),
+  //   //     description: cleanedBody,
+  //   //     email_body_text: bodyText,
+  //   //     sort_description: (() => {
+  //   //       const words = bodyText.trim().split(/\s+/);
+  //   //       return words.length > 30
+  //   //         ? words.slice(0, 30).join(" ") + "..."
+  //   //         : bodyText;
+  //   //     })(),
+  //   //     priority: slaConfig ? slaConfig.id : 0,
+  //   //     status: "Open",
+  //   //     source: "Email",
+  //   //     original_email_message_id: emailMessageId,
+  //   //     email_thread_id: threadId || emailMessageId,
+  //   //     attachment_urls,
+  //   //   },
+  //   // });
+
+  //   // const updatedTicket = await prisma.tickets.update({
+  //   //   where: { id: tickets.id },
+  //   //   data: {
+  //   //     ticket_number: generateTicketNumber(tickets.id),
+  //   //   },
+  //   // });
+  //   // const aiResponse = await this.askAITicketSystem(
+  //   //   bodyText?.trim() || tickets.description,
+  //   // );
+  //   // // console.log(
+  //   // //   "🤖 AI Response:",
+  //   // //   this.cleanPlainEmailText(bodyText.trim()),
+  //   // //   JSON.stringify(aiResponse)
+  //   // // );
+  //   // // if (aiResponse?.success && customer) {
+  //   // //   await sendSatisfactionEmail({
+  //   // //     body: aiResponse.answer,
+  //   // //     ticketId: tickets.id,
+  //   // //     requesterEmail: customer?.email,
+  //   // //     // requesterEmail:  senderEmail,
+  //   // //     ticketNumber: updatedTicket.ticket_number,
+  //   // //     requesterName: senderNames || "",
+  //   // //   });
+  //   // // }
+  //   // try {
+  //   //   await generateSLAHistory(
+  //   //     tickets.id,
+  //   //     slaConfig ? slaConfig.id : 0,
+  //   //     tickets.created_at || new Date(),
+  //   //   );
+  //   // } catch (slaError) {
+  //   //   console.error("Error generating SLA history:", slaError);
+  //   // }
+  //   // if (attachments && attachments.length > 0) {
+  //   //   await this.saveTicketAttachments(tickets.id, attachments);
+  //   // }
+
+  //   // return updatedTicket;
+  // }
 
   private async saveTicketAttachments(
     ticketId: number,

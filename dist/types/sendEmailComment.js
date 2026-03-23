@@ -155,12 +155,13 @@ class EmailService {
                 const agentName = (comment === null || comment === void 0 ? void 0 : comment.users)
                     ? `${comment.users.first_name} ${comment.users.last_name}`
                     : "Support Team";
-                let Emails = (comment === null || comment === void 0 ? void 0 : comment.mailInternal) == "false" || isSeparatedEmail
+                let Emails = (comment === null || comment === void 0 ? void 0 : comment.mailInternal) != "false" || isSeparatedEmail
                     ? assignedEmail
                     : [...customerEmail, assignedEmail];
                 if (additionalEmails.length > 0) {
                     Emails = [...Emails, ...additionalEmails];
                 }
+                console.log("printing for debugg: ", comment === null || comment === void 0 ? void 0 : comment.mailInternal, customerEmail);
                 console.log("Emails to send comment to:", Emails);
                 //Generate unique message ID for THIS outgoing email
                 const newMessageId = `<ticket-${ticket.id}-comment-${comment.id}-${Date.now()}@gmail.com>`;
@@ -285,7 +286,7 @@ class EmailService {
                 const htmlContent = yield this.ticketCommentConversation(ticket, agentName, comment, imageHtml);
                 // ✅ FIXED: Create mail options object with all properties
                 const mailOptions = {
-                    from: `"Support Team" <${process.env.SMTP_USERNAME}>`,
+                    from: `"Doubleclick Consulting Limited" <${process.env.SMTP_USERNAME}>`,
                     to: Emails,
                     // to: customerEmail,
                     cc: [
@@ -400,7 +401,7 @@ class EmailService {
                  <span style="color: #666; font-size: 14px;">Subject: ${ticket.subject}</span>
                </td>
                <td style="text-align: right; vertical-align: center;">
-                 ${(comment === null || comment === void 0 ? void 0 : comment.mailInternal) == "false" || isSeparatedEmail
+                 ${(comment === null || comment === void 0 ? void 0 : comment.mailInternal) != "false" || isSeparatedEmail
                     ? `<span style="background-color: #28a745; color: white;    white-space: nowrap; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight:bold;">
                    ${ticket.status.toUpperCase()}
                  </span>`

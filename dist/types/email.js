@@ -58,6 +58,7 @@ const blackbaze_1 = require("../utils/blackbaze");
 const slaMonitorService_1 = __importDefault(require("./slaMonitorService"));
 const ticketController_controller_1 = require("../v1/controllers/ticketController.controller");
 const emailImageExtractor_1 = require("./emailImageExtractor");
+const sendCreatedResponse_1 = require("./sendCreatedResponse");
 dotenv.config();
 const prisma = new client_1.PrismaClient();
 class SimpleEmailTicketSystem {
@@ -134,7 +135,7 @@ class SimpleEmailTicketSystem {
                         console.log("🔍 Checking for emails on startup...");
                         this.fetchNewEmails();
                         // ✅ FIX #4: Use 30-second polling as PRIMARY method only
-                        this.startPolling(30000);
+                        this.startPolling(3000);
                         resolve();
                     })
                         .catch(reject);
@@ -314,7 +315,7 @@ class SimpleEmailTicketSystem {
                         // });
                         if (currentUidNext > this.lastUid) {
                             const uidRange = `${this.lastUid + 1}:${currentUidNext}`;
-                            console.log(`⬇️ Fetching emails with UID range: ${uidRange}`);
+                            // console.log(`⬇️ Fetching emails with UID range: ${uidRange}`);
                             if (!this.imap) {
                                 reject(new Error("IMAP disconnected"));
                                 return;
@@ -325,14 +326,16 @@ class SimpleEmailTicketSystem {
                             let processedCount = 0;
                             let totalMessages = 0;
                             fetcher.on("message", (msg, seqno) => {
-                                console.log(`📨 Processing email #${seqno}`);
+                                // console.log(`📨 Processing email #${seqno}`);
                                 totalMessages++;
                                 this.processEmailMessage(msg, seqno).finally(() => {
                                     processedCount++;
                                     // If all messages processed, save UID and resolve
                                     if (processedCount === totalMessages) {
                                         this.saveLastUid(currentUidNext).then(() => {
-                                            console.log(`✅ Finished fetching emails. Updated lastUid to ${currentUidNext}`);
+                                            // console.log(
+                                            //   `✅ Finished fetching emails. Updated lastUid to ${currentUidNext}`,
+                                            // );
                                             this.isFetching = false;
                                             resolve();
                                         });
@@ -422,7 +425,7 @@ class SimpleEmailTicketSystem {
                 //   `📧 Full email parsed:`,
                 //   email.messageId,
                 //   email.references,
-                //   email.inReplyTo
+                //   email.inReplyTo,
                 // );
                 const threadId = Array.isArray(references)
                     ? references[0] // string | undefined
@@ -594,7 +597,8 @@ class SimpleEmailTicketSystem {
     }
     createTicket(customer, subject, body, bodyText, senderEmail, emailMessageId, threadId, fullEmail, senderNames, attachments) {
         return __awaiter(this, void 0, void 0, function* () {
-            const ticketNumber = `TCKT-${Date.now()}`;
+            const ticketNumber = `${Date.now()}`;
+            // const ticketNumber = `TCKT-${Date.now()}`;
             const slaConfig = yield prisma.sla_configurations.findFirst({
                 where: {
                     priority: "Medium",
@@ -638,14 +642,28 @@ class SimpleEmailTicketSystem {
             //   JSON.stringify(aiResponse)
             // );
             // if (aiResponse?.success && customer) {
-            //   await sendSatisfactionEmail({
-            //     body: aiResponse.answer,
-            //     ticketId: tickets.id,
-            //     requesterEmail: customer?.email,
-            //     // requesterEmail:  senderEmail,
-            //     ticketNumber: updatedTicket.ticket_number,
-            //     requesterName: senderNames || "",
-            //   });
+            const systemMessageId = yield (0, sendCreatedResponse_1.sendTicketCreatedEmail)({
+                ticketId: tickets.id,
+                requesterEmail: (customer === null || customer === void 0 ? void 0 : customer.email) || senderEmail,
+                ticketNumber: updatedTicket.ticket_number,
+                requesterName: senderNames || "",
+                subject: subject,
+            });
+            yield prisma.tickets.update({
+                where: { id: tickets.id },
+                data: {
+                    original_email_message_id: systemMessageId || emailMessageId,
+                    email_thread_id: systemMessageId || emailMessageId,
+                },
+            });
+            // await sendSatisfactionEmail({
+            //   body: aiResponse.answer,
+            //   ticketId: tickets.id,
+            //   requesterEmail: customer?.email,
+            //   // requesterEmail:  senderEmail,
+            //   ticketNumber: updatedTicket.ticket_number,
+            //   requesterName: senderNames || "",
+            // });
             // }
             try {
                 yield (0, ticketController_controller_1.generateSLAHistory)(tickets.id, slaConfig ? slaConfig.id : 0, tickets.created_at || new Date());
@@ -659,6 +677,89 @@ class SimpleEmailTicketSystem {
             return updatedTicket;
         });
     }
+    // private async createTicket(
+    //   customer: any,
+    //   subject: string,
+    //   body: string,
+    //   bodyText: string,
+    //   senderEmail: string,
+    //   emailMessageId?: string,
+    //   threadId?: string,
+    //   fullEmail?: ParsedEmail,
+    //   senderNames?: string,
+    //   attachments?: any[],
+    // ): Promise<any> {
+    //   const ticketNumber = `TCKT-${Date.now()}`;
+    //   // const slaConfig = await prisma.sla_configurations.findFirst({
+    //   //   where: {
+    //   //     priority: "Medium",
+    //   //   },
+    //   // });
+    //   // const cleanedBody = this.cleanBody(body);
+    //   // const attachment_urls = JSON.stringify(
+    //   //   attachments?.map((val: any) => val.fileUrl) || [],
+    //   // );
+    //   // const tickets = await prisma.tickets.create({
+    //   //   data: {
+    //   //     ticket_number: ticketNumber,
+    //   //     customer_id: customer?.id || null,
+    //   //     customer_name: senderNames || "",
+    //   //     customer_email: senderEmail,
+    //   //     subject: this.cleanSubject(subject),
+    //   //     description: cleanedBody,
+    //   //     email_body_text: bodyText,
+    //   //     sort_description: (() => {
+    //   //       const words = bodyText.trim().split(/\s+/);
+    //   //       return words.length > 30
+    //   //         ? words.slice(0, 30).join(" ") + "..."
+    //   //         : bodyText;
+    //   //     })(),
+    //   //     priority: slaConfig ? slaConfig.id : 0,
+    //   //     status: "Open",
+    //   //     source: "Email",
+    //   //     original_email_message_id: emailMessageId,
+    //   //     email_thread_id: threadId || emailMessageId,
+    //   //     attachment_urls,
+    //   //   },
+    //   // });
+    //   // const updatedTicket = await prisma.tickets.update({
+    //   //   where: { id: tickets.id },
+    //   //   data: {
+    //   //     ticket_number: generateTicketNumber(tickets.id),
+    //   //   },
+    //   // });
+    //   // const aiResponse = await this.askAITicketSystem(
+    //   //   bodyText?.trim() || tickets.description,
+    //   // );
+    //   // // console.log(
+    //   // //   "🤖 AI Response:",
+    //   // //   this.cleanPlainEmailText(bodyText.trim()),
+    //   // //   JSON.stringify(aiResponse)
+    //   // // );
+    //   // // if (aiResponse?.success && customer) {
+    //   // //   await sendSatisfactionEmail({
+    //   // //     body: aiResponse.answer,
+    //   // //     ticketId: tickets.id,
+    //   // //     requesterEmail: customer?.email,
+    //   // //     // requesterEmail:  senderEmail,
+    //   // //     ticketNumber: updatedTicket.ticket_number,
+    //   // //     requesterName: senderNames || "",
+    //   // //   });
+    //   // // }
+    //   // try {
+    //   //   await generateSLAHistory(
+    //   //     tickets.id,
+    //   //     slaConfig ? slaConfig.id : 0,
+    //   //     tickets.created_at || new Date(),
+    //   //   );
+    //   // } catch (slaError) {
+    //   //   console.error("Error generating SLA history:", slaError);
+    //   // }
+    //   // if (attachments && attachments.length > 0) {
+    //   //   await this.saveTicketAttachments(tickets.id, attachments);
+    //   // }
+    //   // return updatedTicket;
+    // }
     saveTicketAttachments(ticketId, attachments) {
         return __awaiter(this, void 0, void 0, function* () {
             try {

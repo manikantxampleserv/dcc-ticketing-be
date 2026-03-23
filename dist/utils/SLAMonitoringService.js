@@ -380,17 +380,42 @@ Immediate review and corrective action may be required..`,
     static sendNotification(emailData) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const response = yield prisma.notifications.create({
-                    data: {
-                        user_id: emailData.userId,
-                        type: emailData.type,
-                        title: emailData.title,
-                        message: emailData.message,
-                        ticket_id: emailData.ticket_id,
-                        read: false,
-                        sent_via: "in_app",
-                    },
-                });
+                if (emailData.userId) {
+                    yield prisma.notifications.create({
+                        data: {
+                            user_id: emailData.userId,
+                            type: emailData.type,
+                            title: emailData.title,
+                            message: emailData.message,
+                            ticket_id: emailData.ticket_id,
+                            read: false,
+                            sent_via: "in_app",
+                        },
+                    });
+                }
+                else {
+                    const users = yield prisma.users.findMany({
+                        include: {
+                            user_role: true,
+                        },
+                    });
+                    const adminUser = users.find((user) => { var _a, _b; return (_b = (_a = user.user_role) === null || _a === void 0 ? void 0 : _a.name) === null || _b === void 0 ? void 0 : _b.toLowerCase().includes("admin"); });
+                    if (!adminUser) {
+                        console.warn("No admin found");
+                        return;
+                    }
+                    yield prisma.notifications.create({
+                        data: {
+                            user_id: emailData.userId || adminUser.id,
+                            type: emailData.type,
+                            title: emailData.title,
+                            message: emailData.message,
+                            ticket_id: emailData.ticket_id,
+                            read: false,
+                            sent_via: "in_app",
+                        },
+                    });
+                }
             }
             catch (error) {
                 console.error("❌ Error sending email notification:", error);

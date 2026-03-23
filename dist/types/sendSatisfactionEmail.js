@@ -57,7 +57,7 @@ const sendSatisfactionEmail = (_a) => __awaiter(void 0, [_a], void 0, function* 
     <p style="font-size:12px;color:#666">This is a one-click link to record your response.</p>
   `;
     yield transporter.sendMail({
-        to: requesterEmail,
+        to: `Doubleclick Consulting Limited <${requesterEmail}>`,
         from: process.env.MAIL_FROM,
         // cc: ["shreyansh.tripathi@ampleserv.com", "anil.kumar@ampleserv.com"],
         subject: `Ticket #${ticketNumber} resolved — quick feedback`,

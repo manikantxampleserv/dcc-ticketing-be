@@ -15,6 +15,8 @@ const validate_1 = require("../../middlewares/validate");
 const fileUpload_1 = require("../../utils/fileUpload");
 const ticketController_controller_1 = require("../controllers/ticketController.controller");
 const ZendeskTicketImportService_1 = require("../../utils/ZendeskTicketImportService");
+const client_1 = require("@prisma/client");
+const prisma = new client_1.PrismaClient();
 const router = (0, express_1.Router)();
 ((0, fileUpload_1.uploadSingleFile)("attachment"),
     router.post("/ticket", auth_1.authenticateToken, (0, fileUpload_1.uploadSingleFile)("attachment_urls"), ticketController_controller_1.ticketController.createTicket));
@@ -32,10 +34,31 @@ router.get("/ticket", auth_1.authenticateToken, ticketController_controller_1.ti
 router.get("/ticket-for-customer", auth_1.authenticateToken, ticketController_controller_1.ticketController.getAllTicketForCutomer);
 router.get("/ticket-list", auth_1.authenticateToken, ticketController_controller_1.ticketController.getListTicket);
 router.delete("/ticket", validate_1.validate, ticketController_controller_1.ticketController.deleteTicket);
-router.delete("/ticket", validate_1.validate, ticketController_controller_1.ticketController.deleteTicket);
+router.get("/remove-duplicate", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        yield cleanDuplicateTickets();
+        res.json({
+            success: true,
+            message: "Duplicate tickets cleaned successfully",
+        });
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: "Cleanup failed",
+        });
+    }
+}));
 router.get("/import-zendesk-tickets", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        yield ZendeskTicketImportService_1.ZendeskTicketImportService.importTickets();
+        // ✅ Run in background
+        setImmediate(() => {
+            ZendeskTicketImportService_1.ZendeskTicketImportService.importTickets()
+                .then(() => console.log("Import completed"))
+                .catch((err) => console.error("Import failed:", err));
+        });
+        // ZendeskTicketImportService.importTickets();
         // res.setHeader(
         //   "Content-Type",
         //   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -57,4 +80,54 @@ router.get("/import-zendesk-tickets", (req, res) => __awaiter(void 0, void 0, vo
         });
     }
 }));
+const cleanDuplicateTickets = () => __awaiter(void 0, void 0, void 0, function* () {
+    const duplicates = yield prisma.tickets.groupBy({
+        by: ["zendesk_ticket_id"],
+        _count: { zendesk_ticket_id: true },
+        having: {
+            zendesk_ticket_id: {
+                _count: { gt: 1 },
+            },
+        },
+    });
+    for (const group of duplicates) {
+        const tickets = yield prisma.tickets.findMany({
+            where: {
+                zendesk_ticket_id: group.zendesk_ticket_id,
+            },
+            select: {
+                id: true,
+                ticket_number: true,
+                created_at: true,
+                _count: {
+                    select: { ticket_comments: true },
+                },
+            },
+            orderBy: {
+                created_at: "asc",
+            },
+        });
+        const withComments = tickets.filter((t) => t._count.ticket_comments > 0);
+        let ticketToKeep;
+        if (withComments.length > 0) {
+            ticketToKeep = withComments[0];
+        }
+        else {
+            ticketToKeep = tickets[0];
+        }
+        const toDelete = tickets.filter((t) => t.id !== ticketToKeep.id);
+        // console.log("Total ticket ", toDelete);
+        for (const t of toDelete) {
+            yield prisma.tickets.delete({
+                where: { id: t.id },
+            });
+            yield prisma.ticket_comments.deleteMany({
+                where: { ticket_id: Number(t.id) },
+            });
+            console.log("Deleted ticket:", t.id);
+        }
+        console.log(`Kept ticket ${(ticketToKeep.id, ticketToKeep.ticket_number)} for zendesk_ticket_id ${group.zendesk_ticket_id}`);
+    }
+    console.log("Cleanup completed");
+});
 exports.default = router;
