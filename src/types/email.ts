@@ -793,29 +793,31 @@ class SimpleEmailTicketSystem {
         ticket_number: generateTicketNumber(tickets.id),
       },
     });
-    const aiResponse = await this.askAITicketSystem(
-      bodyText?.trim() || tickets.description,
-    );
+
+    // const systemMessageId = await sendTicketCreatedEmail({
+    //   ticketId: tickets.id,
+    //   requesterEmail: customer?.email || senderEmail,
+    //   ticketNumber: updatedTicket.ticket_number,
+    //   requesterName: senderNames || "",
+    //   subject: subject,
+    // });
+    // await prisma.tickets.update({
+    //   where: { id: tickets.id },
+    //   data: {
+    //     original_email_message_id: systemMessageId || emailMessageId,
+    //     email_thread_id: systemMessageId || emailMessageId,
+    //   },
+    // });
+
+    // const aiResponse = await this.askAITicketSystem(
+    //   bodyText?.trim() || tickets.description,
+    // );
     // console.log(
     //   "🤖 AI Response:",
     //   this.cleanPlainEmailText(bodyText.trim()),
     //   JSON.stringify(aiResponse)
     // );
     // if (aiResponse?.success && customer) {
-    const systemMessageId = await sendTicketCreatedEmail({
-      ticketId: tickets.id,
-      requesterEmail: customer?.email || senderEmail,
-      ticketNumber: updatedTicket.ticket_number,
-      requesterName: senderNames || "",
-      subject: subject,
-    });
-    await prisma.tickets.update({
-      where: { id: tickets.id },
-      data: {
-        original_email_message_id: systemMessageId || emailMessageId,
-        email_thread_id: systemMessageId || emailMessageId,
-      },
-    });
     // await sendSatisfactionEmail({
     //   body: aiResponse.answer,
     //   ticketId: tickets.id,
@@ -837,7 +839,6 @@ class SimpleEmailTicketSystem {
     if (attachments && attachments.length > 0) {
       await this.saveTicketAttachments(tickets.id, attachments);
     }
-
     return updatedTicket;
   }
   // private async createTicket(

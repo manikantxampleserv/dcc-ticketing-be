@@ -58,7 +58,6 @@ const blackbaze_1 = require("../utils/blackbaze");
 const slaMonitorService_1 = __importDefault(require("./slaMonitorService"));
 const ticketController_controller_1 = require("../v1/controllers/ticketController.controller");
 const emailImageExtractor_1 = require("./emailImageExtractor");
-const sendCreatedResponse_1 = require("./sendCreatedResponse");
 dotenv.config();
 const prisma = new client_1.PrismaClient();
 class SimpleEmailTicketSystem {
@@ -635,27 +634,29 @@ class SimpleEmailTicketSystem {
                     ticket_number: (0, GenerateTicket_1.generateTicketNumber)(tickets.id),
                 },
             });
-            const aiResponse = yield this.askAITicketSystem((bodyText === null || bodyText === void 0 ? void 0 : bodyText.trim()) || tickets.description);
+            // const systemMessageId = await sendTicketCreatedEmail({
+            //   ticketId: tickets.id,
+            //   requesterEmail: customer?.email || senderEmail,
+            //   ticketNumber: updatedTicket.ticket_number,
+            //   requesterName: senderNames || "",
+            //   subject: subject,
+            // });
+            // await prisma.tickets.update({
+            //   where: { id: tickets.id },
+            //   data: {
+            //     original_email_message_id: systemMessageId || emailMessageId,
+            //     email_thread_id: systemMessageId || emailMessageId,
+            //   },
+            // });
+            // const aiResponse = await this.askAITicketSystem(
+            //   bodyText?.trim() || tickets.description,
+            // );
             // console.log(
             //   "🤖 AI Response:",
             //   this.cleanPlainEmailText(bodyText.trim()),
             //   JSON.stringify(aiResponse)
             // );
             // if (aiResponse?.success && customer) {
-            const systemMessageId = yield (0, sendCreatedResponse_1.sendTicketCreatedEmail)({
-                ticketId: tickets.id,
-                requesterEmail: (customer === null || customer === void 0 ? void 0 : customer.email) || senderEmail,
-                ticketNumber: updatedTicket.ticket_number,
-                requesterName: senderNames || "",
-                subject: subject,
-            });
-            yield prisma.tickets.update({
-                where: { id: tickets.id },
-                data: {
-                    original_email_message_id: systemMessageId || emailMessageId,
-                    email_thread_id: systemMessageId || emailMessageId,
-                },
-            });
             // await sendSatisfactionEmail({
             //   body: aiResponse.answer,
             //   ticketId: tickets.id,
